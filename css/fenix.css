@@ -694,33 +694,36 @@ body {
   margin-bottom: 14px;
 }
 
-/* ── RATING BUTTONS ──────────────────────────────────────────────────────── */
+/* ── RATING BUTTONS (pastilles colorées) ─────────────────────────────────── */
 .rating-group {
-  display: flex; gap: 8px; margin-bottom: 6px;
+  display: flex; gap: 10px; margin-bottom: 6px;
 }
 .rating-btn {
   flex: 1; aspect-ratio: 1/1;
-  max-width: 48px; min-width: 0;
-  border: 2px solid var(--gray-200); border-radius: 10px;
-  background: var(--gray-50); font-size: 16px; font-weight: 800;
-  color: var(--gray-400); cursor: pointer;
+  max-width: 52px; min-width: 0;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  font-size: 0;
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: border-color 0.1s, background 0.1s, color 0.1s, transform 0.08s;
+  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
   -webkit-tap-highlight-color: transparent;
 }
-.rating-btn:active { transform: scale(0.92); }
+.rating-btn:active { transform: scale(0.88); }
 
-.rating-btn[data-n="1"].selected { background: var(--n1-bg); border-color: var(--n1-border); color: var(--n1-text); }
-.rating-btn[data-n="2"].selected { background: var(--n2-bg); border-color: var(--n2-border); color: var(--n2-text); }
-.rating-btn[data-n="3"].selected { background: var(--n3-bg); border-color: var(--n3-border); color: var(--n3-text); }
-.rating-btn[data-n="4"].selected { background: var(--n4-bg); border-color: var(--n4-border); color: var(--n4-text); }
-.rating-btn[data-n="5"].selected { background: var(--n5-bg); border-color: var(--n5-border); color: var(--n5-text); }
+/* Couleurs de base (non sélectionné) */
+.rating-btn.n1 { background: var(--n1-bg);  border-color: var(--n1-border); }
+.rating-btn.n2 { background: var(--n2-bg);  border-color: var(--n2-border); }
+.rating-btn.n3 { background: var(--n3-bg);  border-color: var(--n3-border); }
+.rating-btn.n4 { background: var(--n4-bg);  border-color: var(--n4-border); }
+.rating-btn.n5 { background: var(--n5-bg);  border-color: var(--n5-border); }
 
-.rating-labels {
-  display: flex; justify-content: space-between;
-  font-size: 10px; color: var(--gray-400); font-style: italic;
-  padding: 0 2px;
-}
+/* Sélectionné : couleur pleine */
+.rating-btn.n1.selected { background: var(--n1-text); border-color: var(--n1-text); box-shadow: 0 0 0 3px var(--n1-border); }
+.rating-btn.n2.selected { background: var(--n2-text); border-color: var(--n2-text); box-shadow: 0 0 0 3px var(--n2-border); }
+.rating-btn.n3.selected { background: var(--n3-text); border-color: var(--n3-text); box-shadow: 0 0 0 3px var(--n3-border); }
+.rating-btn.n4.selected { background: var(--n4-text); border-color: var(--n4-text); box-shadow: 0 0 0 3px var(--n4-border); }
+.rating-btn.n5.selected { background: var(--n5-text); border-color: var(--n5-text); box-shadow: 0 0 0 3px var(--n5-border); }
 
 /* ── INTRO CARD (légende notation) ──────────────────────────────────────── */
 .intro-card {
@@ -736,16 +739,15 @@ body {
 }
 .rating-legend { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 .legend-row { display: flex; align-items: flex-start; gap: 12px; }
-.legend-num {
-  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 800; border: 2px solid;
+.legend-dot {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  border: 3px solid;
 }
-.legend-num.n1 { background: var(--n1-bg); border-color: var(--n1-border); color: var(--n1-text); }
-.legend-num.n2 { background: var(--n2-bg); border-color: var(--n2-border); color: var(--n2-text); }
-.legend-num.n3 { background: var(--n3-bg); border-color: var(--n3-border); color: var(--n3-text); }
-.legend-num.n4 { background: var(--n4-bg); border-color: var(--n4-border); color: var(--n4-text); }
-.legend-num.n5 { background: var(--n5-bg); border-color: var(--n5-border); color: var(--n5-text); }
+.legend-dot.n1 { background: var(--n1-bg); border-color: var(--n1-text); }
+.legend-dot.n2 { background: var(--n2-bg); border-color: var(--n2-text); }
+.legend-dot.n3 { background: var(--n3-bg); border-color: var(--n3-text); }
+.legend-dot.n4 { background: var(--n4-bg); border-color: var(--n4-text); }
+.legend-dot.n5 { background: var(--n5-bg); border-color: var(--n5-text); }
 .legend-text { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
 .legend-label { font-size: 14px; font-weight: 700; color: var(--gray-800); }
 .legend-desc  { font-size: 12px; color: var(--gray-600); line-height: 1.4; }
@@ -775,11 +777,11 @@ body {
   border-width: 3px; transform: scale(1.08);
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
-.rating-btn[data-n="1"].pending { background: var(--n1-bg); border-color: var(--n1-border); color: var(--n1-text); }
-.rating-btn[data-n="2"].pending { background: var(--n2-bg); border-color: var(--n2-border); color: var(--n2-text); }
-.rating-btn[data-n="3"].pending { background: var(--n3-bg); border-color: var(--n3-border); color: var(--n3-text); }
-.rating-btn[data-n="4"].pending { background: var(--n4-bg); border-color: var(--n4-border); color: var(--n4-text); }
-.rating-btn[data-n="5"].pending { background: var(--n5-bg); border-color: var(--n5-border); color: var(--n5-text); }
+.rating-btn.n1.pending { background: var(--n1-border); border-color: var(--n1-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+.rating-btn.n2.pending { background: var(--n2-border); border-color: var(--n2-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+.rating-btn.n3.pending { background: var(--n3-border); border-color: var(--n3-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+.rating-btn.n4.pending { background: var(--n4-border); border-color: var(--n4-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+.rating-btn.n5.pending { background: var(--n5-border); border-color: var(--n5-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
 
 .rating-preview { display: none; flex-direction: column; gap: 2px; margin-top: 8px; }
 .rating-preview.active { display: flex; }

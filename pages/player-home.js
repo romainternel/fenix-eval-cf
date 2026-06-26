@@ -123,7 +123,7 @@ async function showEvaluation(sessionId) {
       <div class="rating-legend">
         ${[1,2,3,4,5].map(n => `
           <div class="legend-row">
-            <div class="legend-num n${n}">${n}</div>
+            <div class="legend-dot n${n}"></div>
             <div class="legend-text">
               <span class="legend-label">${RATING_DESC[n].label}</span>
               <span class="legend-desc">${RATING_DESC[n].desc}</span>
@@ -287,10 +287,10 @@ function showAxeCriteres(profilId, axeId, sessionId, btnEl) {
           <div class="critere-eval-texte">${escHtml(c.texte)}</div>
           <div class="rating-group">
             ${[1,2,3,4,5].map(n => `
-              <button class="rating-btn ${note === n ? 'selected' : ''}" data-n="${n}"
+              <button class="rating-btn n${n} ${note === n ? 'selected' : ''}" data-n="${n}"
                 id="rbtn-${c.id}-${n}"
-                onclick="tapRating('${sessionId}','${profilId}','${c.id}',${n},this)">
-                ${n}
+                onclick="tapRating('${sessionId}','${profilId}','${c.id}',${n},this)"
+                aria-label="${RATING_DESC[n].label}">
               </button>`).join('')}
           </div>
           <div class="rating-preview" id="preview-${c.id}"></div>
@@ -324,9 +324,9 @@ function tapRating(sessionId, profilId, critereId, note, btnEl) {
     });
     const rd = RATING_DESC[note];
     prev.innerHTML = `
-      <span class="preview-num n${note}">${note} — ${rd.label}</span>
+      <span class="preview-num n${note}">${rd.label}</span>
       <span class="preview-desc">${rd.desc}</span>
-      <span class="preview-hint">Retape ${note} pour valider</span>`;
+      <span class="preview-hint">Appuie à nouveau sur cette couleur pour valider</span>`;
     prev.className = 'rating-preview active';
   }
 }
