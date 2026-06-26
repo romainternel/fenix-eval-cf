@@ -585,8 +585,9 @@ body {
 }
 .form-sub { font-size: 11px; color: var(--gray-400); margin-left: 6px; font-weight: 400; letter-spacing: 0; text-transform: none; }
 
-/* ── BOUTON SECONDARY ───────────────────────────────────────────────────── */
+/* ── BOUTON SECONDARY / DANGER ──────────────────────────────────────────── */
 .btn-secondary { background: var(--gray-100); color: var(--gray-800); }
+.btn-danger    { background: var(--def-tag);  color: var(--def); border: 1.5px solid var(--def-light); width: 100%; }
 
 /* ── INFO ROW (détail session / joueur) ─────────────────────────────────── */
 .info-row { display: flex; gap: 12px; align-items: baseline; }

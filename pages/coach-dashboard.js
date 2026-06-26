@@ -390,6 +390,10 @@ async function showPlayerDetail(playerId) {
             <button type="submit" class="btn btn-primary" id="editPlayerBtn">Enregistrer</button>
           </div>
         </form>
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--gray-200)">
+        <button class="btn btn-danger" onclick="confirmDeletePlayer('${p.id}', '${escHtml(p.prenom)} ${escHtml(p.nom)}')">
+          Supprimer ce joueur
+        </button>
       </div>
     </div>`;
 }
@@ -444,6 +448,25 @@ async function submitEditPlayer(e, playerId, profileId) {
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Enregistrer';
+  }
+}
+
+/* ─── Suppression joueur ──────────────────────────────────────────────────── */
+async function confirmDeletePlayer(playerId, nomComplet) {
+  if (!window.confirm(`Supprimer ${nomComplet} ?\n\nCela supprimera aussi ses évaluations et profils.\nCette action est irréversible.`)) return;
+
+  try {
+    // Supprimer dans l'ordre pour respecter les FK
+    await window.supabaseClient.from('evaluations').delete().eq('player_id', playerId);
+    await window.supabaseClient.from('entretiens').delete().eq('player_id', playerId);
+    await window.supabaseClient.from('player_profiles').delete().eq('player_id', playerId);
+    await window.supabaseClient.from('user_profiles').update({ player_id: null }).eq('player_id', playerId);
+    const { error } = await window.supabaseClient.from('players').delete().eq('id', playerId);
+    if (error) throw error;
+    showToast('Joueur supprimé');
+    await renderPlayers();
+  } catch (err) {
+    alert('Erreur lors de la suppression : ' + (err.message || err));
   }
 }
 
