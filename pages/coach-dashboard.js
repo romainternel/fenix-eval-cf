@@ -1,6 +1,6 @@
 /* ─── FENIX Eval CF — Coach Dashboard ────────────────────────────────────────
    STORY 04 : Gestion des joueurs (liste, création, édition)
-   STORY 05 stub : Sessions
+   STORY 05 : Sessions d'évaluation (liste, création, fermeture)
 ──────────────────────────────────────────────────────────────────────────── */
 
 const PROFIL_LABELS = {
@@ -23,22 +23,201 @@ async function initCoachDashboard(user) {
   await renderSessions();
 }
 
-/* ═══════════════════════════════════════════════ SESSIONS — stub STORY 05 */
+/* ═══════════════════════════════════════════════════════ SESSIONS — STORY 05 */
 async function renderSessions() {
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const { data: sessions, error } = await window.supabaseClient
+    .from('sessions')
+    .select('*')
+    .order('date_session', { ascending: false });
+
+  if (error) {
+    gid('mainContent').innerHTML = `<p class="form-error" style="margin:20px">Erreur : ${escHtml(error.message)}</p>`;
+    return;
+  }
+
+  const liste    = sessions || [];
+  const ouvertes = liste.filter(s => s.statut === 'ouvert');
+  const fermees  = liste.filter(s => s.statut === 'ferme');
+
   gid('mainContent').innerHTML = `
     <div class="section-header">
       <h2 class="section-title">Sessions d'évaluation</h2>
       <button class="btn btn-primary btn-sm" onclick="showCreateSessionModal()">+ Nouvelle</button>
     </div>
     <p class="section-saison">Saison ${currentSaison()}</p>
-    <div class="empty-state">
-      <div class="empty-state-icon">📅</div>
-      <p>Aucune session pour le moment.<br>Story 05 à venir.</p>
+    ${liste.length === 0
+      ? `<div class="empty-state">
+           <div class="empty-state-icon">📅</div>
+           <p>Aucune session.<br>Créez la première session pour démarrer les évaluations.</p>
+         </div>`
+      : `${ouvertes.map(renderSessionCard).join('')}
+         ${fermees.length > 0
+           ? `<p class="section-title" style="margin:20px 0 10px">Sessions fermées</p>
+              ${fermees.map(renderSessionCard).join('')}`
+           : ''}`
+    }`;
+}
+
+function renderSessionCard(s) {
+  const isOpen = s.statut === 'ouvert';
+  return `
+    <div class="session-card ${isOpen ? 'open' : 'closed'}" onclick="showSessionDetail('${s.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+        <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:4px">${escHtml(s.label)}</div>
+      <div style="font-size:11px;color:var(--gray-400);letter-spacing:1px;font-family:monospace">${s.id}</div>
     </div>`;
 }
 
+async function showSessionDetail(sessionId) {
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const { data: s, error } = await window.supabaseClient
+    .from('sessions').select('*').eq('id', sessionId).single();
+
+  if (error) {
+    gid('mainContent').innerHTML = `<p class="form-error">Session introuvable.</p>`;
+    return;
+  }
+
+  const isOpen = s.statut === 'ouvert';
+
+  gid('mainContent').innerHTML = `
+    <div class="section-header" style="margin-bottom:16px">
+      <button class="btn btn-secondary btn-sm" onclick="renderSessions()">← Retour</button>
+      <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-size:18px;font-weight:800;color:var(--fenix-navy);margin-bottom:14px">${escHtml(s.label)}</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="info-row"><span class="info-label">ID</span><code class="info-value-code">${s.id}</code></div>
+          <div class="info-row"><span class="info-label">Date</span><span class="info-value">${formatDate(s.date_session)}</span></div>
+          <div class="info-row"><span class="info-label">Saison</span><span class="info-value">${s.saison}</span></div>
+          ${!isOpen && s.closed_at ? `<div class="info-row"><span class="info-label">Fermée le</span><span class="info-value">${formatDate(s.closed_at)}</span></div>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:10px">Résultats des évaluations</p>
+        <div class="empty-state" style="padding:20px">
+          <p>Tableau de bord joueurs — Story 08 à venir</p>
+        </div>
+      </div>
+    </div>
+    ${isOpen ? `
+    <div class="card" style="border-left:4px solid var(--def-light)">
+      <div class="card-body">
+        <p style="font-size:14px;color:var(--gray-600);margin-bottom:14px">
+          Une fois toutes les évaluations validées, fermez la session. Les joueurs ne pourront plus modifier leurs notes.
+        </p>
+        <button class="btn btn-danger btn-full" onclick="confirmCloseSession('${s.id}')">Fermer cette session</button>
+      </div>
+    </div>` : ''}`;
+}
+
+async function confirmCloseSession(sessionId) {
+  if (!confirm('Fermer la session "' + sessionId + '" ?\n\nLes joueurs ne pourront plus modifier leurs notes.')) return;
+
+  const { error } = await window.supabaseClient
+    .from('sessions')
+    .update({ statut: 'ferme', closed_at: new Date().toISOString() })
+    .eq('id', sessionId);
+
+  if (error) { showToast('Erreur : ' + error.message); return; }
+  showToast('Session fermée');
+  await renderSessions();
+}
+
 function showCreateSessionModal() {
-  showToast('Création de sessions — Story 05 à venir');
+  const now    = new Date();
+  const mois   = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const defLabel = `Évaluation — ${mois[now.getMonth()]} ${now.getFullYear()}`;
+  const defDate  = now.toISOString().split('T')[0];
+  const saison   = currentSaison();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'createSessionModal';
+  overlay.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">Nouvelle session</h3>
+        <button class="modal-close" onclick="closeModal('createSessionModal')">✕</button>
+      </div>
+      <form id="createSessionForm" onsubmit="submitCreateSession(event)">
+        <div class="form-group">
+          <label class="form-label">Nom de la session <span class="required">*</span></label>
+          <input class="form-input" name="label" required value="${defLabel}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date <span class="required">*</span></label>
+          <input class="form-input" name="date_session" type="date" required value="${defDate}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saison</label>
+          <input class="form-input" value="${saison}" disabled style="color:var(--gray-400)">
+        </div>
+        <p class="form-hint">Un identifiant unique sera généré automatiquement (ex : EVAL-2026-JAN-01)</p>
+        <p class="form-error" id="createSessionError" style="display:none"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createSessionModal')">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="createSessionBtn">Créer</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal('createSessionModal'); });
+  overlay.querySelector('[name="label"]').focus();
+}
+
+async function submitCreateSession(e) {
+  e.preventDefault();
+  const btn   = gid('createSessionBtn');
+  const errEl = gid('createSessionError');
+  const fd    = new FormData(e.target);
+  const saison = currentSaison();
+
+  btn.disabled = true;
+  btn.textContent = 'Création…';
+  errEl.style.display = 'none';
+
+  try {
+    const date = fd.get('date_session');
+    const d    = new Date(date);
+    const moisCode = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
+    const baseId   = `EVAL-${d.getFullYear()}-${moisCode[d.getMonth()]}`;
+
+    const { data: existing } = await window.supabaseClient
+      .from('sessions').select('id').ilike('id', baseId + '-%');
+    const num = String((existing || []).length + 1).padStart(2, '0');
+    const sessionId = `${baseId}-${num}`;
+
+    const { error } = await window.supabaseClient.from('sessions').insert({
+      id:           sessionId,
+      label:        fd.get('label').trim(),
+      saison,
+      date_session: date,
+      statut:       'ouvert',
+      created_by:   _coachUser.id
+    });
+    if (error) throw error;
+
+    closeModal('createSessionModal');
+    showToast('Session ' + sessionId + ' créée');
+    await renderSessions();
+
+  } catch (err) {
+    errEl.textContent = err.message || 'Erreur lors de la création';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Créer';
+  }
 }
 
 /* ═══════════════════════════════════════════════════════ JOUEURS — STORY 04 */
