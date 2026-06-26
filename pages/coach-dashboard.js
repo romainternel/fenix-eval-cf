@@ -14,6 +14,8 @@ const PROFIL_LABELS = {
   'gb':         'GB'
 };
 
+function gid(id) { return document.getElementById(id); }
+
 let _coachUser = null;
 
 async function initCoachDashboard(user) {
@@ -23,7 +25,7 @@ async function initCoachDashboard(user) {
 
 /* ═══════════════════════════════════════════════ SESSIONS — stub STORY 05 */
 async function renderSessions() {
-  el('mainContent').innerHTML = `
+  gid('mainContent').innerHTML = `
     <div class="section-header">
       <h2 class="section-title">Sessions d'évaluation</h2>
       <button class="btn btn-primary btn-sm" onclick="showCreateSessionModal()">+ Nouvelle</button>
@@ -41,7 +43,7 @@ function showCreateSessionModal() {
 
 /* ═══════════════════════════════════════════════════════ JOUEURS — STORY 04 */
 async function renderPlayers() {
-  el('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
   const [playersRes, profilesRes] = await Promise.all([
@@ -50,7 +52,7 @@ async function renderPlayers() {
   ]);
 
   if (playersRes.error) {
-    el('mainContent').innerHTML = `<p class="form-error">Erreur : ${playersRes.error.message}</p>`;
+    gid('mainContent').innerHTML = `<p class="form-error">Erreur : ${playersRes.error.message}</p>`;
     return;
   }
 
@@ -60,7 +62,7 @@ async function renderPlayers() {
   profiles.forEach(p => { profileMap[p.player_id] = p; });
   const combined = players.map(p => ({ ...p, profile: profileMap[p.id] || null }));
 
-  el('mainContent').innerHTML = `
+  gid('mainContent').innerHTML = `
     <div class="section-header">
       <h2 class="section-title">Joueurs <span class="badge-count">${combined.length}</span></h2>
       <button class="btn btn-primary btn-sm" onclick="showCreatePlayerModal()">+ Ajouter</button>
@@ -104,7 +106,7 @@ function renderPlayerCard(p) {
 
 /* ─── Détail / édition d'un joueur ───────────────────────────────────────── */
 async function showPlayerDetail(playerId) {
-  el('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
   const [playerRes, profileRes] = await Promise.all([
@@ -114,7 +116,7 @@ async function showPlayerDetail(playerId) {
   ]);
 
   if (playerRes.error) {
-    el('mainContent').innerHTML = `<p class="form-error">Joueur introuvable.</p>`;
+    gid('mainContent').innerHTML = `<p class="form-error">Joueur introuvable.</p>`;
     return;
   }
 
@@ -125,7 +127,7 @@ async function showPlayerDetail(playerId) {
   const currentDef  = prof ? (prof.profil_def || '') : '';
   const profId = prof ? prof.id : '';
 
-  el('mainContent').innerHTML = `
+  gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
       <button class="btn btn-secondary btn-sm" onclick="renderPlayers()">← Retour</button>
       <h2 class="section-title" style="margin-bottom:0">${escHtml(p.prenom)} ${escHtml(p.nom)}</h2>
@@ -194,8 +196,8 @@ async function showPlayerDetail(playerId) {
 
 async function submitEditPlayer(e, playerId, profileId) {
   e.preventDefault();
-  const btn   = el('editPlayerBtn');
-  const errEl = el('editPlayerError');
+  const btn   = gid('editPlayerBtn');
+  const errEl = gid('editPlayerError');
   const fd    = new FormData(e.target);
   const saison = currentSaison();
   const typeProfile = fd.get('typeProfile');
@@ -321,8 +323,8 @@ function showCreatePlayerModal() {
 }
 
 function toggleProfileType(val) {
-  var champDiv = el('champProfiles');
-  var gbDiv    = el('gbProfile');
+  var champDiv = gid('champProfiles');
+  var gbDiv    = gid('gbProfile');
   if (champDiv) champDiv.style.display = val === 'champ' ? '' : 'none';
   if (gbDiv)    gbDiv.style.display    = val === 'gb'    ? '' : 'none';
   var attSel = document.querySelector('[name="profil_att"]');
@@ -333,8 +335,8 @@ function toggleProfileType(val) {
 
 async function submitCreatePlayer(e) {
   e.preventDefault();
-  const btn    = el('createPlayerBtn');
-  const errEl  = el('createPlayerError');
+  const btn    = gid('createPlayerBtn');
+  const errEl  = gid('createPlayerError');
   const fd     = new FormData(e.target);
   const saison = currentSaison();
   const typeProfile = fd.get('typeProfile');
