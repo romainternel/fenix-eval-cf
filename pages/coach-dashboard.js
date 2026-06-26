@@ -491,8 +491,13 @@ function showCreatePlayerModal() {
           <input class="form-input" name="nom" required autocomplete="family-name">
         </div>
         <div class="form-group">
-          <label class="form-label">Email <span class="form-sub">(pour la connexion joueur)</span></label>
-          <input class="form-input" name="email" type="email" autocomplete="email">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mot de passe temporaire <span class="required">*</span></label>
+          <input class="form-input" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 caractères minimum">
+          <p class="form-hint">Le joueur pourra se connecter avec ce mot de passe.</p>
         </div>
         <div class="form-group">
           <label class="form-label">Type de profil <span class="required">*</span></label>
@@ -589,6 +594,26 @@ async function submitCreatePlayer(e) {
     }
     const { error: ppErr } = await window.supabaseClient.from('player_profiles').insert(profData);
     if (ppErr) throw ppErr;
+
+    // Créer le compte auth via Edge Function
+    const email    = fd.get('email').trim();
+    const password = fd.get('password');
+    if (email && password) {
+      const session = (await window.supabaseClient.auth.getSession()).data.session;
+      const res = await fetch(
+        'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/create-player-account',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token
+          },
+          body: JSON.stringify({ email, password, player_id: player.id })
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Erreur création compte');
+    }
 
     closeModal('createPlayerModal');
     showToast('Joueur ajouté');
