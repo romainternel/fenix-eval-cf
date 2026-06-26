@@ -453,14 +453,27 @@ async function submitEditPlayer(e, playerId, profileId) {
 
 /* ─── Suppression joueur ──────────────────────────────────────────────────── */
 async function confirmDeletePlayer(playerId, nomComplet) {
-  if (!window.confirm(`Supprimer ${nomComplet} ?\n\nCela supprimera aussi ses évaluations et profils.\nCette action est irréversible.`)) return;
+  if (!window.confirm(`Supprimer ${nomComplet} ?\n\nCela supprimera aussi son compte, ses évaluations et profils.\nCette action est irréversible.`)) return;
 
   try {
-    // Supprimer dans l'ordre pour respecter les FK
+    // Supprimer le compte auth via Edge Function
+    const session = (await window.supabaseClient.auth.getSession()).data.session;
+    await fetch(
+      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/create-player-account',
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ player_id: playerId })
+      }
+    );
+
+    // Supprimer les données dans l'ordre
     await window.supabaseClient.from('evaluations').delete().eq('player_id', playerId);
     await window.supabaseClient.from('entretiens').delete().eq('player_id', playerId);
     await window.supabaseClient.from('player_profiles').delete().eq('player_id', playerId);
-    await window.supabaseClient.from('user_profiles').update({ player_id: null }).eq('player_id', playerId);
     const { error } = await window.supabaseClient.from('players').delete().eq('id', playerId);
     if (error) throw error;
     showToast('Joueur supprimé');

@@ -12,60 +12,77 @@ function json(data: unknown, status = 200) {
   })
 }
 
+async function getAdminAndCoach(req: Request) {
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) return null
+
+  const supabaseUser = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  )
+  const { data: { user } } = await supabaseUser.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabaseUser
+    .from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'coach') return null
+
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  return supabaseAdmin
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
   try {
-    // 1. Vérifier que l'appelant est un coach
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return json({ error: 'Non autorisé' }, 401)
+    const admin = await getAdminAndCoach(req)
+    if (!admin) return json({ error: 'Non autorisé' }, 401)
 
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    /* ── POST : créer un compte joueur ───────────────────────────────── */
+    if (req.method === 'POST') {
+      const { email, password, player_id } = await req.json()
+      if (!email || !password || !player_id) {
+        return json({ error: 'email, password et player_id sont requis' }, 400)
+      }
 
-    const { data: { user } } = await supabaseUser.auth.getUser()
-    if (!user) return json({ error: 'Non autorisé' }, 401)
+      const { data: newUser, error: createError } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
+      if (createError) return json({ error: createError.message }, 400)
 
-    const { data: profile } = await supabaseUser
-      .from('user_profiles').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'coach') return json({ error: 'Accès refusé' }, 403)
+      const { error: linkError } = await admin
+        .from('user_profiles')
+        .upsert({ id: newUser.user.id, role: 'joueur', player_id })
+      if (linkError) return json({ error: linkError.message }, 500)
 
-    // 2. Lire les paramètres
-    const { email, password, player_id } = await req.json()
-    if (!email || !password || !player_id) {
-      return json({ error: 'email, password et player_id sont requis' }, 400)
+      return json({ success: true })
     }
 
-    // 3. Créer le compte auth avec la clé admin
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    /* ── DELETE : supprimer le compte auth lié à un joueur ───────────── */
+    if (req.method === 'DELETE') {
+      const { player_id } = await req.json()
+      if (!player_id) return json({ error: 'player_id requis' }, 400)
 
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,   // compte actif immédiatement, pas besoin de confirmer l'email
-    })
+      const { data: up } = await admin
+        .from('user_profiles').select('id').eq('player_id', player_id).maybeSingle()
 
-    if (createError) return json({ error: createError.message }, 400)
+      if (up?.id) {
+        await admin.auth.admin.deleteUser(up.id)
+      }
 
-    // 4. Lier le player_id dans user_profiles
-    // (le trigger handle_new_user a déjà créé la ligne avec role='joueur')
-    const { error: linkError } = await supabaseAdmin
-      .from('user_profiles')
-      .update({ player_id })
-      .eq('id', newUser.user.id)
+      return json({ success: true })
+    }
 
-    if (linkError) return json({ error: linkError.message }, 500)
-
-    return json({ success: true })
+    return json({ error: 'Méthode non supportée' }, 405)
 
   } catch (err) {
-    return json({ error: err.message ?? 'Erreur interne' }, 500)
+    return json({ error: (err as Error).message ?? 'Erreur interne' }, 500)
   }
 })
