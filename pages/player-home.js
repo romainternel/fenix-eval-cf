@@ -10,6 +10,10 @@ let _currentSession = null;
 let _ratings       = {};     // { critere_id: note_joueur }
 let _saving        = {};     // { critere_id: true }
 let _pending       = {};     // { critere_id: note } — 1er tap en attente de confirmation
+let _axeIds        = [];     // liste ordonnée des axes du profil courant
+let _axeIdx        = 0;      // index de l'axe affiché
+let _swipeProfilId = null;
+let _swipeSession  = null;
 
 const RATING_DESC = {
   1: { label: 'Fragile',    desc: 'Ce critère est encore instable ou non maîtrisé.' },
@@ -180,31 +184,94 @@ function renderGbEval(sessionId) {
 
 /* ── Axes tabs ────────────────────────────────────────────────────────────── */
 function renderAxesTabs(profilId, sessionId) {
-  const profil  = CRITERIA[profilId];
+  const profil = CRITERIA[profilId];
   if (!profil) return;
 
-  const axeIds  = Object.keys(profil.axes);
-  const firstAxe = axeIds[0];
+  _axeIds       = Object.keys(profil.axes);
+  _axeIdx       = 0;
+  _swipeProfilId = profilId;
+  _swipeSession  = sessionId;
   const type    = profil.type;
 
   pgid('evalContent').innerHTML = `
-    <div class="axes-eval-nav">
-      ${axeIds.map((axeId, i) => `
-        <button class="btn-axe-eval ${type} ${i === 0 ? 'active' : ''}"
-                id="axeBtn-${axeId}"
-                onclick="showAxeCriteres('${profilId}', '${axeId}', '${sessionId}', this)">
-          ${profil.axes[axeId].label}
-        </button>`).join('')}
+    <div class="axes-nav-wrapper">
+      <div class="axes-eval-nav" id="axesNav">
+        ${_axeIds.map((axeId, i) => `
+          <button class="btn-axe-eval ${type} ${i === 0 ? 'active' : ''}"
+                  id="axeBtn-${axeId}"
+                  onclick="selectAxe('${profilId}','${axeId}','${sessionId}',this)">
+            ${profil.axes[axeId].label}
+          </button>`).join('')}
+      </div>
     </div>
-    <div id="criteresContent"></div>`;
+    <div id="criteresContent"></div>
+    <div class="axe-arrows" id="axeArrows"></div>`;
 
-  showAxeCriteres(profilId, firstAxe, sessionId, pgid('axeBtn-' + firstAxe));
+  // Swipe gauche/droite sur les critères
+  addSwipeListeners();
+
+  showAxeCriteres(profilId, _axeIds[0], sessionId, pgid('axeBtn-' + _axeIds[0]));
+}
+
+function selectAxe(profilId, axeId, sessionId, btnEl) {
+  _axeIdx = _axeIds.indexOf(axeId);
+  showAxeCriteres(profilId, axeId, sessionId, btnEl);
+}
+
+function navAxe(dir) {
+  const next = _axeIdx + dir;
+  if (next < 0 || next >= _axeIds.length) return;
+  _axeIdx = next;
+  const axeId = _axeIds[_axeIdx];
+  const btn = pgid('axeBtn-' + axeId);
+  showAxeCriteres(_swipeProfilId, axeId, _swipeSession, btn);
+  if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function addSwipeListeners() {
+  let startX = 0;
+  const zone = pgid('criteresContent');
+  if (!zone) return;
+  zone.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  zone.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) < 60) return;
+    navAxe(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}
+
+function updateAxeArrows() {
+  const el = pgid('axeArrows');
+  if (!el || _axeIds.length <= 1) return;
+  const profil = CRITERIA[_swipeProfilId];
+  el.innerHTML = `
+    <button class="btn-axe-arrow ${_axeIdx === 0 ? 'disabled' : ''}"
+            onclick="navAxe(-1)" ${_axeIdx === 0 ? 'disabled' : ''}>← Précédent</button>
+    <span class="axe-counter">${_axeIdx + 1} / ${_axeIds.length}</span>
+    <button class="btn-axe-arrow ${_axeIdx === _axeIds.length - 1 ? 'disabled' : ''}"
+            onclick="navAxe(1)" ${_axeIdx === _axeIds.length - 1 ? 'disabled' : ''}>
+      ${_axeIdx < _axeIds.length - 1 ? profil.axes[_axeIds[_axeIdx + 1]].label + ' →' : 'Terminé ✓'}
+    </button>`;
 }
 
 /* ── Critères d'un axe ────────────────────────────────────────────────────── */
 function showAxeCriteres(profilId, axeId, sessionId, btnEl) {
   document.querySelectorAll('.btn-axe-eval').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
+  updateAxeArrows();
+  // Re-attacher le swipe après le rendu
+  setTimeout(() => {
+    const zone = pgid('criteresContent');
+    if (zone) {
+      let startX = 0;
+      zone.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+      zone.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - startX;
+        if (Math.abs(dx) < 60) return;
+        navAxe(dx < 0 ? 1 : -1);
+      }, { passive: true });
+    }
+  }, 0);
 
   const axe  = CRITERIA[profilId]?.axes[axeId];
   if (!axe) return;

@@ -640,9 +640,16 @@ body {
 .profil-tab.active.def .tab-progress { background: rgba(255,255,255,0.7); color: var(--def); }
 
 /* ── AXES NAV ────────────────────────────────────────────────────────────── */
+.axes-nav-wrapper {
+  position: relative; margin-bottom: 16px;
+}
+.axes-nav-wrapper::after {
+  content: ''; pointer-events: none;
+  position: absolute; right: 0; top: 0; bottom: 4px; width: 48px;
+  background: linear-gradient(to right, transparent, var(--gray-50));
+}
 .axes-eval-nav {
   display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
-  margin-bottom: 16px;
   scrollbar-width: none;
 }
 .axes-eval-nav::-webkit-scrollbar { display: none; }
@@ -742,6 +749,26 @@ body {
 .legend-text { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
 .legend-label { font-size: 14px; font-weight: 700; color: var(--gray-800); }
 .legend-desc  { font-size: 12px; color: var(--gray-600); line-height: 1.4; }
+
+/* ── NAVIGATION AXES (flèches bas + compteur) ────────────────────────────── */
+.axe-arrows {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 20px; padding: 12px 0;
+  border-top: 1px solid var(--gray-200);
+}
+.btn-axe-arrow {
+  flex: 1; padding: 12px 10px; border-radius: 10px;
+  border: 1.5px solid var(--gray-200); background: var(--white);
+  font-size: 13px; font-weight: 700; color: var(--fenix-navy);
+  cursor: pointer; text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-axe-arrow:not(.disabled):hover { background: var(--gray-100); }
+.btn-axe-arrow.disabled { color: var(--gray-400); cursor: default; }
+.axe-counter {
+  font-size: 12px; font-weight: 600; color: var(--gray-400);
+  white-space: nowrap; flex-shrink: 0;
+}
 
 /* ── RATING PREVIEW (double-tap) ─────────────────────────────────────────── */
 .rating-btn.pending {
