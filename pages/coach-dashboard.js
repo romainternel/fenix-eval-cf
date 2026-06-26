@@ -118,7 +118,15 @@ async function showSessionDetail(sessionId) {
         </p>
         <button class="btn btn-danger btn-full" onclick="confirmCloseSession('${s.id}')">Fermer cette session</button>
       </div>
-    </div>` : ''}`;
+    </div>` : `
+    <div class="card" style="border-left:4px solid var(--gray-400)">
+      <div class="card-body">
+        <p style="font-size:14px;color:var(--gray-600);margin-bottom:14px">
+          Session fermée. Vous pouvez la rouvrir si une correction est nécessaire.
+        </p>
+        <button class="btn btn-ghost btn-full" onclick="confirmReopenSession('${s.id}')">Rouvrir cette session</button>
+      </div>
+    </div>`}`;
 }
 
 async function confirmCloseSession(sessionId) {
@@ -131,6 +139,19 @@ async function confirmCloseSession(sessionId) {
 
   if (error) { showToast('Erreur : ' + error.message); return; }
   showToast('Session fermée');
+  await renderSessions();
+}
+
+async function confirmReopenSession(sessionId) {
+  if (!confirm('Rouvrir la session "' + sessionId + '" ?\n\nLes joueurs pourront à nouveau modifier leurs notes.')) return;
+
+  const { error } = await window.supabaseClient
+    .from('sessions')
+    .update({ statut: 'ouvert', closed_at: null })
+    .eq('id', sessionId);
+
+  if (error) { showToast('Erreur : ' + error.message); return; }
+  showToast('Session réouverte');
   await renderSessions();
 }
 
