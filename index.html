@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#0A2463">
+  <title>FENIX Eval CF — Connexion</title>
+  <link rel="stylesheet" href="css/fenix.css?v=1">
+  <style>
+    body {
+      background: var(--fenix-navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px 20px;
+    }
+
+    .login-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .login-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .login-logo img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    .login-logo-placeholder {
+      width: 80px;
+      height: 80px;
+      background: var(--fenix-navy);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--fenix-accent);
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--fenix-navy);
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .login-subtitle {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px;
+      font-size: 16px;
+      color: var(--gray-800);
+      background: var(--gray-50);
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--fenix-navy);
+      background: var(--white);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 16px;
+      background: var(--fenix-navy);
+      color: var(--white);
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-login:active { opacity: 0.85; transform: scale(0.99); }
+    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-accent-stripe {
+      height: 3px;
+      background: var(--fenix-accent);
+      border-radius: 0 0 10px 10px;
+      margin-top: -3px;
+    }
+
+    .login-error {
+      background: var(--n1-bg);
+      border: 1px solid var(--n1-border);
+      color: var(--n1-text);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .login-error.visible { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="assets/logo-fenix.png" alt="Fenix Toulouse" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+      <div class="login-logo-placeholder" style="display:none">FENIX<br>EVAL</div>
+      <div>
+        <div class="login-title">FENIX Eval CF</div>
+        <div class="login-subtitle">Centre de Formation · Toulouse</div>
+      </div>
+    </div>
+
+    <form class="login-form" id="loginForm" autocomplete="on">
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-input" type="email" id="email" name="email"
+               placeholder="prenom.nom@email.com" autocomplete="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Mot de passe</label>
+        <input class="form-input" type="password" id="password" name="password"
+               placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+
+      <div class="login-error" id="loginError">
+        Email ou mot de passe incorrect.
+      </div>
+
+      <button class="btn-login" type="submit" id="loginBtn">
+        SE CONNECTER
+      </button>
+      <div class="btn-accent-stripe"></div>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="js/supabase-client.js?v=1" defer></script>
+  <script src="js/app.js?v=1" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('loginForm');
+      const btn  = document.getElementById('loginBtn');
+      const err  = document.getElementById('loginError');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        err.classList.remove('visible');
+        btn.disabled = true;
+        btn.textContent = 'Connexion…';
+
+        const email    = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        try {
+          const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+
+          const role = await getRole(data.user.id);
+          if (role === 'coach') {
+            window.location.href = 'coach.html';
+          } else {
+            window.location.href = 'player.html';
+          }
+        } catch (e) {
+          err.classList.add('visible');
+          btn.disabled = false;
+          btn.textContent = 'SE CONNECTER';
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

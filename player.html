@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0A2463">
+  <title>FENIX Eval CF — Joueur</title>
+  <link rel="stylesheet" href="css/fenix.css?v=1">
+</head>
+<body>
+
+  <header class="fenix-header">
+    <div class="header-stripe"></div>
+    <div class="header-inner">
+      <div class="header-logo">
+        <img src="assets/logo-fenix.png" alt="Fenix">
+      </div>
+      <div class="header-text">
+        <h1>FENIX Eval CF</h1>
+        <p id="playerName">Chargement…</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-logout" onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content" id="mainContent">
+    <div class="loading-state"><div class="spinner"></div></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+  <script src="pages/player-home.js?v=1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const auth = await requireAuth('joueur');
+      if (!auth) return;
+      await initPlayerHome(auth.user);
+    });
+  </script>
+
+</body>
+</html>
