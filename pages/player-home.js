@@ -9,6 +9,15 @@ let _playerProfile = null;   // { profil_att, profil_def, profil_gb }
 let _currentSession = null;
 let _ratings       = {};     // { critere_id: note_joueur }
 let _saving        = {};     // { critere_id: true }
+let _pending       = {};     // { critere_id: note } — 1er tap en attente de confirmation
+
+const RATING_DESC = {
+  1: { label: 'Fragile',    desc: 'Ce critère est encore instable ou non maîtrisé.' },
+  2: { label: 'En travail', desc: 'Tu progresses mais ce n\'est pas encore stable.' },
+  3: { label: 'Acquis',     desc: 'Tu maîtrises ce critère à l\'entraînement.' },
+  4: { label: 'Maîtrisé',   desc: 'Tu es constant et fiable sur ce critère en match.' },
+  5: { label: 'Référence',  desc: 'Tu es un exemple sur ce critère pour l\'équipe.' },
+};
 
 /* ── Init ─────────────────────────────────────────────────────────────────── */
 async function initPlayerHome(user) {
@@ -76,12 +85,12 @@ async function showSessionsList() {
     }`;
 }
 
-/* ── Ouverture d'une session ──────────────────────────────────────────────── */
+/* ── Ouverture d'une session : écran intro ────────────────────────────────── */
 async function showEvaluation(sessionId) {
   _currentSession = sessionId;
+  _pending = {};
   pgid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  // Charger les notes déjà saisies
   const { data: evals } = await window.supabaseClient
     .from('evaluations')
     .select('critere_id, note_joueur')
@@ -101,6 +110,30 @@ async function showEvaluation(sessionId) {
     return;
   }
 
+  // Écran d'intro avec la légende de notation
+  pgid('mainContent').innerHTML = `
+    <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
+    <div class="intro-card">
+      <div class="intro-card-title">Comment te noter ?</div>
+      <div class="intro-card-subtitle">Appuie une fois pour voir la description, une deuxième fois pour valider.</div>
+      <div class="rating-legend">
+        ${[1,2,3,4,5].map(n => `
+          <div class="legend-row">
+            <div class="legend-num n${n}">${n}</div>
+            <div class="legend-text">
+              <span class="legend-label">${RATING_DESC[n].label}</span>
+              <span class="legend-desc">${RATING_DESC[n].desc}</span>
+            </div>
+          </div>`).join('')}
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px"
+              onclick="startEvaluation('${sessionId}')">
+        Commencer l'évaluation →
+      </button>
+    </div>`;
+}
+
+function startEvaluation(sessionId) {
   if (_playerProfile.profil_gb) {
     renderGbEval(sessionId);
   } else {
@@ -188,15 +221,47 @@ function showAxeCriteres(profilId, axeId, sessionId, btnEl) {
           <div class="rating-group">
             ${[1,2,3,4,5].map(n => `
               <button class="rating-btn ${note === n ? 'selected' : ''}" data-n="${n}"
-                onclick="saveRating('${sessionId}','${profilId}','${c.id}',${n},this)">
+                id="rbtn-${c.id}-${n}"
+                onclick="tapRating('${sessionId}','${profilId}','${c.id}',${n},this)">
                 ${n}
               </button>`).join('')}
           </div>
-          <div class="rating-labels"><span>Fragile</span><span>Référence</span></div>
+          <div class="rating-preview" id="preview-${c.id}"></div>
           <div class="save-status" id="status-${c.id}"></div>
         </div>
       </div>`;
   }).join('');
+}
+
+/* ── Double-tap : 1er tap = aperçu, 2ème tap = sauvegarde ────────────────── */
+function tapRating(sessionId, profilId, critereId, note, btnEl) {
+  const prev = pgid('preview-' + critereId);
+
+  if (_pending[critereId] === note) {
+    // 2ème tap sur le même bouton → valider
+    delete _pending[critereId];
+    prev.innerHTML = '';
+    prev.className = 'rating-preview';
+    // Retirer la classe pending de tous les boutons du critère
+    [1,2,3,4,5].forEach(n => {
+      const b = pgid('rbtn-' + critereId + '-' + n);
+      if (b) b.classList.remove('pending');
+    });
+    saveRating(sessionId, profilId, critereId, note, btnEl);
+  } else {
+    // 1er tap (ou changement de note) → afficher la description
+    _pending[critereId] = note;
+    [1,2,3,4,5].forEach(n => {
+      const b = pgid('rbtn-' + critereId + '-' + n);
+      if (b) b.classList.toggle('pending', n === note);
+    });
+    const rd = RATING_DESC[note];
+    prev.innerHTML = `
+      <span class="preview-num n${note}">${note} — ${rd.label}</span>
+      <span class="preview-desc">${rd.desc}</span>
+      <span class="preview-hint">Retape ${note} pour valider</span>`;
+    prev.className = 'rating-preview active';
+  }
 }
 
 /* ── Sauvegarde d'une note ────────────────────────────────────────────────── */
