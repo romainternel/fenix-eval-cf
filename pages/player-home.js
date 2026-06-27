@@ -363,8 +363,16 @@ function updateProgressBadges() {
 }
 
 function terminerProfil() {
-  showToast('Profil enregistré !');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Si on vient de finir l'ATT et qu'il y a un DEF → passer au DEF
+  if (_playerProfile && _playerProfile.profil_att === _swipeProfilId && _playerProfile.profil_def) {
+    showToast('Attaque terminée ! Passe à la Défense.');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => switchProfilTab('def'), 600);
+    return;
+  }
+  // DEF ou GB → retour aux sessions
+  showToast('Évaluation envoyée !');
+  setTimeout(() => showSessionsList(), 1500);
 }
 
 function escHtml(str) {
