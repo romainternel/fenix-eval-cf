@@ -56,37 +56,79 @@ async function initPlayerHome(user) {
   await showSessionsList();
 }
 
-/* ── Liste des sessions ouvertes ──────────────────────────────────────────── */
+/* ── Tableau de bord joueur ───────────────────────────────────────────────── */
 async function showSessionsList() {
   _currentSession = null;
   const mc = pgid('mainContent');
   mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  const { data: sessions } = await window.supabaseClient
-    .from('sessions').select('*').eq('statut', 'ouvert')
-    .order('date_session', { ascending: false });
+  const [sessionsRes, evalsRes] = await Promise.all([
+    window.supabaseClient.from('sessions').select('*')
+      .order('date_session', { ascending: false }),
+    window.supabaseClient.from('evaluations')
+      .select('critere_id, note_joueur, session_id')
+      .eq('player_id', _playerId)
+  ]);
 
-  const liste = sessions || [];
+  const sessions = sessionsRes.data || [];
+  const evals    = evalsRes.data || [];
+
+  // Compter les notes par session
+  const notesBySession = {};
+  evals.forEach(e => {
+    if (!notesBySession[e.session_id]) notesBySession[e.session_id] = 0;
+    if (e.note_joueur) notesBySession[e.session_id]++;
+  });
+
+  // Total de critères pour ce joueur
+  const totalCriteres = _playerProfile
+    ? ((_playerProfile.profil_gb
+        ? getAllCriteres('gb')
+        : [...getAllCriteres(_playerProfile.profil_att || ''), ...getAllCriteres(_playerProfile.profil_def || '')]
+      ).length)
+    : 0;
+
+  const ouvertes = sessions.filter(s => s.statut === 'ouvert');
+  const fermees  = sessions.filter(s => s.statut === 'ferme');
+
+  function sessionCard(s) {
+    const filled = notesBySession[s.id] || 0;
+    const isOpen = s.statut === 'ouvert';
+    const pct    = totalCriteres > 0 ? Math.round(filled / totalCriteres * 100) : 0;
+    const done   = totalCriteres > 0 && filled >= totalCriteres;
+
+    return `
+      <div class="session-card ${isOpen ? 'open' : 'closed'}" ${isOpen ? `onclick="showEvaluation('${s.id}')"` : ''} style="${isOpen ? 'cursor:pointer' : 'opacity:0.7'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+          <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:8px">${escHtml(s.label)}</div>
+        ${totalCriteres > 0 ? `
+          <div class="eval-progress-bar">
+            <div class="eval-progress-fill ${done ? 'done' : ''}" style="width:${pct}%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <span style="font-size:12px;color:var(--gray-600)">${filled} / ${totalCriteres} critères</span>
+            ${isOpen ? `<span style="font-size:12px;font-weight:700;color:var(--fenix-navy)">${done ? '✓ Complet' : 'Modifier →'}</span>` : ''}
+          </div>` : ''}
+      </div>`;
+  }
 
   mc.innerHTML = `
     <p class="player-greeting">Bonjour ${escHtml(_playerName)} 👋</p>
     <p class="section-saison">Saison ${currentSaison()}</p>
-    <h2 class="section-title" style="margin-bottom:12px">Sessions ouvertes</h2>
-    ${liste.length === 0
-      ? `<div class="empty-state">
-           <div class="empty-state-icon">📋</div>
-           <p>Aucune session ouverte.<br>Votre coach vous préviendra dès qu'une évaluation sera disponible.</p>
-         </div>`
-      : liste.map(s => `
-          <div class="session-card open" onclick="showEvaluation('${s.id}')">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <span class="session-badge-open">OUVERT</span>
-              <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
-            </div>
-            <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:4px">${escHtml(s.label)}</div>
-            <div style="font-size:11px;color:var(--gray-400);font-family:monospace">${s.id}</div>
-          </div>`).join('')
-    }`;
+    ${ouvertes.length > 0 ? `
+      <h2 class="section-title" style="margin-bottom:12px">Évaluations en cours</h2>
+      ${ouvertes.map(sessionCard).join('')}` : `
+      <div class="empty-state">
+        <div class="empty-state-icon">✓</div>
+        <p>Aucune session ouverte pour le moment.<br>Ton coach te préviendra pour la prochaine évaluation.</p>
+      </div>`}
+    ${fermees.length > 0 ? `
+      <h2 class="section-title" style="margin:20px 0 12px">Évaluations passées</h2>
+      ${fermees.map(sessionCard).join('')}` : ''}
+    `;
 }
 
 /* ── Ouverture d'une session : écran intro ────────────────────────────────── */

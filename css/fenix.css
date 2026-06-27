@@ -614,6 +614,23 @@ body {
   margin-bottom: 4px;
 }
 
+/* ── BARRE PROGRESSION ÉVAL JOUEUR ──────────────────────────────────────── */
+.eval-progress-bar {
+  height: 6px; border-radius: 3px; background: var(--gray-200); overflow: hidden;
+}
+.eval-progress-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--fenix-navy);
+  transition: width 0.3s ease;
+}
+.eval-progress-fill.done { background: var(--att-light); }
+
+.session-badge-closed {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 20px;
+  background: var(--gray-200); color: var(--gray-600);
+}
+
 /* ── BACK NAV INLINE ────────────────────────────────────────────────────── */
 .back-nav-inline {
   display: inline-flex; align-items: center; gap: 6px;
