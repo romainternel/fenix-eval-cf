@@ -190,7 +190,11 @@ let _cRatings = {}, _jRatings = {}, _cSaving = {};
 let _cAxeIds = [], _cAxeIdx = 0, _cProfilId = null;
 
 const RATING_DESC_COACH = {
-  1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence'
+  1: { label: 'Fragile',    desc: 'Ce critère est encore instable ou non maîtrisé.' },
+  2: { label: 'En travail', desc: 'Le joueur progresse mais ce n\'est pas encore stable.' },
+  3: { label: 'Acquis',     desc: 'Le joueur maîtrise ce critère à l\'entraînement.' },
+  4: { label: 'Maîtrisé',   desc: 'Le joueur est constant et fiable sur ce critère en match.' },
+  5: { label: 'Référence',  desc: 'Le joueur est un exemple sur ce critère pour l\'équipe.' },
 };
 
 async function showCoachEval(sessionId, playerId) {
@@ -336,11 +340,12 @@ function coachShowCriteres(profilId, axeId, btnEl) {
                   <button class="rating-btn n${n} ${ns === n ? 'selected' : ''}" data-n="${n}"
                     id="crbtn-${c.id}-${n}"
                     onclick="saveCoachRating('${_cSession}','${profilId}','${c.id}',${n},this)"
-                    aria-label="${RATING_DESC_COACH[n]}">
+                    aria-label="${RATING_DESC_COACH[n].label}">
                   </button>`).join('')}
               </div>
             </div>
           </div>
+          <div class="rating-preview${ns ? ' active' : ''}" id="cpreview-${c.id}">${ns ? `<span class="preview-num n${ns}">${RATING_DESC_COACH[ns].label}</span><span class="preview-desc">${RATING_DESC_COACH[ns].desc}</span>` : ''}</div>
           <div class="save-status" id="cstatus-${c.id}"></div>
         </div>
       </div>`;
@@ -356,6 +361,13 @@ async function saveCoachRating(sessionId, profilId, critereId, note, btnEl) {
     .forEach(b => b.classList.remove('selected'));
   btnEl.classList.add('selected');
   _cRatings[critereId] = note;
+
+  const rd = RATING_DESC_COACH[note];
+  const prev = gid('cpreview-' + critereId);
+  if (prev) {
+    prev.innerHTML = `<span class="preview-num n${note}">${rd.label}</span><span class="preview-desc">${rd.desc}</span>`;
+    prev.className = 'rating-preview active';
+  }
 
   const st = gid('cstatus-' + critereId);
   st.textContent = '…'; st.className = 'save-status saving';
