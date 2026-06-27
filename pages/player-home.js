@@ -252,10 +252,10 @@ function updateAxeArrows() {
     <button class="btn-axe-arrow ${_axeIdx === 0 ? 'disabled' : ''}"
             onclick="navAxe(-1)" ${_axeIdx === 0 ? 'disabled' : ''}>← Précédent</button>
     <span class="axe-counter">${_axeIdx + 1} / ${_axeIds.length}</span>
-    <button class="btn-axe-arrow ${_axeIdx === _axeIds.length - 1 ? 'disabled' : ''}"
-            onclick="navAxe(1)" ${_axeIdx === _axeIds.length - 1 ? 'disabled' : ''}>
-      ${_axeIdx < _axeIds.length - 1 ? profil.axes[_axeIds[_axeIdx + 1]].label + ' →' : 'Terminé ✓'}
-    </button>`;
+    ${_axeIdx < _axeIds.length - 1
+      ? `<button class="btn-axe-arrow" onclick="navAxe(1)">${profil.axes[_axeIds[_axeIdx + 1]].label} →</button>`
+      : `<button class="btn-axe-arrow done" onclick="terminerProfil()">Terminé ✓</button>`
+    }`;
 }
 
 /* ── Critères d'un axe ────────────────────────────────────────────────────── */
@@ -293,33 +293,14 @@ function showAxeCriteres(profilId, axeId, sessionId, btnEl) {
 
 /* ── Double-tap : 1er tap = aperçu, 2ème tap = sauvegarde ────────────────── */
 function tapRating(sessionId, profilId, critereId, note, btnEl) {
+  // Valider immédiatement + afficher la description (reste visible)
+  const rd   = RATING_DESC[note];
   const prev = pgid('preview-' + critereId);
-
-  if (_pending[critereId] === note) {
-    // 2ème tap sur le même bouton → valider
-    delete _pending[critereId];
-    prev.innerHTML = '';
-    prev.className = 'rating-preview';
-    // Retirer la classe pending de tous les boutons du critère
-    [1,2,3,4,5].forEach(n => {
-      const b = pgid('rbtn-' + critereId + '-' + n);
-      if (b) b.classList.remove('pending');
-    });
-    saveRating(sessionId, profilId, critereId, note, btnEl);
-  } else {
-    // 1er tap (ou changement de note) → afficher la description
-    _pending[critereId] = note;
-    [1,2,3,4,5].forEach(n => {
-      const b = pgid('rbtn-' + critereId + '-' + n);
-      if (b) b.classList.toggle('pending', n === note);
-    });
-    const rd = RATING_DESC[note];
-    prev.innerHTML = `
-      <span class="preview-num n${note}">${rd.label}</span>
-      <span class="preview-desc">${rd.desc}</span>
-      <span class="preview-hint">Appuie à nouveau sur cette couleur pour valider</span>`;
-    prev.className = 'rating-preview active';
-  }
+  prev.innerHTML = `
+    <span class="preview-num n${note}">${rd.label}</span>
+    <span class="preview-desc">${rd.desc}</span>`;
+  prev.className = 'rating-preview active';
+  saveRating(sessionId, profilId, critereId, note, btnEl);
 }
 
 /* ── Sauvegarde d'une note ────────────────────────────────────────────────── */
@@ -379,6 +360,11 @@ function updateProgressBadges() {
   var pDef = pgid('progressDef');
   if (pAtt && _playerProfile?.profil_att) pAtt.textContent = progressLabel(_playerProfile.profil_att);
   if (pDef && _playerProfile?.profil_def) pDef.textContent = progressLabel(_playerProfile.profil_def);
+}
+
+function terminerProfil() {
+  showToast('Profil enregistré !');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function escHtml(str) {

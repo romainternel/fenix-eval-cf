@@ -767,6 +767,7 @@ body {
 }
 .btn-axe-arrow:not(.disabled):hover { background: var(--gray-100); }
 .btn-axe-arrow.disabled { color: var(--gray-400); cursor: default; }
+.btn-axe-arrow.done { background: var(--att-tag); color: var(--att); border-color: var(--att-light); }
 .axe-counter {
   font-size: 12px; font-weight: 600; color: var(--gray-400);
   white-space: nowrap; flex-shrink: 0;
