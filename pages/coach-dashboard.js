@@ -104,10 +104,8 @@ async function showSessionDetail(sessionId) {
     </div>
     <div class="card">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:10px">Résultats des évaluations</p>
-        <div class="empty-state" style="padding:20px">
-          <p>Tableau de bord joueurs — Story 08 à venir</p>
-        </div>
+        <p class="section-title" style="margin-bottom:12px">Joueurs</p>
+        <div id="sessionPlayerList"><div class="spinner" style="margin:16px auto"></div></div>
       </div>
     </div>
     ${isOpen ? `
@@ -127,6 +125,272 @@ async function showSessionDetail(sessionId) {
         <button class="btn btn-ghost btn-full" onclick="confirmReopenSession('${s.id}')">Rouvrir cette session</button>
       </div>
     </div>`}`;
+
+  loadSessionPlayerList(sessionId);
+}
+
+async function loadSessionPlayerList(sessionId) {
+  const saison = currentSaison();
+  const [playersRes, profilesRes, evalsRes] = await Promise.all([
+    window.supabaseClient.from('players').select('*').order('nom'),
+    window.supabaseClient.from('player_profiles').select('*').eq('saison', saison).eq('actif', true),
+    window.supabaseClient.from('evaluations').select('player_id, critere_id, note_joueur, note_staff').eq('session_id', sessionId)
+  ]);
+
+  const players  = playersRes.data  || [];
+  const profiles = profilesRes.data || [];
+  const evals    = evalsRes.data    || [];
+
+  const profileMap = {};
+  profiles.forEach(p => { profileMap[p.player_id] = p; });
+
+  const countMap = {}; // { playerId: { joueur: N, staff: N, total: N } }
+  evals.forEach(e => {
+    if (!countMap[e.player_id]) countMap[e.player_id] = { joueur: 0, staff: 0 };
+    if (e.note_joueur) countMap[e.player_id].joueur++;
+    if (e.note_staff)  countMap[e.player_id].staff++;
+  });
+
+  const el = gid('sessionPlayerList');
+  if (!el) return;
+
+  if (players.length === 0) {
+    el.innerHTML = `<p class="form-hint">Aucun joueur créé.</p>`;
+    return;
+  }
+
+  el.innerHTML = players.map(p => {
+    const prof  = profileMap[p.id];
+    const count = countMap[p.id] || { joueur: 0, staff: 0 };
+    const total = prof
+      ? (prof.profil_gb
+          ? getAllCriteres('gb').length
+          : (getAllCriteres(prof.profil_att || '').length + getAllCriteres(prof.profil_def || '').length))
+      : 0;
+    const initials = (p.prenom[0] + p.nom[0]).toUpperCase();
+    return `
+      <div class="session-player-row" onclick="showCoachEval('${sessionId}','${p.id}')">
+        <div class="player-card-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--gray-800)">${escHtml(p.prenom)} ${escHtml(p.nom)}</div>
+          ${total > 0 ? `
+            <div style="display:flex;gap:12px;margin-top:4px;font-size:11px;color:var(--gray-400)">
+              <span>Joueur : ${count.joueur}/${total}</span>
+              <span>Staff : ${count.staff}/${total}</span>
+            </div>` : '<div style="font-size:11px;color:var(--gray-400)">Aucun profil</div>'}
+        </div>
+        <span style="color:var(--gray-400);font-size:18px">›</span>
+      </div>`;
+  }).join('<hr style="border:none;border-top:1px solid var(--gray-100);margin:0">');
+}
+
+/* ─── STORY 07 — Interface notation coach ─────────────────────────────────── */
+let _cSession = null, _cPlayerId = null, _cProfile = null;
+let _cRatings = {}, _jRatings = {}, _cSaving = {};
+let _cAxeIds = [], _cAxeIdx = 0, _cProfilId = null;
+
+const RATING_DESC_COACH = {
+  1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence'
+};
+
+async function showCoachEval(sessionId, playerId) {
+  _cSession = sessionId; _cPlayerId = playerId;
+  _cRatings = {}; _jRatings = {};
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const saison = currentSaison();
+  const [playerRes, profileRes, evalsRes] = await Promise.all([
+    window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
+    window.supabaseClient.from('player_profiles').select('*')
+      .eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
+    window.supabaseClient.from('evaluations').select('critere_id, note_joueur, note_staff')
+      .eq('session_id', sessionId).eq('player_id', playerId)
+  ]);
+
+  const player  = playerRes.data;
+  _cProfile = profileRes.data;
+  (evalsRes.data || []).forEach(e => {
+    if (e.note_joueur) _jRatings[e.critere_id] = e.note_joueur;
+    if (e.note_staff)  _cRatings[e.critere_id] = e.note_staff;
+  });
+
+  const nom = player ? `${escHtml(player.prenom)} ${escHtml(player.nom)}` : playerId;
+
+  if (!_cProfile) {
+    gid('mainContent').innerHTML = `
+      <div class="section-header" style="margin-bottom:16px">
+        <button class="btn btn-secondary btn-sm" onclick="showSessionDetail('${sessionId}')">← Retour</button>
+        <span style="font-weight:700">${nom}</span>
+      </div>
+      <div class="empty-state"><p>Aucun profil assigné pour cette saison.</p></div>`;
+    return;
+  }
+
+  gid('mainContent').innerHTML = `
+    <div class="section-header" style="margin-bottom:16px">
+      <button class="btn btn-secondary btn-sm" onclick="showSessionDetail('${sessionId}')">← Retour</button>
+      <span style="font-weight:700">${nom}</span>
+    </div>
+    ${_cProfile.profil_gb ? '' : `
+    <div class="profil-tabs" id="coachProfilTabs">
+      <button class="profil-tab att active" id="cTabAtt" onclick="coachSwitchProfil('att')">
+        <span>⚡ Attaque</span>
+      </button>
+      <button class="profil-tab def" id="cTabDef" onclick="coachSwitchProfil('def')">
+        <span>🛡 Défense</span>
+      </button>
+    </div>`}
+    <div id="coachEvalContent"></div>`;
+
+  coachRenderAxes(_cProfile.profil_gb ? 'gb' : _cProfile.profil_att, sessionId);
+}
+
+function coachSwitchProfil(type) {
+  document.querySelectorAll('.profil-tab').forEach(b => b.classList.remove('active'));
+  gid('cTab' + (type === 'att' ? 'Att' : 'Def')).classList.add('active');
+  coachRenderAxes(type === 'att' ? _cProfile.profil_att : _cProfile.profil_def, _cSession);
+}
+
+function coachRenderAxes(profilId, sessionId) {
+  _cProfilId = profilId;
+  const profil = CRITERIA[profilId];
+  if (!profil) return;
+  _cAxeIds = Object.keys(profil.axes);
+  _cAxeIdx = 0;
+  const type = profil.type;
+
+  gid('coachEvalContent').innerHTML = `
+    <div class="axes-nav-wrapper">
+      <div class="axes-eval-nav" id="coachAxesNav">
+        ${_cAxeIds.map((axeId, i) => `
+          <button class="btn-axe-eval ${type} ${i === 0 ? 'active' : ''}"
+                  id="cAxeBtn-${axeId}"
+                  onclick="coachSelectAxe('${profilId}','${axeId}',this)">
+            ${profil.axes[axeId].label}
+          </button>`).join('')}
+      </div>
+    </div>
+    <div id="coachCriteresContent"></div>
+    <div class="axe-arrows" id="coachAxeArrows"></div>`;
+
+  coachShowCriteres(profilId, _cAxeIds[0], gid('cAxeBtn-' + _cAxeIds[0]));
+}
+
+function coachSelectAxe(profilId, axeId, btnEl) {
+  _cAxeIdx = _cAxeIds.indexOf(axeId);
+  coachShowCriteres(profilId, axeId, btnEl);
+}
+
+function coachNavAxe(dir) {
+  const next = _cAxeIdx + dir;
+  if (next < 0 || next >= _cAxeIds.length) return;
+  _cAxeIdx = next;
+  const axeId = _cAxeIds[_cAxeIdx];
+  const btn = gid('cAxeBtn-' + axeId);
+  coachShowCriteres(_cProfilId, axeId, btn);
+  if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function coachShowCriteres(profilId, axeId, btnEl) {
+  document.querySelectorAll('.btn-axe-eval').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+
+  const axe  = CRITERIA[profilId]?.axes[axeId];
+  if (!axe) return;
+  const type = CRITERIA[profilId].type;
+
+  // Flèches navigation
+  const arrowEl = gid('coachAxeArrows');
+  if (arrowEl && _cAxeIds.length > 1) {
+    const profil = CRITERIA[profilId];
+    arrowEl.innerHTML = `
+      <button class="btn-axe-arrow ${_cAxeIdx === 0 ? 'disabled' : ''}"
+              onclick="coachNavAxe(-1)" ${_cAxeIdx === 0 ? 'disabled' : ''}>← Précédent</button>
+      <span class="axe-counter">${_cAxeIdx + 1} / ${_cAxeIds.length}</span>
+      ${_cAxeIdx < _cAxeIds.length - 1
+        ? `<button class="btn-axe-arrow" onclick="coachNavAxe(1)">${profil.axes[_cAxeIds[_cAxeIdx + 1]].label} →</button>`
+        : `<button class="btn-axe-arrow done" onclick="coachTerminer()">Terminé ✓</button>`}`;
+  }
+
+  gid('coachCriteresContent').innerHTML = axe.criteres.map((c, i) => {
+    const nj = _jRatings[c.id] || 0;
+    const ns = _cRatings[c.id] || 0;
+    return `
+      <div class="critere-eval-card" id="ccard-${c.id}">
+        <div class="critere-eval-num">${i + 1}</div>
+        <div class="critere-eval-body">
+          <div class="critere-eval-label ${type}">${escHtml(c.label)}</div>
+          <div class="critere-eval-texte">${escHtml(c.texte)}</div>
+          <div class="coach-rating-block">
+            <div class="coach-rating-row">
+              <span class="coach-rating-who">Joueur</span>
+              <div class="rating-group" style="pointer-events:none;opacity:${nj ? 1 : 0.3}">
+                ${[1,2,3,4,5].map(n => `<div class="rating-btn n${n} ${nj === n ? 'selected' : ''}" style="cursor:default"></div>`).join('')}
+              </div>
+            </div>
+            <div class="coach-rating-row">
+              <span class="coach-rating-who">Staff</span>
+              <div class="rating-group">
+                ${[1,2,3,4,5].map(n => `
+                  <button class="rating-btn n${n} ${ns === n ? 'selected' : ''}" data-n="${n}"
+                    id="crbtn-${c.id}-${n}"
+                    onclick="saveCoachRating('${_cSession}','${profilId}','${c.id}',${n},this)"
+                    aria-label="${RATING_DESC_COACH[n]}">
+                  </button>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="save-status" id="cstatus-${c.id}"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function saveCoachRating(sessionId, profilId, critereId, note, btnEl) {
+  if (_cSaving[critereId]) return;
+  _cSaving[critereId] = true;
+
+  const card = gid('ccard-' + critereId);
+  card.querySelectorAll('#crbtn-' + critereId + '-1, #crbtn-' + critereId + '-2, #crbtn-' + critereId + '-3, #crbtn-' + critereId + '-4, #crbtn-' + critereId + '-5')
+    .forEach(b => b.classList.remove('selected'));
+  btnEl.classList.add('selected');
+  _cRatings[critereId] = note;
+
+  const st = gid('cstatus-' + critereId);
+  st.textContent = '…'; st.className = 'save-status saving';
+
+  try {
+    const { error } = await window.supabaseClient
+      .from('evaluations')
+      .upsert({
+        session_id:  sessionId,
+        player_id:   _cPlayerId,
+        profil_id:   profilId,
+        critere_id:  critereId,
+        note_staff:  note
+      }, { onConflict: 'session_id,player_id,critere_id' });
+    if (error) throw error;
+    st.textContent = '✓'; st.className = 'save-status saved';
+    setTimeout(() => { st.textContent = ''; st.className = 'save-status'; }, 1200);
+  } catch (err) {
+    st.textContent = '✗'; st.className = 'save-status error';
+    _cRatings[critereId] = 0;
+    btnEl.classList.remove('selected');
+  } finally {
+    _cSaving[critereId] = false;
+  }
+}
+
+function coachTerminer() {
+  if (_cProfile && _cProfile.profil_att === _cProfilId && _cProfile.profil_def) {
+    showToast('Attaque notée ! Passe à la Défense.');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => coachSwitchProfil('def'), 600);
+    return;
+  }
+  showToast('Notation enregistrée !');
+  setTimeout(() => showSessionDetail(_cSession), 1200);
 }
 
 async function confirmCloseSession(sessionId) {

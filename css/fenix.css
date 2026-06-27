@@ -829,3 +829,26 @@ body {
 .save-status.saving { color: var(--gray-400); }
 .save-status.saved  { color: var(--att); }
 .save-status.error  { color: var(--def); }
+
+/* ── STORY 07 — Coach session player list ────────────────────────────────── */
+.session-player-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px; cursor: pointer;
+  transition: background 0.15s;
+}
+.session-player-row:hover { background: var(--gray-50); border-radius: 8px; }
+
+/* ── STORY 07 — Coach rating block (Joueur + Staff rows) ─────────────────── */
+.coach-rating-block {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--gray-100);
+}
+.coach-rating-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.coach-rating-who {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--gray-500);
+  min-width: 44px;
+}
