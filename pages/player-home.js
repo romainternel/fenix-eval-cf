@@ -226,6 +226,10 @@ function navAxe(dir) {
   const btn = pgid('axeBtn-' + axeId);
   showAxeCriteres(_swipeProfilId, axeId, _swipeSession, btn);
   if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  // Remonter en haut du contenu
+  const mc = pgid('mainContent');
+  if (mc) mc.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function addSwipeListeners() {
@@ -259,19 +263,6 @@ function showAxeCriteres(profilId, axeId, sessionId, btnEl) {
   document.querySelectorAll('.btn-axe-eval').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
   updateAxeArrows();
-  // Re-attacher le swipe après le rendu
-  setTimeout(() => {
-    const zone = pgid('criteresContent');
-    if (zone) {
-      let startX = 0;
-      zone.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-      zone.addEventListener('touchend', e => {
-        const dx = e.changedTouches[0].clientX - startX;
-        if (Math.abs(dx) < 60) return;
-        navAxe(dx < 0 ? 1 : -1);
-      }, { passive: true });
-    }
-  }, 0);
 
   const axe  = CRITERIA[profilId]?.axes[axeId];
   if (!axe) return;
