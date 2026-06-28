@@ -250,47 +250,119 @@ async function coachReopenPlayerSession(sessionId, playerId) {
   loadSessionPlayerList(sessionId);
 }
 
-/* ─── STORY 09 — Radar chart ──────────────────────────────────────────────── */
-function _calcRadar(profilId, evalMap) {
+/* ─── STORY 09 — Radar chart + détail par axe ────────────────────────────── */
+let _coachEvalMap = {}, _chartAtt = null, _chartDef = null, _chartAxis = null;
+
+function _radarData(profilId) {
   const profil = CRITERIA[profilId];
   if (!profil) return null;
   const labels = [], joueur = [], staff = [];
   Object.entries(profil.axes).forEach(([, axe]) => {
     labels.push(axe.label);
-    const jN = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
-    const sN = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+    const jN = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+    const sN = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
     joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
-    staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0) / sN.length).toFixed(1) : 0);
+    staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0)  / sN.length).toFixed(1) : 0);
   });
   return { labels, joueur, staff };
 }
 
-function _mergeRadar(att, def) {
-  if (att && def) return { labels:[...att.labels,...def.labels], joueur:[...att.joueur,...def.joueur], staff:[...att.staff,...def.staff] };
-  return att || def || null;
-}
-
-function _drawRadar(canvasId, radarData) {
+function _buildRadar(canvasId, rd, small) {
   const ctx = gid(canvasId)?.getContext('2d');
-  if (!ctx || !radarData) return;
-  new Chart(ctx, {
+  if (!ctx || !rd) return null;
+  return new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: radarData.labels,
+      labels: rd.labels,
       datasets: [
-        { label:'Joueur', data:radarData.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:2, pointRadius:4 },
-        { label:'Staff',  data:radarData.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:2, pointRadius:4 }
+        { data:rd.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:1.5, pointRadius: small ? 2 : 4 },
+        { data:rd.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:1.5, pointRadius: small ? 2 : 4 }
       ]
     },
     options: {
-      responsive:true,
+      responsive:true, maintainAspectRatio:true,
       plugins:{ legend:{ display:false } },
-      scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, pointLabels:{ font:{ size:11, weight:'600' } }, grid:{ color:'rgba(0,0,0,0.08)' } } }
+      scales:{ r:{ min:0, max:5,
+        ticks:{ stepSize:1, font:{ size: small ? 7 : 10 }, display:!small },
+        pointLabels:{ font:{ size: small ? 8 : 11, weight:'600' } },
+        grid:{ color:'rgba(0,0,0,0.08)' }
+      }}
     }
   });
 }
 
+function _axesBtns(profilId) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return '';
+  return Object.entries(profil.axes).map(([axeId, axe]) =>
+    `<button class="radar-axe-btn" id="raxe-${profilId}-${axeId}"
+      onclick="showAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>`
+  ).join('');
+}
+
+function showAxisDetail(profilId, axeId) {
+  if (_chartAxis) { _chartAxis.destroy(); _chartAxis = null; }
+  const axe = CRITERIA[profilId]?.axes[axeId];
+  if (!axe) return;
+
+  document.querySelectorAll('.radar-axe-btn').forEach(b => b.classList.remove('active'));
+  gid(`raxe-${profilId}-${axeId}`)?.classList.add('active');
+
+  const labels     = axe.criteres.map(c => c.label);
+  const joueurData = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
+  const staffData  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
+
+  const detailEl = gid('axisDetail');
+  detailEl.style.display = 'block';
+  detailEl.innerHTML = `
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:10px">${escHtml(axe.label)}</p>
+        <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(59,130,246,0.7)"></div>Joueur</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(234,88,12,0.7)"></div>Staff</div>
+        </div>
+        <canvas id="axisBarChart"></canvas>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          ${axe.criteres.map((c, i) => `
+            <div style="display:flex;gap:10px">
+              <span style="font-size:11px;font-weight:800;color:var(--gray-400);min-width:16px;padding-top:1px">${i+1}</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:2px">${escHtml(c.label)}</div>
+                <div style="font-size:12px;color:var(--gray-500);line-height:1.4">${escHtml(c.texte)}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  const ctx = gid('axisBarChart')?.getContext('2d');
+  if (ctx) _chartAxis = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Joueur', data:joueurData, backgroundColor:'rgba(59,130,246,0.7)', borderRadius:4 },
+        { label:'Staff',  data:staffData,  backgroundColor:'rgba(234,88,12,0.7)',  borderRadius:4 }
+      ]
+    },
+    options: {
+      indexAxis:'y', responsive:true,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.06)' } },
+        y:{ ticks:{ font:{ size:11 } } }
+      }
+    }
+  });
+  detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
 async function showCoachRadar(sessionId, playerId) {
+  if (_chartAtt)  { _chartAtt.destroy();  _chartAtt  = null; }
+  if (_chartDef)  { _chartDef.destroy();  _chartDef  = null; }
+  if (_chartAxis) { _chartAxis.destroy(); _chartAxis = null; }
+
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
@@ -307,12 +379,33 @@ async function showCoachRadar(sessionId, playerId) {
   const shared  = statutRes.data?.resultats_visibles || false;
   const nom     = player ? `${escHtml(player.prenom)} ${escHtml(player.nom)}` : playerId;
 
-  const evalMap = {};
-  evals.forEach(e => { evalMap[e.critere_id] = e; });
+  _coachEvalMap = {};
+  evals.forEach(e => { _coachEvalMap[e.critere_id] = e; });
 
-  const radarData = profile?.profil_gb
-    ? _calcRadar(profile.profil_gb, evalMap)
-    : _mergeRadar(_calcRadar(profile?.profil_att, evalMap), _calcRadar(profile?.profil_def, evalMap));
+  const isGb  = !!profile?.profil_gb;
+  const attId = isGb ? profile.profil_gb : profile?.profil_att;
+  const defId = isGb ? null : profile?.profil_def;
+  const attLbl = PROFIL_LABELS[attId] || attId || '—';
+  const defLbl = PROFIL_LABELS[defId] || defId || '—';
+
+  const radarHTML = isGb
+    ? `<div class="radar-col-full">
+         <p class="radar-profil-title">🧤 Gardien — ${escHtml(attLbl)}</p>
+         <canvas id="radarAtt" style="max-height:280px"></canvas>
+         <div class="radar-axes-btns">${_axesBtns(attId)}</div>
+       </div>`
+    : `<div class="radar-grid">
+         ${attId ? `<div class="radar-col">
+           <p class="radar-profil-title">⚡ ${escHtml(attLbl)}</p>
+           <canvas id="radarAtt"></canvas>
+           <div class="radar-axes-btns">${_axesBtns(attId)}</div>
+         </div>` : ''}
+         ${defId ? `<div class="radar-col">
+           <p class="radar-profil-title">🛡 ${escHtml(defLbl)}</p>
+           <canvas id="radarDef"></canvas>
+           <div class="radar-axes-btns">${_axesBtns(defId)}</div>
+         </div>` : ''}
+       </div>`;
 
   gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
@@ -321,23 +414,26 @@ async function showCoachRadar(sessionId, playerId) {
     </div>
     <div class="card">
       <div class="card-body">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-          <p class="section-title" style="margin:0">Radar — ${escHtml(sessionId)}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <p class="section-title" style="margin:0">Résultats — ${escHtml(sessionId)}</p>
           <button class="btn btn-sm ${shared ? 'btn-ghost' : 'btn-primary'}"
             onclick="${shared ? `coachUnshareResults('${sessionId}','${playerId}')` : `coachShareResults('${sessionId}','${playerId}')`}">
             ${shared ? 'Retirer le partage' : 'Partager avec le joueur'}
           </button>
         </div>
-        ${radarData ? `<canvas id="coachRadarChart" style="max-height:360px"></canvas>` : '<p style="color:var(--gray-400);text-align:center">Aucune donnée disponible.</p>'}
-        <div style="display:flex;gap:20px;justify-content:center;margin-top:12px">
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.8)"></div><span style="font-size:12px">Joueur</span></div>
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(234,88,12,0.8)"></div><span style="font-size:12px">Staff</span></div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Joueur</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
         </div>
-        ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:8px">✓ Résultats partagés avec le joueur</p>' : ''}
+        ${radarHTML}
+        <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
+        ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:4px">✓ Résultats partagés avec le joueur</p>' : ''}
       </div>
-    </div>`;
+    </div>
+    <div id="axisDetail" style="display:none"></div>`;
 
-  _drawRadar('coachRadarChart', radarData);
+  if (attId) _chartAtt = _buildRadar('radarAtt', _radarData(attId), !isGb);
+  if (defId) _chartDef = _buildRadar('radarDef', _radarData(defId), true);
 }
 
 async function coachShareResults(sessionId, playerId) {

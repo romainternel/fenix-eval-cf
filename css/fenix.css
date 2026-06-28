@@ -891,3 +891,29 @@ body {
   font-size: 10px; font-weight: 600; color: var(--gray-500);
   min-width: 28px; text-align: right;
 }
+
+/* ── STORY 09 — Radar grid + axes buttons ────────────────────────────────── */
+.radar-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.radar-col {
+  display: flex; flex-direction: column; align-items: center; min-width: 0;
+}
+.radar-col-full {
+  display: flex; flex-direction: column; align-items: center;
+}
+.radar-profil-title {
+  font-size: 12px; font-weight: 800; color: var(--gray-600);
+  text-align: center; margin-bottom: 6px; letter-spacing: 0.02em;
+}
+.radar-axes-btns {
+  display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px;
+}
+.radar-axe-btn {
+  font-size: 10px; font-weight: 600; padding: 3px 8px;
+  border: 1.5px solid var(--gray-200); border-radius: 20px;
+  background: var(--white); color: var(--gray-600); cursor: pointer;
+  transition: all 0.15s; touch-action: manipulation;
+}
+.radar-axe-btn:hover  { border-color: var(--fenix-blue); color: var(--fenix-blue); }
+.radar-axe-btn.active { background: var(--fenix-blue); border-color: var(--fenix-blue); color: var(--white); }

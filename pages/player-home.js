@@ -432,7 +432,13 @@ function terminerProfil() {
 }
 
 /* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
+let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null, _pChartAxis = null;
+
 async function showPlayerRadar(sessionId) {
+  if (_pChartAtt)  { _pChartAtt.destroy();  _pChartAtt  = null; }
+  if (_pChartDef)  { _pChartDef.destroy();  _pChartDef  = null; }
+  if (_pChartAxis) { _pChartAxis.destroy(); _pChartAxis = null; }
+
   const mc = pgid('mainContent');
   mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
@@ -442,68 +448,156 @@ async function showPlayerRadar(sessionId) {
       .eq('session_id', sessionId).eq('player_id', _playerId)
   ]);
 
-  const label   = sessionRes.data?.label || sessionId;
-  const evals   = evalsRes.data || [];
-  const evalMap = {};
-  evals.forEach(e => { evalMap[e.critere_id] = e; });
+  const label = sessionRes.data?.label || sessionId;
+  _pEvalMap = {};
+  (evalsRes.data || []).forEach(e => { _pEvalMap[e.critere_id] = e; });
 
-  function calcR(profilId) {
+  function pRadarData(profilId) {
     const profil = CRITERIA[profilId];
     if (!profil) return null;
     const labels = [], joueur = [], staff = [];
     Object.entries(profil.axes).forEach(([, axe]) => {
       labels.push(axe.label);
-      const jN = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
-      const sN = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+      const jN = axe.criteres.map(c => _pEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+      const sN = axe.criteres.map(c => _pEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
       joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
-      staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0) / sN.length).toFixed(1) : 0);
+      staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0)  / sN.length).toFixed(1) : 0);
     });
     return { labels, joueur, staff };
   }
 
-  let rd = null;
-  if (_playerProfile?.profil_gb) {
-    rd = calcR(_playerProfile.profil_gb);
-  } else if (_playerProfile) {
-    const att = calcR(_playerProfile.profil_att);
-    const def = calcR(_playerProfile.profil_def);
-    rd = (att && def)
-      ? { labels:[...att.labels,...def.labels], joueur:[...att.joueur,...def.joueur], staff:[...att.staff,...def.staff] }
-      : (att || def);
+  function pBuildRadar(canvasId, rd, small) {
+    const ctx = pgid(canvasId)?.getContext('2d');
+    if (!ctx || !rd) return null;
+    return new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: rd.labels,
+        datasets: [
+          { data:rd.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:1.5, pointRadius: small ? 2 : 4 },
+          { data:rd.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:1.5, pointRadius: small ? 2 : 4 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ display:false } },
+        scales:{ r:{ min:0, max:5,
+          ticks:{ stepSize:1, font:{ size: small ? 7 : 10 }, display:!small },
+          pointLabels:{ font:{ size: small ? 8 : 11, weight:'600' } },
+          grid:{ color:'rgba(0,0,0,0.08)' }
+        }}
+      }
+    });
   }
+
+  function pAxesBtns(profilId) {
+    const profil = CRITERIA[profilId];
+    if (!profil) return '';
+    return Object.entries(profil.axes).map(([axeId, axe]) =>
+      `<button class="radar-axe-btn" id="praxe-${profilId}-${axeId}"
+        onclick="showPlayerAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>`
+    ).join('');
+  }
+
+  const isGb  = !!_playerProfile?.profil_gb;
+  const attId = isGb ? _playerProfile.profil_gb : _playerProfile?.profil_att;
+  const defId = isGb ? null : _playerProfile?.profil_def;
+
+  const radarHTML = isGb
+    ? `<div class="radar-col-full">
+         <p class="radar-profil-title">🧤 Gardien</p>
+         <canvas id="pRadarAtt" style="max-height:280px"></canvas>
+         <div class="radar-axes-btns">${pAxesBtns(attId)}</div>
+       </div>`
+    : `<div class="radar-grid">
+         ${attId ? `<div class="radar-col">
+           <p class="radar-profil-title">⚡ Attaque</p>
+           <canvas id="pRadarAtt"></canvas>
+           <div class="radar-axes-btns">${pAxesBtns(attId)}</div>
+         </div>` : ''}
+         ${defId ? `<div class="radar-col">
+           <p class="radar-profil-title">🛡 Défense</p>
+           <canvas id="pRadarDef"></canvas>
+           <div class="radar-axes-btns">${pAxesBtns(defId)}</div>
+         </div>` : ''}
+       </div>`;
 
   mc.innerHTML = `
     <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
     <div class="card">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:4px">Mes résultats</p>
-        <p style="font-size:12px;color:var(--gray-400);margin-bottom:16px">${escHtml(label)}</p>
-        ${rd ? `<canvas id="playerRadarChart" style="max-height:340px"></canvas>` : '<p style="color:var(--gray-400);text-align:center">Aucune donnée disponible.</p>'}
-        <div style="display:flex;gap:20px;justify-content:center;margin-top:12px">
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.8)"></div><span style="font-size:12px">Moi</span></div>
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(234,88,12,0.8)"></div><span style="font-size:12px">Staff</span></div>
+        <p style="font-size:12px;color:var(--gray-400);margin-bottom:10px">${escHtml(label)}</p>
+        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Moi</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
+        </div>
+        ${radarHTML}
+        <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
+      </div>
+    </div>
+    <div id="pAxisDetail" style="display:none"></div>`;
+
+  if (attId) _pChartAtt = pBuildRadar('pRadarAtt', pRadarData(attId), !isGb);
+  if (defId) _pChartDef = pBuildRadar('pRadarDef', pRadarData(defId), true);
+}
+
+function showPlayerAxisDetail(profilId, axeId) {
+  if (_pChartAxis) { _pChartAxis.destroy(); _pChartAxis = null; }
+  const axe = CRITERIA[profilId]?.axes[axeId];
+  if (!axe) return;
+
+  document.querySelectorAll('.radar-axe-btn').forEach(b => b.classList.remove('active'));
+  pgid(`praxe-${profilId}-${axeId}`)?.classList.add('active');
+
+  const labels     = axe.criteres.map(c => c.label);
+  const joueurData = axe.criteres.map(c => _pEvalMap[c.id]?.note_joueur || 0);
+  const staffData  = axe.criteres.map(c => _pEvalMap[c.id]?.note_staff  || 0);
+
+  const detailEl = pgid('pAxisDetail');
+  detailEl.style.display = 'block';
+  detailEl.innerHTML = `
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:10px">${escHtml(axe.label)}</p>
+        <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(59,130,246,0.7)"></div>Moi</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(234,88,12,0.7)"></div>Staff</div>
+        </div>
+        <canvas id="pAxisBarChart"></canvas>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          ${axe.criteres.map((c, i) => `
+            <div style="display:flex;gap:10px">
+              <span style="font-size:11px;font-weight:800;color:var(--gray-400);min-width:16px;padding-top:1px">${i+1}</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:2px">${escHtml(c.label)}</div>
+                <div style="font-size:12px;color:var(--gray-500);line-height:1.4">${escHtml(c.texte)}</div>
+              </div>
+            </div>`).join('')}
         </div>
       </div>
     </div>`;
 
-  if (rd) {
-    const ctx = pgid('playerRadarChart')?.getContext('2d');
-    if (ctx) new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: rd.labels,
-        datasets: [
-          { label:'Moi',   data:rd.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:2, pointRadius:4 },
-          { label:'Staff', data:rd.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:2, pointRadius:4 }
-        ]
-      },
-      options: {
-        responsive:true,
-        plugins:{ legend:{ display:false } },
-        scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, pointLabels:{ font:{ size:11, weight:'600' } }, grid:{ color:'rgba(0,0,0,0.08)' } } }
+  const ctx = pgid('pAxisBarChart')?.getContext('2d');
+  if (ctx) _pChartAxis = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Moi',   data:joueurData, backgroundColor:'rgba(59,130,246,0.7)', borderRadius:4 },
+        { label:'Staff', data:staffData,  backgroundColor:'rgba(234,88,12,0.7)',  borderRadius:4 }
+      ]
+    },
+    options: {
+      indexAxis:'y', responsive:true,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.06)' } },
+        y:{ ticks:{ font:{ size:11 } } }
       }
-    });
-  }
+    }
+  });
+  detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function showToast(msg) {
