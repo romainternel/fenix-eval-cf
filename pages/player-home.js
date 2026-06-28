@@ -62,16 +62,22 @@ async function showSessionsList() {
   const mc = pgid('mainContent');
   mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  const [sessionsRes, evalsRes] = await Promise.all([
+  const [sessionsRes, evalsRes, statutsRes] = await Promise.all([
     window.supabaseClient.from('sessions').select('*')
       .order('date_session', { ascending: false }),
     window.supabaseClient.from('evaluations')
       .select('critere_id, note_joueur, session_id')
+      .eq('player_id', _playerId),
+    window.supabaseClient.from('session_player_statut')
+      .select('session_id, statut')
       .eq('player_id', _playerId)
   ]);
 
   const sessions = sessionsRes.data || [];
   const evals    = evalsRes.data || [];
+
+  const playerStatutMap = {};
+  (statutsRes.data || []).forEach(s => { playerStatutMap[s.session_id] = s.statut; });
 
   // Compter les notes par session
   const notesBySession = {};
@@ -92,15 +98,19 @@ async function showSessionsList() {
   const fermees  = sessions.filter(s => s.statut === 'ferme');
 
   function sessionCard(s) {
-    const filled = notesBySession[s.id] || 0;
-    const isOpen = s.statut === 'ouvert';
-    const pct    = totalCriteres > 0 ? Math.round(filled / totalCriteres * 100) : 0;
-    const done   = totalCriteres > 0 && filled >= totalCriteres;
+    const filled       = notesBySession[s.id] || 0;
+    const sessionOpen  = s.statut === 'ouvert';
+    const playerLocked = playerStatutMap[s.id] === 'fermé';
+    const canEdit      = sessionOpen && !playerLocked;
+    const pct          = totalCriteres > 0 ? Math.round(filled / totalCriteres * 100) : 0;
+    const done         = totalCriteres > 0 && filled >= totalCriteres;
 
     return `
-      <div class="session-card ${isOpen ? 'open' : 'closed'}" ${isOpen ? `onclick="showEvaluation('${s.id}')"` : ''} style="${isOpen ? 'cursor:pointer' : 'opacity:0.7'}">
+      <div class="session-card ${sessionOpen ? 'open' : 'closed'}" ${canEdit ? `onclick="showEvaluation('${s.id}')"` : ''} style="${canEdit ? 'cursor:pointer' : 'opacity:0.75'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+          <span class="${sessionOpen ? 'session-badge-open' : 'session-badge-closed'}">
+            ${playerLocked ? '🔒 ACCÈS FERMÉ' : (sessionOpen ? 'OUVERT' : 'FERMÉ')}
+          </span>
           <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
         </div>
         <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:8px">${escHtml(s.label)}</div>
@@ -110,7 +120,7 @@ async function showSessionsList() {
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <span style="font-size:12px;color:var(--gray-600)">${filled} / ${totalCriteres} critères</span>
-            ${isOpen ? `<span style="font-size:12px;font-weight:700;color:var(--fenix-navy)">${done ? '✓ Complet' : 'Modifier →'}</span>` : ''}
+            ${canEdit ? `<span style="font-size:12px;font-weight:700;color:var(--fenix-navy)">${done ? '✓ Complet' : 'Modifier →'}</span>` : ''}
           </div>` : ''}
       </div>`;
   }

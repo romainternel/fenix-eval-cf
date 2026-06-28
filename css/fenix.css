@@ -852,3 +852,42 @@ body {
   letter-spacing: 0.04em; color: var(--gray-500);
   min-width: 44px;
 }
+
+/* ── STORY 08 — Session player statut (SPS) ──────────────────────────────── */
+.sps-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 4px 12px; font-size: 13px; color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-100); margin-bottom: 8px;
+}
+
+.sps-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap;
+}
+.sps-badge.non_commence { background: var(--gray-100); color: var(--gray-500); }
+.sps-badge.en_cours     { background: #fff3e0; color: #e65100; }
+.sps-badge.joueur_ok    { background: #e3f2fd; color: #1565c0; }
+.sps-badge.complet      { background: #e8f5e9; color: #2e7d32; }
+.sps-badge.locked       { background: var(--gray-200); color: var(--gray-600); }
+.sps-badge.no-profile   { background: var(--gray-100); color: var(--gray-400); }
+
+.sps-progress-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.sps-progress-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--gray-400); min-width: 38px;
+}
+.sps-bar {
+  flex: 1; height: 5px; background: var(--gray-100);
+  border-radius: 3px; overflow: hidden;
+}
+.sps-bar-fill {
+  height: 100%; border-radius: 3px; transition: width 0.3s ease;
+}
+.sps-bar-fill.joueur { background: var(--fenix-blue, #1565c0); }
+.sps-bar-fill.staff  { background: var(--att, #16a34a); }
+.sps-progress-count {
+  font-size: 10px; font-weight: 600; color: var(--gray-500);
+  min-width: 28px; text-align: right;
+}

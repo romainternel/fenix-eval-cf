@@ -131,25 +131,30 @@ async function showSessionDetail(sessionId) {
 
 async function loadSessionPlayerList(sessionId) {
   const saison = currentSaison();
-  const [playersRes, profilesRes, evalsRes] = await Promise.all([
+  const [playersRes, profilesRes, evalsRes, statutsRes] = await Promise.all([
     window.supabaseClient.from('players').select('*').order('nom'),
     window.supabaseClient.from('player_profiles').select('*').eq('saison', saison).eq('actif', true),
-    window.supabaseClient.from('evaluations').select('player_id, critere_id, note_joueur, note_staff').eq('session_id', sessionId)
+    window.supabaseClient.from('evaluations').select('player_id, critere_id, note_joueur, note_staff').eq('session_id', sessionId),
+    window.supabaseClient.from('session_player_statut').select('player_id, statut').eq('session_id', sessionId)
   ]);
 
   const players  = playersRes.data  || [];
   const profiles = profilesRes.data || [];
   const evals    = evalsRes.data    || [];
+  const statuts  = statutsRes.data  || [];
 
   const profileMap = {};
   profiles.forEach(p => { profileMap[p.player_id] = p; });
 
-  const countMap = {}; // { playerId: { joueur: N, staff: N, total: N } }
+  const countMap = {};
   evals.forEach(e => {
     if (!countMap[e.player_id]) countMap[e.player_id] = { joueur: 0, staff: 0 };
     if (e.note_joueur) countMap[e.player_id].joueur++;
     if (e.note_staff)  countMap[e.player_id].staff++;
   });
+
+  const statutMap = {};
+  statuts.forEach(s => { statutMap[s.player_id] = s.statut; });
 
   const el = gid('sessionPlayerList');
   if (!el) return;
@@ -159,29 +164,84 @@ async function loadSessionPlayerList(sessionId) {
     return;
   }
 
-  el.innerHTML = players.map(p => {
-    const prof  = profileMap[p.id];
-    const count = countMap[p.id] || { joueur: 0, staff: 0 };
-    const total = prof
-      ? (prof.profil_gb
-          ? getAllCriteres('gb').length
-          : (getAllCriteres(prof.profil_att || '').length + getAllCriteres(prof.profil_def || '').length))
-      : 0;
+  function getPlayerStatus(playerId) {
+    const prof  = profileMap[playerId];
+    const count = countMap[playerId] || { joueur: 0, staff: 0 };
+    if (!prof) return { key: 'no-profile', label: 'Aucun profil', total: 0, count };
+    const total = prof.profil_gb
+      ? getAllCriteres('gb').length
+      : (getAllCriteres(prof.profil_att || '').length + getAllCriteres(prof.profil_def || '').length);
+    if (count.joueur === 0)      return { key: 'non_commence', label: 'Non commencé', total, count };
+    if (count.joueur < total)    return { key: 'en_cours',     label: 'En cours',      total, count };
+    if (count.staff  < total)    return { key: 'joueur_ok',    label: 'Joueur terminé',total, count };
+    return                              { key: 'complet',       label: 'Complet ✓',    total, count };
+  }
+
+  const avecProfil  = players.filter(p => profileMap[p.id]);
+  const nbComplet   = avecProfil.filter(p => getPlayerStatus(p.id).key === 'complet').length;
+  const nbJoueurOk  = avecProfil.filter(p => getPlayerStatus(p.id).key === 'joueur_ok').length;
+
+  const rows = players.map(p => {
+    const st     = getPlayerStatus(p.id);
+    const locked = statutMap[p.id] === 'fermé';
     const initials = (p.prenom[0] + p.nom[0]).toUpperCase();
+    const pctJ   = st.total > 0 ? Math.round(st.count.joueur / st.total * 100) : 0;
+    const pctS   = st.total > 0 ? Math.round(st.count.staff  / st.total * 100) : 0;
     return `
-      <div class="session-player-row" onclick="showCoachEval('${sessionId}','${p.id}')">
-        <div class="player-card-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${initials}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;color:var(--gray-800)">${escHtml(p.prenom)} ${escHtml(p.nom)}</div>
-          ${total > 0 ? `
-            <div style="display:flex;gap:12px;margin-top:4px;font-size:11px;color:var(--gray-400)">
-              <span>Joueur : ${count.joueur}/${total}</span>
-              <span>Staff : ${count.staff}/${total}</span>
-            </div>` : '<div style="font-size:11px;color:var(--gray-400)">Aucun profil</div>'}
+      <div class="session-player-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="showCoachEval('${sessionId}','${p.id}')">
+          <div class="player-card-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${initials}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:14px;font-weight:700;color:var(--gray-800)">${escHtml(p.prenom)} ${escHtml(p.nom)}</span>
+              ${locked ? '<span class="sps-badge locked">🔒 Fermé</span>' : `<span class="sps-badge ${st.key}">${st.label}</span>`}
+            </div>
+            ${st.total > 0 ? `
+              <div class="sps-progress-row" style="margin-top:6px">
+                <span class="sps-progress-label">Joueur</span>
+                <div class="sps-bar"><div class="sps-bar-fill joueur" style="width:${pctJ}%"></div></div>
+                <span class="sps-progress-count">${st.count.joueur}/${st.total}</span>
+              </div>
+              <div class="sps-progress-row">
+                <span class="sps-progress-label">Staff</span>
+                <div class="sps-bar"><div class="sps-bar-fill staff" style="width:${pctS}%"></div></div>
+                <span class="sps-progress-count">${st.count.staff}/${st.total}</span>
+              </div>` : '<div style="font-size:11px;color:var(--gray-400);margin-top:2px">Aucun profil attribué</div>'}
+          </div>
+          <span style="color:var(--gray-400);font-size:18px;flex-shrink:0">›</span>
         </div>
-        <span style="color:var(--gray-400);font-size:18px">›</span>
+        ${st.total > 0 ? `
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-sm ${locked ? 'btn-ghost' : 'btn-secondary'}" style="font-size:11px;padding:4px 10px"
+              onclick="${locked
+                ? `coachReopenPlayerSession('${sessionId}','${p.id}')`
+                : `coachClosePlayerSession('${sessionId}','${p.id}')`}">
+              ${locked ? 'Rouvrir l\'accès' : 'Fermer l\'accès'}
+            </button>
+          </div>` : ''}
       </div>`;
-  }).join('<hr style="border:none;border-top:1px solid var(--gray-100);margin:0">');
+  }).join('<hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0">');
+
+  el.innerHTML = `
+    <div class="sps-header">
+      <span style="font-weight:700">${avecProfil.length > 0 ? `${nbComplet} / ${avecProfil.length} complets` : 'Aucun profil attribué'}</span>
+      ${nbJoueurOk > 0 ? `<span style="color:var(--fenix-blue);font-size:12px">${nbJoueurOk} en attente notation staff</span>` : ''}
+    </div>
+    ${rows}`;
+}
+
+async function coachClosePlayerSession(sessionId, playerId) {
+  await window.supabaseClient.from('session_player_statut')
+    .upsert({ session_id: sessionId, player_id: playerId, statut: 'fermé', closed_at: new Date().toISOString() },
+            { onConflict: 'session_id,player_id' });
+  loadSessionPlayerList(sessionId);
+}
+
+async function coachReopenPlayerSession(sessionId, playerId) {
+  await window.supabaseClient.from('session_player_statut')
+    .upsert({ session_id: sessionId, player_id: playerId, statut: 'ouvert', closed_at: null },
+            { onConflict: 'session_id,player_id' });
+  loadSessionPlayerList(sessionId);
 }
 
 /* ─── STORY 07 — Interface notation coach ─────────────────────────────────── */
