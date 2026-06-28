@@ -254,12 +254,18 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
 const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 
+function _wrapLabel(s) {
+  if (!s.includes(' & ')) return s;
+  const [a, ...rest] = s.split(' & ');
+  return [a, '& ' + rest.join(' & ')];
+}
+
 function _radarData(profilId) {
   const profil = CRITERIA[profilId];
   if (!profil) return null;
   const labels = [], joueur = [], staff = [];
   Object.entries(profil.axes).forEach(([, axe]) => {
-    labels.push(axe.label);
+    labels.push(_wrapLabel(axe.label));
     const jN = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
     const sN = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
     joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);

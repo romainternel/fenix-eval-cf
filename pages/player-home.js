@@ -452,12 +452,18 @@ async function showPlayerRadar(sessionId) {
   _pEvalMap = {};
   (evalsRes.data || []).forEach(e => { _pEvalMap[e.critere_id] = e; });
 
+  function pWrapLabel(s) {
+    if (!s.includes(' & ')) return s;
+    const [a, ...rest] = s.split(' & ');
+    return [a, '& ' + rest.join(' & ')];
+  }
+
   function pRadarData(profilId) {
     const profil = CRITERIA[profilId];
     if (!profil) return null;
     const labels = [], joueur = [], staff = [];
     Object.entries(profil.axes).forEach(([, axe]) => {
-      labels.push(axe.label);
+      labels.push(pWrapLabel(axe.label));
       const jN = axe.criteres.map(c => _pEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
       const sN = axe.criteres.map(c => _pEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
       joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
