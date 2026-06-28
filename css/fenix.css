@@ -919,6 +919,24 @@ body {
 .radar-axe-btn:hover  { border-color: var(--fenix-blue); color: var(--fenix-blue); }
 .radar-axe-btn.active { background: var(--fenix-blue); border-color: var(--fenix-blue); color: var(--white); }
 
+/* ── STORY 09b — Multi-session toggle + légende ─────────────────────────── */
+.radar-toggle-row {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+}
+.radar-session-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--gray-600);
+}
+.radar-view-toggle {
+  display: flex; gap: 2px; background: var(--gray-100); border-radius: 20px; padding: 2px; flex-shrink: 0;
+}
+.radar-view-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 12px; border: none; border-radius: 18px;
+  background: transparent; color: var(--gray-500); cursor: pointer; transition: all 0.15s;
+  touch-action: manipulation;
+}
+.radar-view-btn.active { background: var(--white); color: var(--fenix-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
 /* ── STORY 09 — Pastilles comparaison joueur/staff ───────────────────────── */
 .cc-row {
   display: flex; align-items: center; gap: 10px;

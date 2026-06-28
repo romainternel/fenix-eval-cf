@@ -433,98 +433,135 @@ function terminerProfil() {
 
 /* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
 let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
+let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
 const _P_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
+const _P_SESSION_COLORS = [
+  { bg:'rgba(139,92,246,0.12)', border:'rgba(139,92,246,0.7)' },
+  { bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.7)' },
+  { bg:'rgba(245,158,11,0.12)', border:'rgba(245,158,11,0.7)' },
+  { bg:'rgba(59,130,246,0.15)', border:'rgba(59,130,246,0.8)' },
+];
 
-async function showPlayerRadar(sessionId) {
+function pWrapLabel(s) {
+  if (!s.includes(' & ')) return s;
+  const [a, ...rest] = s.split(' & ');
+  return [a, '& ' + rest.join(' & ')];
+}
+
+function pAxesData(profilId, evalMap, viewKey) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return null;
+  const labels = [], values = [];
+  Object.entries(profil.axes).forEach(([, axe]) => {
+    labels.push(pWrapLabel(axe.label));
+    const ns = axe.criteres.map(c => evalMap[c.id]?.[viewKey] || 0).filter(n => n > 0);
+    values.push(ns.length ? +(ns.reduce((a,b) => a+b,0) / ns.length).toFixed(1) : 0);
+  });
+  return { labels, values };
+}
+
+function pAxesBtns(profilId) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return '';
+  return Object.entries(profil.axes).map(([axeId, axe]) =>
+    `<button class="radar-axe-btn" id="praxe-${profilId}-${axeId}"
+      onclick="showPlayerAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>`
+  ).join('');
+}
+
+function pRenderRadars() {
   if (_pChartAtt) { _pChartAtt.destroy(); _pChartAtt = null; }
   if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
-
-  const mc = pgid('mainContent');
-  mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
-
-  const [sessionRes, evalsRes] = await Promise.all([
-    window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
-    window.supabaseClient.from('evaluations').select('critere_id, note_joueur, note_staff')
-      .eq('session_id', sessionId).eq('player_id', _playerId)
-  ]);
-
-  const label = sessionRes.data?.label || sessionId;
-  _pEvalMap = {};
-  (evalsRes.data || []).forEach(e => { _pEvalMap[e.critere_id] = e; });
-
-  function pWrapLabel(s) {
-    if (!s.includes(' & ')) return s;
-    const [a, ...rest] = s.split(' & ');
-    return [a, '& ' + rest.join(' & ')];
-  }
-
-  function pRadarData(profilId) {
-    const profil = CRITERIA[profilId];
-    if (!profil) return null;
-    const labels = [], joueur = [], staff = [];
-    Object.entries(profil.axes).forEach(([, axe]) => {
-      labels.push(pWrapLabel(axe.label));
-      const jN = axe.criteres.map(c => _pEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
-      const sN = axe.criteres.map(c => _pEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
-      joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
-      staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0)  / sN.length).toFixed(1) : 0);
-    });
-    return { labels, joueur, staff };
-  }
-
-  function pBuildRadar(canvasId, rd, small) {
+  const viewKey = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  function buildMulti(canvasId, profilId) {
     const ctx = pgid(canvasId)?.getContext('2d');
-    if (!ctx || !rd) return null;
+    if (!ctx || !profilId || !_pAllSessions.length) return null;
+    const firstRd = pAxesData(profilId, _pAllSessions[0].evalMap, viewKey);
+    if (!firstRd) return null;
+    const datasets = _pAllSessions.map((s, i) => {
+      const rd = pAxesData(profilId, s.evalMap, viewKey);
+      const c = _P_SESSION_COLORS[i];
+      return { data:rd.values, backgroundColor:c.bg, borderColor:c.border, pointBackgroundColor:c.border, borderWidth:1.5, pointRadius:3 };
+    });
     return new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: rd.labels,
-        datasets: [
-          { data:rd.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:1.5, pointRadius: small ? 2 : 4 },
-          { data:rd.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:1.5, pointRadius: small ? 2 : 4 }
-        ]
-      },
-      options: {
+      type:'radar',
+      data:{ labels:firstRd.labels, datasets },
+      options:{
         responsive:true, maintainAspectRatio:true, aspectRatio:1,
         plugins:{ legend:{ display:false } },
         scales:{ r:{ min:0, max:5,
-          ticks:{ stepSize:1, font:{ size: small ? 7 : 10 }, display:!small },
-          pointLabels:{ font:{ size: small ? 8 : 11, weight:'600' } },
+          ticks:{ stepSize:1, display:false },
+          pointLabels:{ font:{ size:9, weight:'600' } },
           grid:{ color:'rgba(0,0,0,0.08)' }
         }}
       }
     });
   }
+  if (_pAttId) _pChartAtt = buildMulti('pRadarAtt', _pAttId);
+  if (_pDefId) _pChartDef = buildMulti('pRadarDef', _pDefId);
+}
 
-  function pAxesBtns(profilId) {
-    const profil = CRITERIA[profilId];
-    if (!profil) return '';
-    return Object.entries(profil.axes).map(([axeId, axe]) =>
-      `<button class="radar-axe-btn" id="praxe-${profilId}-${axeId}"
-        onclick="showPlayerAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>`
-    ).join('');
-  }
+function pSetViewMode(mode) {
+  _pViewMode = mode;
+  pgid('pToggleMoi')?.classList.toggle('active', mode === 'joueur');
+  pgid('pToggleStaff')?.classList.toggle('active', mode === 'staff');
+  pRenderRadars();
+}
 
-  const isGb  = !!_playerProfile?.profil_gb;
-  const attId = isGb ? _playerProfile.profil_gb : _playerProfile?.profil_att;
-  const defId = isGb ? null : _playerProfile?.profil_def;
+async function showPlayerRadar(sessionId) {
+  if (_pChartAtt) { _pChartAtt.destroy(); _pChartAtt = null; }
+  if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
+  const mc = pgid('mainContent');
+  mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  const radarHTML = isGb
+  const spsRes = await window.supabaseClient.from('session_player_statut')
+    .select('session_id').eq('player_id', _playerId).eq('resultats_visibles', true);
+
+  const sharedIds = [...new Set([...(spsRes.data || []).map(s => s.session_id), sessionId])];
+
+  const [sessionsRes, allEvalsRes] = await Promise.all([
+    window.supabaseClient.from('sessions').select('id, label').in('id', sharedIds).order('created_at', { ascending:true }),
+    window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
+      .eq('player_id', _playerId).in('session_id', sharedIds)
+  ]);
+
+  const evalsBySession = {};
+  (allEvalsRes.data || []).forEach(e => {
+    if (!evalsBySession[e.session_id]) evalsBySession[e.session_id] = {};
+    evalsBySession[e.session_id][e.critere_id] = e;
+  });
+
+  const sessions = (sessionsRes.data || []).slice(-4);
+  _pAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
+  _pEvalMap     = evalsBySession[sessionId] || {};
+  _pViewMode    = 'joueur';
+  _pIsGb  = !!_playerProfile?.profil_gb;
+  _pAttId = _pIsGb ? _playerProfile.profil_gb : _playerProfile?.profil_att;
+  _pDefId = _pIsGb ? null : _playerProfile?.profil_def;
+
+  const legendHTML = _pAllSessions.map((s, i) => {
+    const c = _P_SESSION_COLORS[i];
+    return `<div style="display:flex;align-items:center;gap:4px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${c.border}"></div>
+      <span>${escHtml(s.label)}</span></div>`;
+  }).join('');
+
+  const radarHTML = _pIsGb
     ? `<div class="radar-col-full">
          <p class="radar-profil-title">🧤 Gardien</p>
          <canvas id="pRadarAtt" style="max-height:280px"></canvas>
-         <div class="radar-axes-btns">${pAxesBtns(attId)}</div>
+         <div class="radar-axes-btns">${pAxesBtns(_pAttId)}</div>
        </div>`
     : `<div class="radar-grid">
-         ${attId ? `<div class="radar-col">
+         ${_pAttId ? `<div class="radar-col">
            <p class="radar-profil-title">⚡ Attaque</p>
            <canvas id="pRadarAtt" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${pAxesBtns(attId)}</div>
+           <div class="radar-axes-btns">${pAxesBtns(_pAttId)}</div>
          </div>` : ''}
-         ${defId ? `<div class="radar-col">
+         ${_pDefId ? `<div class="radar-col">
            <p class="radar-profil-title">🛡 Défense</p>
            <canvas id="pRadarDef" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${pAxesBtns(defId)}</div>
+           <div class="radar-axes-btns">${pAxesBtns(_pDefId)}</div>
          </div>` : ''}
        </div>`;
 
@@ -532,11 +569,13 @@ async function showPlayerRadar(sessionId) {
     <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
     <div class="card">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:4px">Mes résultats</p>
-        <p style="font-size:12px;color:var(--gray-400);margin-bottom:10px">${escHtml(label)}</p>
-        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
-          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Moi</div>
-          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
+        <p class="section-title" style="margin-bottom:8px">Mes résultats</p>
+        <div class="radar-toggle-row">
+          <div class="radar-session-legend">${legendHTML}</div>
+          <div class="radar-view-toggle">
+            <button class="radar-view-btn active" id="pToggleMoi" onclick="pSetViewMode('joueur')">Moi</button>
+            <button class="radar-view-btn" id="pToggleStaff" onclick="pSetViewMode('staff')">Staff</button>
+          </div>
         </div>
         ${radarHTML}
         <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
@@ -544,8 +583,7 @@ async function showPlayerRadar(sessionId) {
     </div>
     <div id="pAxisDetail" style="display:none"></div>`;
 
-  if (attId) _pChartAtt = pBuildRadar('pRadarAtt', pRadarData(attId), !isGb);
-  if (defId) _pChartDef = pBuildRadar('pRadarDef', pRadarData(defId), true);
+  pRenderRadars();
 }
 
 function showPlayerAxisDetail(profilId, axeId) {
