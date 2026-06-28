@@ -196,6 +196,7 @@ async function loadSessionPlayerList(sessionId) {
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:14px;font-weight:700;color:var(--gray-800)">${escHtml(p.prenom)} ${escHtml(p.nom)}</span>
               ${locked ? '<span class="sps-badge locked">🔒 Fermé</span>' : `<span class="sps-badge ${st.key}">${st.label}</span>`}
+              ${visibles ? '<span class="sps-badge complet">Partagé ✓</span>' : ''}
             </div>
             ${st.total > 0 ? `
               <div class="sps-progress-row" style="margin-top:6px">
