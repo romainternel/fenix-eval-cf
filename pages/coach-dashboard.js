@@ -251,7 +251,8 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 }
 
 /* ─── STORY 09 — Radar chart + détail par axe ────────────────────────────── */
-let _coachEvalMap = {}, _chartAtt = null, _chartDef = null, _chartAxis = null;
+let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
+const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 
 function _radarData(profilId) {
   const profil = CRITERIA[profilId];
@@ -280,7 +281,7 @@ function _buildRadar(canvasId, rd, small) {
       ]
     },
     options: {
-      responsive:true, maintainAspectRatio:true,
+      responsive:true, maintainAspectRatio:true, aspectRatio:1,
       plugins:{ legend:{ display:false } },
       scales:{ r:{ min:0, max:5,
         ticks:{ stepSize:1, font:{ size: small ? 7 : 10 }, display:!small },
@@ -301,67 +302,55 @@ function _axesBtns(profilId) {
 }
 
 function showAxisDetail(profilId, axeId) {
-  if (_chartAxis) { _chartAxis.destroy(); _chartAxis = null; }
   const axe = CRITERIA[profilId]?.axes[axeId];
   if (!axe) return;
 
   document.querySelectorAll('.radar-axe-btn').forEach(b => b.classList.remove('active'));
   gid(`raxe-${profilId}-${axeId}`)?.classList.add('active');
 
-  const labels     = axe.criteres.map(c => c.label);
-  const joueurData = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
-  const staffData  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
+  const rows = axe.criteres.map(c => {
+    const nj = _coachEvalMap[c.id]?.note_joueur || 0;
+    const ns = _coachEvalMap[c.id]?.note_staff  || 0;
+    return `
+      <div class="cc-row">
+        <div class="cc-info">
+          <div class="cc-label">${escHtml(c.label)}</div>
+          <div class="cc-texte">${escHtml(c.texte)}</div>
+        </div>
+        <div class="cc-scores">
+          <div class="cc-score-col">
+            <span class="cc-who">Joueur</span>
+            <div class="cc-pastille ${nj ? 'n'+nj : 'empty'}"></div>
+            <span class="cc-score-name" style="color:${nj ? 'var(--n'+nj+'-text)' : 'var(--gray-400)'}">
+              ${nj ? _CC_LABELS[nj] : '—'}
+            </span>
+          </div>
+          <div class="cc-score-col">
+            <span class="cc-who">Staff</span>
+            <div class="cc-pastille ${ns ? 'n'+ns : 'empty'}"></div>
+            <span class="cc-score-name" style="color:${ns ? 'var(--n'+ns+'-text)' : 'var(--gray-400)'}">
+              ${ns ? _CC_LABELS[ns] : '—'}
+            </span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 
   const detailEl = gid('axisDetail');
   detailEl.style.display = 'block';
   detailEl.innerHTML = `
     <div class="card" style="margin-top:12px">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:10px">${escHtml(axe.label)}</p>
-        <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px">
-          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(59,130,246,0.7)"></div>Joueur</div>
-          <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(234,88,12,0.7)"></div>Staff</div>
-        </div>
-        <canvas id="axisBarChart"></canvas>
-        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
-          ${axe.criteres.map((c, i) => `
-            <div style="display:flex;gap:10px">
-              <span style="font-size:11px;font-weight:800;color:var(--gray-400);min-width:16px;padding-top:1px">${i+1}</span>
-              <div>
-                <div style="font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:2px">${escHtml(c.label)}</div>
-                <div style="font-size:12px;color:var(--gray-500);line-height:1.4">${escHtml(c.texte)}</div>
-              </div>
-            </div>`).join('')}
-        </div>
+        <p class="section-title" style="margin-bottom:12px">${escHtml(axe.label)}</p>
+        ${rows}
       </div>
     </div>`;
-
-  const ctx = gid('axisBarChart')?.getContext('2d');
-  if (ctx) _chartAxis = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label:'Joueur', data:joueurData, backgroundColor:'rgba(59,130,246,0.7)', borderRadius:4 },
-        { label:'Staff',  data:staffData,  backgroundColor:'rgba(234,88,12,0.7)',  borderRadius:4 }
-      ]
-    },
-    options: {
-      indexAxis:'y', responsive:true,
-      plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.06)' } },
-        y:{ ticks:{ font:{ size:11 } } }
-      }
-    }
-  });
   detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 async function showCoachRadar(sessionId, playerId) {
-  if (_chartAtt)  { _chartAtt.destroy();  _chartAtt  = null; }
-  if (_chartDef)  { _chartDef.destroy();  _chartDef  = null; }
-  if (_chartAxis) { _chartAxis.destroy(); _chartAxis = null; }
+  if (_chartAtt) { _chartAtt.destroy(); _chartAtt = null; }
+  if (_chartDef) { _chartDef.destroy(); _chartDef = null; }
 
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
