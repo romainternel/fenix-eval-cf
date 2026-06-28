@@ -673,7 +673,7 @@ async function showPlayerRadar(sessionId) {
           </div>` : ''}
         ${cr.notes ? `
           <div class="cr-field-group cr-notes">
-            <p class="cr-section-label">📝 Notes</p>
+            <p class="cr-section-label">📝 Compte-rendu d'entretien</p>
             <p class="cr-text">${escHtml(cr.notes)}</p>
           </div>` : ''}
       </div>

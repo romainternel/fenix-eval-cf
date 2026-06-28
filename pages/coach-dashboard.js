@@ -582,7 +582,7 @@ async function showCoachRadar(sessionId, playerId) {
           <textarea id="crMT" class="cr-textarea" placeholder="Objectifs sur la saison...">${escHtml(cr?.objectifs_mt || '')}</textarea>
         </div>
         <div class="cr-field-group cr-notes">
-          <p class="cr-section-label">📝 Notes libres</p>
+          <p class="cr-section-label">📝 Compte-rendu d'entretien</p>
           <textarea id="crNotes" class="cr-textarea" placeholder="Points forts, observations, ressenti...">${escHtml(cr?.notes || '')}</textarea>
         </div>
         <div id="crVisibilityToggle" class="cr-visibility-toggle${cr?.visible_joueur ? ' active' : ''}" onclick="coachToggleCRVis()">
