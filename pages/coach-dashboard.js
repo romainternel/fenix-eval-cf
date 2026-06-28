@@ -320,13 +320,26 @@ function cSetViewMode(mode) {
 }
 
 /* ─── STORY 10 — Compte-rendu ────────────────────────────────────────────── */
+function coachToggleCRVis() {
+  const hidden  = gid('crVisible');
+  const toggle  = gid('crVisibilityToggle');
+  const icon    = gid('crVisibleIcon');
+  const text    = gid('crVisibleText');
+  if (!hidden || !toggle) return;
+  const nowActive = hidden.value !== 'true';
+  hidden.value = nowActive ? 'true' : 'false';
+  toggle.classList.toggle('active', nowActive);
+  icon.textContent = nowActive ? '👁' : '🔒';
+  text.textContent = nowActive ? 'Partagé avec le joueur — cliquer pour masquer' : 'Masqué au joueur — cliquer pour partager';
+}
+
 async function saveCoachCR(sessionId, playerId) {
   const axesAtt = gid('crAxesAtt')?.value.trim() || '';
   const axesDef = gid('crAxesDef')?.value.trim() || '';
   const ct      = gid('crCT')?.value.trim()      || '';
   const mt      = gid('crMT')?.value.trim()      || '';
   const notes   = gid('crNotes')?.value.trim()   || '';
-  const visible = gid('crVisible')?.checked      || false;
+  const visible = gid('crVisible')?.value === 'true';
   const { error } = await window.supabaseClient.from('comptes_rendus').upsert({
     session_id:sessionId, player_id:playerId,
     axes_att:axesAtt, axes_def:axesDef,
@@ -335,8 +348,6 @@ async function saveCoachCR(sessionId, playerId) {
   }, { onConflict:'session_id,player_id' });
   if (error) { showToast('Erreur lors de la sauvegarde'); return; }
   showToast('Compte-rendu enregistré ✓');
-  const badge = gid('crVisibleBadge');
-  if (badge) badge.textContent = visible ? '✓ Partagé avec le joueur' : '';
 }
 
 function _axesBtns(profilId) {
@@ -554,24 +565,34 @@ async function showCoachRadar(sessionId, playerId) {
     <div class="card" style="margin-top:12px">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
-        <p class="cr-section-label">Axes prioritaires — Attaque</p>
-        <textarea id="crAxesAtt" class="cr-textarea" placeholder="Ex: Lecture & Orga, Finition...">${escHtml(cr?.axes_att || '')}</textarea>
-        <p class="cr-section-label">Axes prioritaires — Défense</p>
-        <textarea id="crAxesDef" class="cr-textarea" placeholder="Ex: Action, Mentalité...">${escHtml(cr?.axes_def || '')}</textarea>
-        <p class="cr-section-label">Objectif court terme du joueur</p>
-        <textarea id="crCT" class="cr-textarea" placeholder="Travail prioritaire sur les prochaines semaines...">${escHtml(cr?.objectifs_ct || '')}</textarea>
-        <p class="cr-section-label">Objectif moyen terme du joueur</p>
-        <textarea id="crMT" class="cr-textarea" placeholder="Objectifs sur la saison...">${escHtml(cr?.objectifs_mt || '')}</textarea>
-        <p class="cr-section-label">Notes libres</p>
-        <textarea id="crNotes" class="cr-textarea" placeholder="Points forts, observations, ressenti...">${escHtml(cr?.notes || '')}</textarea>
-        <div class="cr-footer">
-          <label class="cr-visible-label">
-            <input type="checkbox" id="crVisible" ${cr?.visible_joueur ? 'checked' : ''}>
-            Visible par le joueur
-          </label>
+        <div class="cr-field-group cr-att">
+          <p class="cr-section-label">⚔️ Axes prioritaires — Attaque</p>
+          <textarea id="crAxesAtt" class="cr-textarea" placeholder="Ex: Lecture & Orga, Finition...">${escHtml(cr?.axes_att || '')}</textarea>
+        </div>
+        <div class="cr-field-group cr-def">
+          <p class="cr-section-label">🛡 Axes prioritaires — Défense</p>
+          <textarea id="crAxesDef" class="cr-textarea" placeholder="Ex: Action, Mentalité...">${escHtml(cr?.axes_def || '')}</textarea>
+        </div>
+        <div class="cr-field-group cr-ct">
+          <p class="cr-section-label">🎯 Objectif court terme du joueur</p>
+          <textarea id="crCT" class="cr-textarea" placeholder="Travail prioritaire sur les prochaines semaines...">${escHtml(cr?.objectifs_ct || '')}</textarea>
+        </div>
+        <div class="cr-field-group cr-mt">
+          <p class="cr-section-label">🚀 Objectif moyen terme du joueur</p>
+          <textarea id="crMT" class="cr-textarea" placeholder="Objectifs sur la saison...">${escHtml(cr?.objectifs_mt || '')}</textarea>
+        </div>
+        <div class="cr-field-group cr-notes">
+          <p class="cr-section-label">📝 Notes libres</p>
+          <textarea id="crNotes" class="cr-textarea" placeholder="Points forts, observations, ressenti...">${escHtml(cr?.notes || '')}</textarea>
+        </div>
+        <div id="crVisibilityToggle" class="cr-visibility-toggle${cr?.visible_joueur ? ' active' : ''}" onclick="coachToggleCRVis()">
+          <span id="crVisibleIcon">${cr?.visible_joueur ? '👁' : '🔒'}</span>
+          <span id="crVisibleText">${cr?.visible_joueur ? 'Partagé avec le joueur — cliquer pour masquer' : 'Masqué au joueur — cliquer pour partager'}</span>
+        </div>
+        <input type="hidden" id="crVisible" value="${cr?.visible_joueur ? 'true' : 'false'}">
+        <div style="text-align:right;margin-top:10px">
           <button class="btn btn-primary btn-sm" onclick="saveCoachCR('${sessionId}','${playerId}')">Enregistrer</button>
         </div>
-        <p id="crVisibleBadge" style="font-size:12px;color:var(--att);margin-top:6px;text-align:right">${cr?.visible_joueur ? '✓ Partagé avec le joueur' : ''}</p>
       </div>
     </div>`;
 

@@ -652,20 +652,30 @@ async function showPlayerRadar(sessionId) {
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
         ${cr.axes_att ? `
-          <p class="cr-section-label">Axes prioritaires — Attaque</p>
-          <p class="cr-text">${escHtml(cr.axes_att)}</p>` : ''}
+          <div class="cr-field-group cr-att">
+            <p class="cr-section-label">⚔️ Axes prioritaires — Attaque</p>
+            <p class="cr-text">${escHtml(cr.axes_att)}</p>
+          </div>` : ''}
         ${cr.axes_def ? `
-          <p class="cr-section-label">Axes prioritaires — Défense</p>
-          <p class="cr-text">${escHtml(cr.axes_def)}</p>` : ''}
+          <div class="cr-field-group cr-def">
+            <p class="cr-section-label">🛡 Axes prioritaires — Défense</p>
+            <p class="cr-text">${escHtml(cr.axes_def)}</p>
+          </div>` : ''}
         ${cr.objectifs_ct ? `
-          <p class="cr-section-label">Objectif court terme du joueur</p>
-          <p class="cr-text">${escHtml(cr.objectifs_ct)}</p>` : ''}
+          <div class="cr-field-group cr-ct">
+            <p class="cr-section-label">🎯 Objectif court terme du joueur</p>
+            <p class="cr-text">${escHtml(cr.objectifs_ct)}</p>
+          </div>` : ''}
         ${cr.objectifs_mt ? `
-          <p class="cr-section-label">Objectif moyen terme du joueur</p>
-          <p class="cr-text">${escHtml(cr.objectifs_mt)}</p>` : ''}
+          <div class="cr-field-group cr-mt">
+            <p class="cr-section-label">🚀 Objectif moyen terme du joueur</p>
+            <p class="cr-text">${escHtml(cr.objectifs_mt)}</p>
+          </div>` : ''}
         ${cr.notes ? `
-          <p class="cr-section-label">Notes</p>
-          <p class="cr-text">${escHtml(cr.notes)}</p>` : ''}
+          <div class="cr-field-group cr-notes">
+            <p class="cr-section-label">📝 Notes</p>
+            <p class="cr-text">${escHtml(cr.notes)}</p>
+          </div>` : ''}
       </div>
     </div>` : ''}`;
 

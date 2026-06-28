@@ -938,37 +938,45 @@ body {
 .radar-view-btn.active { background: var(--white); color: var(--fenix-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
 /* ── STORY 10 — Compte-rendu d'entretien ─────────────────────────────────── */
+.cr-field-group {
+  border-left: 4px solid var(--gray-300); border-radius: 0 10px 10px 0;
+  padding: 10px 12px; margin-bottom: 10px; background: var(--gray-50);
+}
+.cr-field-group .cr-section-label { margin-top: 0; }
+.cr-field-group .cr-textarea { background: var(--white); }
+.cr-att   { border-left-color: #E63946; }
+.cr-def   { border-left-color: #2A9D8F; }
+.cr-ct    { border-left-color: #E9C46A; }
+.cr-mt    { border-left-color: #0A2463; }
+.cr-notes { border-left-color: #9333EA; }
+
 .cr-section-label {
-  font-size: 11px; font-weight: 700; color: var(--gray-500);
-  text-transform: uppercase; letter-spacing: 0.05em; margin: 14px 0 6px;
+  font-size: 11px; font-weight: 700; color: var(--gray-600);
+  text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;
 }
 .cr-textarea {
   width: 100%; box-sizing: border-box; min-height: 72px;
   border: 1.5px solid var(--gray-200); border-radius: 8px;
   padding: 10px 12px; font-size: 13px; line-height: 1.5; color: var(--gray-800);
-  background: var(--white); resize: vertical; font-family: inherit;
-  transition: border-color 0.15s;
+  background: #F8FAFF; resize: vertical; font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.cr-textarea:focus { outline: none; border-color: var(--fenix-blue); }
+.cr-textarea:focus { outline: none; border-color: var(--fenix-blue); background: var(--white); box-shadow: 0 0 0 3px rgba(10,36,99,0.08); }
 .cr-textarea::placeholder { color: var(--gray-300); }
-.cr-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 8px; margin-top: 14px;
+.cr-visibility-toggle {
+  display: flex; align-items: center; gap: 10px; margin-top: 14px;
+  padding: 12px 16px; border-radius: 10px; cursor: pointer;
+  background: var(--gray-100); border: 1.5px solid var(--gray-200);
+  font-size: 13px; font-weight: 600; color: var(--gray-500);
+  transition: all 0.2s; touch-action: manipulation;
 }
-.cr-visible-label {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 13px; color: var(--gray-600); cursor: pointer;
+.cr-visibility-toggle.active {
+  background: rgba(16,185,129,0.1); border-color: #10b981; color: #065f46;
 }
-.cr-visible-label input { accent-color: var(--fenix-blue); }
 .cr-text {
   font-size: 13px; color: var(--gray-700); line-height: 1.6; margin: 0;
-  background: var(--gray-50); border-radius: 8px; padding: 10px 12px;
+  background: var(--white); border-radius: 8px; padding: 10px 12px;
   white-space: pre-wrap;
-}
-.cr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.cr-axe-tag {
-  font-size: 12px; font-weight: 600; border-radius: 20px; padding: 4px 10px;
-  background: rgba(10,36,99,0.08); color: var(--fenix-blue);
 }
 
 /* ── STORY 09 — Pastilles comparaison joueur/staff ───────────────────────── */
