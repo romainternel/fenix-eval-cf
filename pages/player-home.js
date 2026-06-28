@@ -509,6 +509,11 @@ function pSetViewMode(mode) {
   pRenderBilan();
 }
 
+function pCrAxeLabel(key) {
+  const [profilId, axeId] = key.split('|');
+  return CRITERIA[profilId]?.axes[axeId]?.label || key;
+}
+
 async function showPlayerRadar(sessionId) {
   if (_pChartAtt) { _pChartAtt.destroy(); _pChartAtt = null; }
   if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
@@ -523,12 +528,14 @@ async function showPlayerRadar(sessionId) {
 
   const sharedIds = [...new Set([...(spsRes.data || []).map(s => s.session_id), sessionId])];
 
-  const [sessionRes, sessionsRes, allEvalsRes] = await Promise.all([
+  const [sessionRes, sessionsRes, allEvalsRes, crRes] = await Promise.all([
     window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
     window.supabaseClient.from('sessions').select('id, label').in('id', sharedIds).order('created_at', { ascending:true }),
     window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
-      .eq('player_id', _playerId).in('session_id', sharedIds)
+      .eq('player_id', _playerId).in('session_id', sharedIds),
+    window.supabaseClient.from('comptes_rendus').select('*').eq('session_id', sessionId).eq('player_id', _playerId).eq('visible_joueur', true).maybeSingle()
   ]);
+  const cr = crRes.data;
 
   const evalsBySession = {};
   (allEvalsRes.data || []).forEach(e => {
@@ -644,7 +651,25 @@ async function showPlayerRadar(sessionId) {
       </div>
     </div>
     <div id="pAxisDetail" style="display:none"></div>
-    ${bilanCard}`;
+    ${bilanCard}
+    ${cr ? `
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
+        ${cr.axes_prioritaires?.length ? `
+          <p class="cr-section-label">Axes prioritaires</p>
+          <div class="cr-tags">${cr.axes_prioritaires.map(k => `<span class="cr-axe-tag">${escHtml(pCrAxeLabel(k))}</span>`).join('')}</div>` : ''}
+        ${cr.objectifs_ct ? `
+          <p class="cr-section-label">Objectifs court terme</p>
+          <p class="cr-text">${escHtml(cr.objectifs_ct)}</p>` : ''}
+        ${cr.objectifs_mt ? `
+          <p class="cr-section-label">Objectifs moyen terme</p>
+          <p class="cr-text">${escHtml(cr.objectifs_mt)}</p>` : ''}
+        ${cr.notes ? `
+          <p class="cr-section-label">Notes</p>
+          <p class="cr-text">${escHtml(cr.notes)}</p>` : ''}
+      </div>
+    </div>` : ''}`;
 
   if (_pAttId) _pChartAtt = buildSessionRadar('pRadarAtt', _pAttId);
   if (_pDefId) _pChartDef = buildSessionRadar('pRadarDef', _pDefId);

@@ -319,6 +319,44 @@ function cSetViewMode(mode) {
   cRenderBilan();
 }
 
+/* ─── STORY 10 — Compte-rendu ────────────────────────────────────────────── */
+function _crAxeLabel(key) {
+  const [profilId, axeId] = key.split('|');
+  return CRITERIA[profilId]?.axes[axeId]?.label || key;
+}
+
+function _crAxesCheckboxes(attId, defId, selected) {
+  const sel = selected || [];
+  return [attId, defId].filter(Boolean).flatMap(profilId => {
+    const profil = CRITERIA[profilId];
+    if (!profil) return [];
+    return Object.entries(profil.axes).map(([axeId, axe]) => {
+      const key = `${profilId}|${axeId}`;
+      return `<label class="cr-axe-label">
+        <input type="checkbox" class="cr-axe-cb" value="${key}" ${sel.includes(key) ? 'checked' : ''}>
+        ${escHtml(axe.label)}
+      </label>`;
+    });
+  }).join('');
+}
+
+async function saveCoachCR(sessionId, playerId) {
+  const axes    = [...document.querySelectorAll('.cr-axe-cb:checked')].map(cb => cb.value);
+  const ct      = gid('crCT')?.value.trim()    || '';
+  const mt      = gid('crMT')?.value.trim()    || '';
+  const notes   = gid('crNotes')?.value.trim() || '';
+  const visible = gid('crVisible')?.checked    || false;
+  const { error } = await window.supabaseClient.from('comptes_rendus').upsert({
+    session_id:sessionId, player_id:playerId,
+    objectifs_ct:ct, objectifs_mt:mt, axes_prioritaires:axes, notes,
+    visible_joueur:visible, updated_at:new Date().toISOString()
+  }, { onConflict:'session_id,player_id' });
+  if (error) { showToast('Erreur lors de la sauvegarde'); return; }
+  showToast('Compte-rendu enregistré ✓');
+  const badge = gid('crVisibleBadge');
+  if (badge) badge.textContent = visible ? '✓ Partagé avec le joueur' : '';
+}
+
 function _axesBtns(profilId) {
   const profil = CRITERIA[profilId];
   if (!profil) return '';
@@ -384,12 +422,14 @@ async function showCoachRadar(sessionId, playerId) {
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
-  const [playerRes, profileRes, statutRes, distinctEvalsRes] = await Promise.all([
+  const [playerRes, profileRes, statutRes, distinctEvalsRes, crRes] = await Promise.all([
     window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
     window.supabaseClient.from('player_profiles').select('*').eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
     window.supabaseClient.from('session_player_statut').select('resultats_visibles').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle(),
-    window.supabaseClient.from('evaluations').select('session_id').eq('player_id', playerId)
+    window.supabaseClient.from('evaluations').select('session_id').eq('player_id', playerId),
+    window.supabaseClient.from('comptes_rendus').select('*').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle()
   ]);
+  const cr = crRes.data;
 
   const player  = playerRes.data;
   const profile = profileRes.data;
@@ -528,7 +568,28 @@ async function showCoachRadar(sessionId, playerId) {
       </div>
     </div>
     <div id="axisDetail" style="display:none"></div>
-    ${bilanCard}`;
+    ${bilanCard}
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
+        <p class="cr-section-label">Axes prioritaires</p>
+        <div class="cr-axes-grid">${_crAxesCheckboxes(_cAttId, _cDefId, cr?.axes_prioritaires)}</div>
+        <p class="cr-section-label">Objectifs court terme</p>
+        <textarea id="crCT" class="cr-textarea" placeholder="Travail prioritaire sur les prochaines semaines...">${escHtml(cr?.objectifs_ct || '')}</textarea>
+        <p class="cr-section-label">Objectifs moyen terme</p>
+        <textarea id="crMT" class="cr-textarea" placeholder="Objectifs sur la saison...">${escHtml(cr?.objectifs_mt || '')}</textarea>
+        <p class="cr-section-label">Notes libres</p>
+        <textarea id="crNotes" class="cr-textarea" placeholder="Points forts, observations, ressenti...">${escHtml(cr?.notes || '')}</textarea>
+        <div class="cr-footer">
+          <label class="cr-visible-label">
+            <input type="checkbox" id="crVisible" ${cr?.visible_joueur ? 'checked' : ''}>
+            Visible par le joueur
+          </label>
+          <button class="btn btn-primary btn-sm" onclick="saveCoachCR('${sessionId}','${playerId}')">Enregistrer</button>
+        </div>
+        <p id="crVisibleBadge" style="font-size:12px;color:var(--att);margin-top:6px;text-align:right">${cr?.visible_joueur ? '✓ Partagé avec le joueur' : ''}</p>
+      </div>
+    </div>`;
 
   if (_cAttId) _chartAtt = buildSessionRadar('radarAtt', _cAttId);
   if (_cDefId) _chartDef = buildSessionRadar('radarDef', _cDefId);

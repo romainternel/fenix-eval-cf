@@ -937,6 +937,49 @@ body {
 }
 .radar-view-btn.active { background: var(--white); color: var(--fenix-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
+/* ── STORY 10 — Compte-rendu d'entretien ─────────────────────────────────── */
+.cr-section-label {
+  font-size: 11px; font-weight: 700; color: var(--gray-500);
+  text-transform: uppercase; letter-spacing: 0.05em; margin: 14px 0 6px;
+}
+.cr-axes-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.cr-axe-label {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 13px; color: var(--gray-700);
+  background: var(--gray-50); border: 1.5px solid var(--gray-200);
+  border-radius: 8px; padding: 6px 10px; transition: border-color 0.15s;
+}
+.cr-axe-label:hover { border-color: var(--fenix-blue); }
+.cr-axe-label input { accent-color: var(--fenix-blue); cursor: pointer; }
+.cr-textarea {
+  width: 100%; box-sizing: border-box; min-height: 72px;
+  border: 1.5px solid var(--gray-200); border-radius: 8px;
+  padding: 10px 12px; font-size: 13px; line-height: 1.5; color: var(--gray-800);
+  background: var(--white); resize: vertical; font-family: inherit;
+  transition: border-color 0.15s;
+}
+.cr-textarea:focus { outline: none; border-color: var(--fenix-blue); }
+.cr-textarea::placeholder { color: var(--gray-300); }
+.cr-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px; margin-top: 14px;
+}
+.cr-visible-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--gray-600); cursor: pointer;
+}
+.cr-visible-label input { accent-color: var(--fenix-blue); }
+.cr-text {
+  font-size: 13px; color: var(--gray-700); line-height: 1.6; margin: 0;
+  background: var(--gray-50); border-radius: 8px; padding: 10px 12px;
+  white-space: pre-wrap;
+}
+.cr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cr-axe-tag {
+  font-size: 12px; font-weight: 600; border-radius: 20px; padding: 4px 10px;
+  background: rgba(10,36,99,0.08); color: var(--fenix-blue);
+}
+
 /* ── STORY 09 — Pastilles comparaison joueur/staff ───────────────────────── */
 .cc-row {
   display: flex; align-items: center; gap: 10px;
