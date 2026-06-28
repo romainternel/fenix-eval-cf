@@ -509,11 +509,6 @@ function pSetViewMode(mode) {
   pRenderBilan();
 }
 
-function pCrAxeLabel(key) {
-  const [profilId, axeId] = key.split('|');
-  return CRITERIA[profilId]?.axes[axeId]?.label || key;
-}
-
 async function showPlayerRadar(sessionId) {
   if (_pChartAtt) { _pChartAtt.destroy(); _pChartAtt = null; }
   if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
@@ -656,14 +651,17 @@ async function showPlayerRadar(sessionId) {
     <div class="card" style="margin-top:12px">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
-        ${cr.axes_prioritaires?.length ? `
-          <p class="cr-section-label">Axes prioritaires</p>
-          <div class="cr-tags">${cr.axes_prioritaires.map(k => `<span class="cr-axe-tag">${escHtml(pCrAxeLabel(k))}</span>`).join('')}</div>` : ''}
+        ${cr.axes_att ? `
+          <p class="cr-section-label">Axes prioritaires — Attaque</p>
+          <p class="cr-text">${escHtml(cr.axes_att)}</p>` : ''}
+        ${cr.axes_def ? `
+          <p class="cr-section-label">Axes prioritaires — Défense</p>
+          <p class="cr-text">${escHtml(cr.axes_def)}</p>` : ''}
         ${cr.objectifs_ct ? `
-          <p class="cr-section-label">Objectifs court terme</p>
+          <p class="cr-section-label">Objectif court terme du joueur</p>
           <p class="cr-text">${escHtml(cr.objectifs_ct)}</p>` : ''}
         ${cr.objectifs_mt ? `
-          <p class="cr-section-label">Objectifs moyen terme</p>
+          <p class="cr-section-label">Objectif moyen terme du joueur</p>
           <p class="cr-text">${escHtml(cr.objectifs_mt)}</p>` : ''}
         ${cr.notes ? `
           <p class="cr-section-label">Notes</p>

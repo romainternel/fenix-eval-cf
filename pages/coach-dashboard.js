@@ -320,35 +320,17 @@ function cSetViewMode(mode) {
 }
 
 /* ─── STORY 10 — Compte-rendu ────────────────────────────────────────────── */
-function _crAxeLabel(key) {
-  const [profilId, axeId] = key.split('|');
-  return CRITERIA[profilId]?.axes[axeId]?.label || key;
-}
-
-function _crAxesCheckboxes(attId, defId, selected) {
-  const sel = selected || [];
-  return [attId, defId].filter(Boolean).flatMap(profilId => {
-    const profil = CRITERIA[profilId];
-    if (!profil) return [];
-    return Object.entries(profil.axes).map(([axeId, axe]) => {
-      const key = `${profilId}|${axeId}`;
-      return `<label class="cr-axe-label">
-        <input type="checkbox" class="cr-axe-cb" value="${key}" ${sel.includes(key) ? 'checked' : ''}>
-        ${escHtml(axe.label)}
-      </label>`;
-    });
-  }).join('');
-}
-
 async function saveCoachCR(sessionId, playerId) {
-  const axes    = [...document.querySelectorAll('.cr-axe-cb:checked')].map(cb => cb.value);
-  const ct      = gid('crCT')?.value.trim()    || '';
-  const mt      = gid('crMT')?.value.trim()    || '';
-  const notes   = gid('crNotes')?.value.trim() || '';
-  const visible = gid('crVisible')?.checked    || false;
+  const axesAtt = gid('crAxesAtt')?.value.trim() || '';
+  const axesDef = gid('crAxesDef')?.value.trim() || '';
+  const ct      = gid('crCT')?.value.trim()      || '';
+  const mt      = gid('crMT')?.value.trim()      || '';
+  const notes   = gid('crNotes')?.value.trim()   || '';
+  const visible = gid('crVisible')?.checked      || false;
   const { error } = await window.supabaseClient.from('comptes_rendus').upsert({
     session_id:sessionId, player_id:playerId,
-    objectifs_ct:ct, objectifs_mt:mt, axes_prioritaires:axes, notes,
+    axes_att:axesAtt, axes_def:axesDef,
+    objectifs_ct:ct, objectifs_mt:mt, notes,
     visible_joueur:visible, updated_at:new Date().toISOString()
   }, { onConflict:'session_id,player_id' });
   if (error) { showToast('Erreur lors de la sauvegarde'); return; }
@@ -572,11 +554,13 @@ async function showCoachRadar(sessionId, playerId) {
     <div class="card" style="margin-top:12px">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
-        <p class="cr-section-label">Axes prioritaires</p>
-        <div class="cr-axes-grid">${_crAxesCheckboxes(_cAttId, _cDefId, cr?.axes_prioritaires)}</div>
-        <p class="cr-section-label">Objectifs court terme</p>
+        <p class="cr-section-label">Axes prioritaires — Attaque</p>
+        <textarea id="crAxesAtt" class="cr-textarea" placeholder="Ex: Lecture & Orga, Finition...">${escHtml(cr?.axes_att || '')}</textarea>
+        <p class="cr-section-label">Axes prioritaires — Défense</p>
+        <textarea id="crAxesDef" class="cr-textarea" placeholder="Ex: Action, Mentalité...">${escHtml(cr?.axes_def || '')}</textarea>
+        <p class="cr-section-label">Objectif court terme du joueur</p>
         <textarea id="crCT" class="cr-textarea" placeholder="Travail prioritaire sur les prochaines semaines...">${escHtml(cr?.objectifs_ct || '')}</textarea>
-        <p class="cr-section-label">Objectifs moyen terme</p>
+        <p class="cr-section-label">Objectif moyen terme du joueur</p>
         <textarea id="crMT" class="cr-textarea" placeholder="Objectifs sur la saison...">${escHtml(cr?.objectifs_mt || '')}</textarea>
         <p class="cr-section-label">Notes libres</p>
         <textarea id="crNotes" class="cr-textarea" placeholder="Points forts, observations, ressenti...">${escHtml(cr?.notes || '')}</textarea>
