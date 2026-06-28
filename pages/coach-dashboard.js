@@ -135,7 +135,7 @@ async function loadSessionPlayerList(sessionId) {
     window.supabaseClient.from('players').select('*').order('nom'),
     window.supabaseClient.from('player_profiles').select('*').eq('saison', saison).eq('actif', true),
     window.supabaseClient.from('evaluations').select('player_id, critere_id, note_joueur, note_staff').eq('session_id', sessionId),
-    window.supabaseClient.from('session_player_statut').select('player_id, statut').eq('session_id', sessionId)
+    window.supabaseClient.from('session_player_statut').select('player_id, statut, resultats_visibles').eq('session_id', sessionId)
   ]);
 
   const players  = playersRes.data  || [];
@@ -154,7 +154,7 @@ async function loadSessionPlayerList(sessionId) {
   });
 
   const statutMap = {};
-  statuts.forEach(s => { statutMap[s.player_id] = s.statut; });
+  statuts.forEach(s => { statutMap[s.player_id] = s; });
 
   const el = gid('sessionPlayerList');
   if (!el) return;
@@ -183,7 +183,8 @@ async function loadSessionPlayerList(sessionId) {
 
   const rows = players.map(p => {
     const st     = getPlayerStatus(p.id);
-    const locked = statutMap[p.id] === 'fermé';
+    const locked   = statutMap[p.id]?.statut === 'fermé';
+    const visibles = statutMap[p.id]?.resultats_visibles || false;
     const initials = (p.prenom[0] + p.nom[0]).toUpperCase();
     const pctJ   = st.total > 0 ? Math.round(st.count.joueur / st.total * 100) : 0;
     const pctS   = st.total > 0 ? Math.round(st.count.staff  / st.total * 100) : 0;
@@ -211,12 +212,16 @@ async function loadSessionPlayerList(sessionId) {
           <span style="color:var(--gray-400);font-size:18px;flex-shrink:0">›</span>
         </div>
         ${st.total > 0 ? `
-          <div style="display:flex;justify-content:flex-end">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <button class="btn btn-sm btn-secondary" style="font-size:11px;padding:4px 10px;flex:1"
+              onclick="showCoachRadar('${sessionId}','${p.id}')">
+              ${visibles ? '📊 Résultats ✓' : '📊 Résultats'}
+            </button>
             <button class="btn btn-sm ${locked ? 'btn-ghost' : 'btn-secondary'}" style="font-size:11px;padding:4px 10px"
               onclick="${locked
                 ? `coachReopenPlayerSession('${sessionId}','${p.id}')`
                 : `coachClosePlayerSession('${sessionId}','${p.id}')`}">
-              ${locked ? 'Rouvrir l\'accès' : 'Fermer l\'accès'}
+              ${locked ? 'Rouvrir' : 'Fermer'}
             </button>
           </div>` : ''}
       </div>`;
@@ -242,6 +247,108 @@ async function coachReopenPlayerSession(sessionId, playerId) {
     .upsert({ session_id: sessionId, player_id: playerId, statut: 'ouvert', closed_at: null },
             { onConflict: 'session_id,player_id' });
   loadSessionPlayerList(sessionId);
+}
+
+/* ─── STORY 09 — Radar chart ──────────────────────────────────────────────── */
+function _calcRadar(profilId, evalMap) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return null;
+  const labels = [], joueur = [], staff = [];
+  Object.entries(profil.axes).forEach(([, axe]) => {
+    labels.push(axe.label);
+    const jN = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+    const sN = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+    joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
+    staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0) / sN.length).toFixed(1) : 0);
+  });
+  return { labels, joueur, staff };
+}
+
+function _mergeRadar(att, def) {
+  if (att && def) return { labels:[...att.labels,...def.labels], joueur:[...att.joueur,...def.joueur], staff:[...att.staff,...def.staff] };
+  return att || def || null;
+}
+
+function _drawRadar(canvasId, radarData) {
+  const ctx = gid(canvasId)?.getContext('2d');
+  if (!ctx || !radarData) return;
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: radarData.labels,
+      datasets: [
+        { label:'Joueur', data:radarData.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:2, pointRadius:4 },
+        { label:'Staff',  data:radarData.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:2, pointRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true,
+      plugins:{ legend:{ display:false } },
+      scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, pointLabels:{ font:{ size:11, weight:'600' } }, grid:{ color:'rgba(0,0,0,0.08)' } } }
+    }
+  });
+}
+
+async function showCoachRadar(sessionId, playerId) {
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const saison = currentSaison();
+  const [playerRes, profileRes, evalsRes, statutRes] = await Promise.all([
+    window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
+    window.supabaseClient.from('player_profiles').select('*').eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
+    window.supabaseClient.from('evaluations').select('critere_id, note_joueur, note_staff').eq('session_id', sessionId).eq('player_id', playerId),
+    window.supabaseClient.from('session_player_statut').select('statut, resultats_visibles').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle()
+  ]);
+
+  const player  = playerRes.data;
+  const profile = profileRes.data;
+  const evals   = evalsRes.data || [];
+  const shared  = statutRes.data?.resultats_visibles || false;
+  const nom     = player ? `${escHtml(player.prenom)} ${escHtml(player.nom)}` : playerId;
+
+  const evalMap = {};
+  evals.forEach(e => { evalMap[e.critere_id] = e; });
+
+  const radarData = profile?.profil_gb
+    ? _calcRadar(profile.profil_gb, evalMap)
+    : _mergeRadar(_calcRadar(profile?.profil_att, evalMap), _calcRadar(profile?.profil_def, evalMap));
+
+  gid('mainContent').innerHTML = `
+    <div class="section-header" style="margin-bottom:16px">
+      <button class="btn btn-secondary btn-sm" onclick="showSessionDetail('${sessionId}')">← Retour</button>
+      <span style="font-weight:700">${nom}</span>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <p class="section-title" style="margin:0">Radar — ${escHtml(sessionId)}</p>
+          <button class="btn btn-sm ${shared ? 'btn-ghost' : 'btn-primary'}"
+            onclick="${shared ? `coachUnshareResults('${sessionId}','${playerId}')` : `coachShareResults('${sessionId}','${playerId}')`}">
+            ${shared ? 'Retirer le partage' : 'Partager avec le joueur'}
+          </button>
+        </div>
+        ${radarData ? `<canvas id="coachRadarChart" style="max-height:360px"></canvas>` : '<p style="color:var(--gray-400);text-align:center">Aucune donnée disponible.</p>'}
+        <div style="display:flex;gap:20px;justify-content:center;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.8)"></div><span style="font-size:12px">Joueur</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(234,88,12,0.8)"></div><span style="font-size:12px">Staff</span></div>
+        </div>
+        ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:8px">✓ Résultats partagés avec le joueur</p>' : ''}
+      </div>
+    </div>`;
+
+  _drawRadar('coachRadarChart', radarData);
+}
+
+async function coachShareResults(sessionId, playerId) {
+  await window.supabaseClient.from('session_player_statut')
+    .upsert({ session_id:sessionId, player_id:playerId, resultats_visibles:true }, { onConflict:'session_id,player_id' });
+  showCoachRadar(sessionId, playerId);
+}
+
+async function coachUnshareResults(sessionId, playerId) {
+  await window.supabaseClient.from('session_player_statut')
+    .upsert({ session_id:sessionId, player_id:playerId, resultats_visibles:false }, { onConflict:'session_id,player_id' });
+  showCoachRadar(sessionId, playerId);
 }
 
 /* ─── STORY 07 — Interface notation coach ─────────────────────────────────── */

@@ -69,7 +69,7 @@ async function showSessionsList() {
       .select('critere_id, note_joueur, session_id')
       .eq('player_id', _playerId),
     window.supabaseClient.from('session_player_statut')
-      .select('session_id, statut')
+      .select('session_id, statut, resultats_visibles')
       .eq('player_id', _playerId)
   ]);
 
@@ -77,7 +77,7 @@ async function showSessionsList() {
   const evals    = evalsRes.data || [];
 
   const playerStatutMap = {};
-  (statutsRes.data || []).forEach(s => { playerStatutMap[s.session_id] = s.statut; });
+  (statutsRes.data || []).forEach(s => { playerStatutMap[s.session_id] = s; });
 
   // Compter les notes par session
   const notesBySession = {};
@@ -100,7 +100,8 @@ async function showSessionsList() {
   function sessionCard(s) {
     const filled       = notesBySession[s.id] || 0;
     const sessionOpen  = s.statut === 'ouvert';
-    const playerLocked = playerStatutMap[s.id] === 'fermé';
+    const playerLocked = playerStatutMap[s.id]?.statut === 'fermé';
+    const resultatsOk  = playerStatutMap[s.id]?.resultats_visibles || false;
     const canEdit      = sessionOpen && !playerLocked;
     const pct          = totalCriteres > 0 ? Math.round(filled / totalCriteres * 100) : 0;
     const done         = totalCriteres > 0 && filled >= totalCriteres;
@@ -120,7 +121,10 @@ async function showSessionsList() {
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <span style="font-size:12px;color:var(--gray-600)">${filled} / ${totalCriteres} critères</span>
-            ${canEdit ? `<span style="font-size:12px;font-weight:700;color:var(--fenix-navy)">${done ? '✓ Complet' : 'Modifier →'}</span>` : ''}
+            <div style="display:flex;gap:8px;align-items:center">
+              ${canEdit ? `<span style="font-size:12px;font-weight:700;color:var(--fenix-navy)">${done ? '✓ Complet' : 'Modifier →'}</span>` : ''}
+              ${resultatsOk ? `<button class="btn btn-sm btn-primary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();showPlayerRadar('${s.id}')">📊 Mes résultats</button>` : ''}
+            </div>
           </div>` : ''}
       </div>`;
   }
@@ -425,6 +429,81 @@ function terminerProfil() {
   // DEF ou GB → retour aux sessions
   showToast('Évaluation envoyée !');
   setTimeout(() => showSessionsList(), 1500);
+}
+
+/* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
+async function showPlayerRadar(sessionId) {
+  const mc = pgid('mainContent');
+  mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const [sessionRes, evalsRes] = await Promise.all([
+    window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
+    window.supabaseClient.from('evaluations').select('critere_id, note_joueur, note_staff')
+      .eq('session_id', sessionId).eq('player_id', _playerId)
+  ]);
+
+  const label   = sessionRes.data?.label || sessionId;
+  const evals   = evalsRes.data || [];
+  const evalMap = {};
+  evals.forEach(e => { evalMap[e.critere_id] = e; });
+
+  function calcR(profilId) {
+    const profil = CRITERIA[profilId];
+    if (!profil) return null;
+    const labels = [], joueur = [], staff = [];
+    Object.entries(profil.axes).forEach(([, axe]) => {
+      labels.push(axe.label);
+      const jN = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+      const sN = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+      joueur.push(jN.length ? +(jN.reduce((a,b) => a+b,0) / jN.length).toFixed(1) : 0);
+      staff.push(sN.length  ? +(sN.reduce((a,b) => a+b,0) / sN.length).toFixed(1) : 0);
+    });
+    return { labels, joueur, staff };
+  }
+
+  let rd = null;
+  if (_playerProfile?.profil_gb) {
+    rd = calcR(_playerProfile.profil_gb);
+  } else if (_playerProfile) {
+    const att = calcR(_playerProfile.profil_att);
+    const def = calcR(_playerProfile.profil_def);
+    rd = (att && def)
+      ? { labels:[...att.labels,...def.labels], joueur:[...att.joueur,...def.joueur], staff:[...att.staff,...def.staff] }
+      : (att || def);
+  }
+
+  mc.innerHTML = `
+    <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
+    <div class="card">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:4px">Mes résultats</p>
+        <p style="font-size:12px;color:var(--gray-400);margin-bottom:16px">${escHtml(label)}</p>
+        ${rd ? `<canvas id="playerRadarChart" style="max-height:340px"></canvas>` : '<p style="color:var(--gray-400);text-align:center">Aucune donnée disponible.</p>'}
+        <div style="display:flex;gap:20px;justify-content:center;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.8)"></div><span style="font-size:12px">Moi</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:rgba(234,88,12,0.8)"></div><span style="font-size:12px">Staff</span></div>
+        </div>
+      </div>
+    </div>`;
+
+  if (rd) {
+    const ctx = pgid('playerRadarChart')?.getContext('2d');
+    if (ctx) new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: rd.labels,
+        datasets: [
+          { label:'Moi',   data:rd.joueur, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', pointBackgroundColor:'rgba(59,130,246,0.8)', borderWidth:2, pointRadius:4 },
+          { label:'Staff', data:rd.staff,  backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  pointBackgroundColor:'rgba(234,88,12,0.8)',  borderWidth:2, pointRadius:4 }
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ display:false } },
+        scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, pointLabels:{ font:{ size:11, weight:'600' } }, grid:{ color:'rgba(0,0,0,0.08)' } } }
+      }
+    });
+  }
 }
 
 function showToast(msg) {
