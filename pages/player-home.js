@@ -512,12 +512,12 @@ async function showPlayerRadar(sessionId) {
     : `<div class="radar-grid">
          ${attId ? `<div class="radar-col">
            <p class="radar-profil-title">⚡ Attaque</p>
-           <canvas id="pRadarAtt"></canvas>
+           <canvas id="pRadarAtt" style="width:100%"></canvas>
            <div class="radar-axes-btns">${pAxesBtns(attId)}</div>
          </div>` : ''}
          ${defId ? `<div class="radar-col">
            <p class="radar-profil-title">🛡 Défense</p>
-           <canvas id="pRadarDef"></canvas>
+           <canvas id="pRadarDef" style="width:100%"></canvas>
            <div class="radar-axes-btns">${pAxesBtns(defId)}</div>
          </div>` : ''}
        </div>`;

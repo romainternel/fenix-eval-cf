@@ -386,12 +386,12 @@ async function showCoachRadar(sessionId, playerId) {
     : `<div class="radar-grid">
          ${attId ? `<div class="radar-col">
            <p class="radar-profil-title">⚡ ${escHtml(attLbl)}</p>
-           <canvas id="radarAtt"></canvas>
+           <canvas id="radarAtt" style="width:100%"></canvas>
            <div class="radar-axes-btns">${_axesBtns(attId)}</div>
          </div>` : ''}
          ${defId ? `<div class="radar-col">
            <p class="radar-profil-title">🛡 ${escHtml(defLbl)}</p>
-           <canvas id="radarDef"></canvas>
+           <canvas id="radarDef" style="width:100%"></canvas>
            <div class="radar-axes-btns">${_axesBtns(defId)}</div>
          </div>` : ''}
        </div>`;
