@@ -717,6 +717,7 @@ async function showPlayerRadar(sessionId) {
     .select('session_id').eq('player_id', _playerId).eq('resultats_visibles', true);
 
   const sharedIds = [...new Set([...(spsRes.data || []).map(s => s.session_id), sessionId])];
+  const resultatsVisible = (spsRes.data || []).some(s => s.session_id === sessionId);
 
   const [sessionRes, sessionsRes, allEvalsRes, crRes] = await Promise.all([
     window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
@@ -844,6 +845,14 @@ async function showPlayerRadar(sessionId) {
       <div class="back-nav-inline" style="margin-bottom:0" onclick="showSessionsList()">← Sessions</div>
       <button class="btn btn-ghost btn-sm" onclick="exportPlayerPDF()">📄 PDF</button>
     </div>
+    ${resultatsVisible ? `
+    <div class="bandeau-entretien">
+      <div class="bandeau-entretien-icon">📋</div>
+      <div>
+        <div class="bandeau-entretien-title">Prépare ton entretien</div>
+        <div class="bandeau-entretien-desc">Tes résultats sont visibles. Analyse-les avant de rencontrer ton coach pour préparer au mieux votre discussion.</div>
+      </div>
+    </div>` : ''}
     <div class="card">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:4px">Mes résultats</p>
