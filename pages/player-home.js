@@ -577,71 +577,121 @@ function pRenderBarChart() {
   const viewKey  = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
   const selected = _pAllSessions.filter(s => _pSelectedSessions.has(s.id));
   if (!selected.length) return;
+  const n = selected.length;
+  const barPct = Math.max(0.28, 0.6 - Math.max(0, n - 2) * 0.07);
 
-  function buildProfilBar(canvasId, profilId, color) {
+  function buildProfilBar(canvasId, profilId, cTop, cBot, cLabel) {
     const ctx = pgid(canvasId)?.getContext('2d');
     if (!ctx || !profilId) return null;
     const profil = CRITERIA[profilId];
     if (!profil) return null;
-    const axes   = Object.values(profil.axes);
+    const axes = Object.values(profil.axes);
     const labels = [], data = [], groups = [];
-    axes.forEach(axe => {
+    axes.forEach((axe, ai) => {
       const start = labels.length;
       selected.forEach(s => {
         labels.push(s.label);
-        const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(n => n > 0);
-        data.push(ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : 0);
+        const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(v => v > 0);
+        data.push(ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : null);
       });
-      groups.push({ label: axe.label, start, count: selected.length });
+      groups.push({ label: axe.label, start, count: n });
+      if (ai < axes.length - 1) { labels.push(''); data.push(null); }
     });
-    const groupPlugin = {
-      id: 'grp_' + canvasId,
-      afterDraw(chart) {
-        const { ctx: c, chartArea, scales: { x } } = chart;
-        groups.forEach((g, gi) => {
-          const x1  = x.getPixelForValue(g.start);
-          const x2  = x.getPixelForValue(g.start + g.count - 1);
-          const mid = (x1 + x2) / 2;
-          c.save();
-          c.font = 'bold 10px system-ui,sans-serif';
-          c.fillStyle = '#334155';
-          c.textAlign = 'center';
-          c.fillText(g.label, mid, chartArea.top - 5);
-          if (gi > 0) {
-            const sep = x1 - (x.getPixelForValue(1) - x.getPixelForValue(0)) * 0.5;
-            c.strokeStyle = 'rgba(0,0,0,0.12)';
-            c.lineWidth = 1;
-            c.setLineDash([3,3]);
-            c.beginPath(); c.moveTo(sep, chartArea.top - 18); c.lineTo(sep, chartArea.bottom); c.stroke();
-          }
-          c.restore();
-        });
-      }
+
+    const gradBg = (ctx2) => {
+      const { chart } = ctx2;
+      const ca = chart.chartArea;
+      if (!ca) return cTop;
+      const g = chart.ctx.createLinearGradient(0, ca.top, 0, ca.bottom);
+      g.addColorStop(0, cTop); g.addColorStop(1, cBot);
+      return g;
     };
+
+    const plugins = [
+      {
+        id: 'grp_' + canvasId,
+        afterDraw(chart) {
+          const { ctx: c, chartArea: ca, scales: { x } } = chart;
+          groups.forEach((g, gi) => {
+            const x1 = x.getPixelForValue(g.start), x2 = x.getPixelForValue(g.start + g.count - 1);
+            const mid = (x1 + x2) / 2;
+            c.save();
+            c.font = '600 10px system-ui,sans-serif';
+            c.fillStyle = '#64748b';
+            c.textAlign = 'center';
+            c.fillText(g.label, mid, ca.top - 7);
+            if (gi > 0) {
+              const gapX = x.getPixelForValue(g.start - 1);
+              c.strokeStyle = 'rgba(0,0,0,0.07)';
+              c.lineWidth = 1; c.setLineDash([]);
+              c.beginPath(); c.moveTo(gapX, ca.top - 20); c.lineTo(gapX, ca.bottom); c.stroke();
+            }
+            c.restore();
+          });
+        }
+      },
+      {
+        id: 'vals_' + canvasId,
+        afterDatasetsDraw(chart) {
+          const { ctx: c } = chart;
+          chart.getDatasetMeta(0).data.forEach((bar, i) => {
+            const v = data[i];
+            if (v === null || v === 0) return;
+            c.save();
+            c.font = '700 10px system-ui,sans-serif';
+            c.fillStyle = cLabel;
+            c.textAlign = 'center';
+            c.fillText(v.toFixed(1), bar.x, bar.y - 5);
+            c.restore();
+          });
+        }
+      }
+    ];
+
     return new Chart(ctx, {
       type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 3, barPercentage: 0.6 }] },
-      plugins: [groupPlugin],
+      data: { labels, datasets: [{
+        data,
+        backgroundColor: gradBg,
+        borderRadius: 5,
+        borderSkipped: 'start',
+        barPercentage: barPct,
+        categoryPercentage: 0.9,
+      }]},
+      plugins,
       options: {
         responsive: true,
-        layout: { padding: { top: 24 } },
-        plugins: { legend: { display: false }, tooltip: { callbacks: {
-          title(items) {
-            const i = items[0].dataIndex;
-            const g = groups.find(g => i >= g.start && i < g.start + g.count);
-            return g ? g.label + ' — ' + labels[i] : labels[i];
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.92)',
+            titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+            titleFont: { size: 11, weight: '700' }, bodyFont: { size: 11 },
+            cornerRadius: 8, padding: 10,
+            callbacks: {
+              title(items) {
+                const i = items[0].dataIndex;
+                const g = groups.find(g => i >= g.start && i < g.start + g.count);
+                return g ? g.label : '';
+              },
+              label(item) {
+                const v = item.raw;
+                return v !== null ? ` ${labels[item.dataIndex]} : ${Number(v).toFixed(1)} / 5` : '';
+              }
+            }
           }
-        }}},
+        },
         scales: {
-          y: { min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, grid:{ color:'rgba(0,0,0,0.06)' } },
-          x: { ticks:{ font:{ size:9 }, maxRotation:35, minRotation:35 } }
+          y: { min:0, max:5, ticks:{ stepSize:1, font:{ size:10 }, color:'#94a3b8' }, grid:{ color:'rgba(0,0,0,0.05)' }, border:{ display:false } },
+          x: { ticks:{ font:{ size:9 }, color:'#64748b', maxRotation:35, minRotation:35 }, grid:{ display:false }, border:{ display:false } }
         }
       }
     });
   }
 
-  _pBarAtt = buildProfilBar('pBarAtt', _pAttId, 'rgba(59,130,246,0.65)');
-  _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.65)');
+  _pBarAtt = buildProfilBar('pBarAtt', _pAttId, 'rgba(59,130,246,0.88)', 'rgba(59,130,246,0.04)', 'rgba(37,99,235,0.95)');
+  _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.88)',  'rgba(234,88,12,0.04)',  'rgba(194,65,12,0.95)');
 }
 
 function pSetViewMode(mode) {
