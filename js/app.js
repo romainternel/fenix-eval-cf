@@ -91,3 +91,39 @@ function el(tag, attrs = {}, ...children) {
   });
   return e;
 }
+
+/* ── Légende niveaux cliquable sur la vue résultats ─────────────────────── */
+const _NOTE_DESCS = {
+  1: { label: 'Fragile',    desc: 'Niveau non acquis — à travailler en priorité' },
+  2: { label: 'En travail', desc: 'En cours d\'acquisition — des progrès sont visibles' },
+  3: { label: 'Acquis',     desc: 'Maîtrisé dans les situations standard' },
+  4: { label: 'Maîtrisé',   desc: 'Maîtrisé en situation de compétition' },
+  5: { label: 'Référence',  desc: 'Niveau d\'excellence — exemple pour les autres joueurs' },
+};
+
+function noteLegendHTML() {
+  const btns = [1,2,3,4,5].map(n =>
+    `<button class="note-ref-btn n${n}" onclick="toggleNoteLegend(${n})">${_NOTE_DESCS[n].label}</button>`
+  ).join('');
+  return `<div style="margin-bottom:10px">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:10px;color:var(--gray-400);margin-right:2px">Niveaux :</span>
+      ${btns}
+    </div>
+    <div id="noteLegendInfo" style="display:none;margin-top:6px;padding:7px 10px;border-radius:8px;font-size:11px;border:1.5px solid transparent"></div>
+  </div>`;
+}
+
+function toggleNoteLegend(n) {
+  const el = document.getElementById('noteLegendInfo');
+  if (!el) return;
+  if (el.dataset.n === String(n) && el.style.display !== 'none') {
+    el.style.display = 'none'; el.dataset.n = ''; return;
+  }
+  el.dataset.n = String(n);
+  el.style.display = 'block';
+  el.style.background    = `var(--n${n}-bg)`;
+  el.style.borderColor   = `var(--n${n}-border)`;
+  el.style.color         = `var(--n${n}-text)`;
+  el.innerHTML = `<strong>${_NOTE_DESCS[n].label}</strong> — ${_NOTE_DESCS[n].desc}`;
+}

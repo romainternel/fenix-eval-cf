@@ -949,6 +949,20 @@ body {
   color: var(--fenix-blue); font-weight: 600;
 }
 
+.note-ref-btn {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 600; padding: 3px 9px;
+  border-radius: 12px; border: 1.5px solid transparent;
+  cursor: pointer; transition: opacity 0.15s; touch-action: manipulation;
+  letter-spacing: 0.2px;
+}
+.note-ref-btn:hover { opacity: 0.8; }
+.note-ref-btn.n1 { background:var(--n1-bg); border-color:var(--n1-border); color:var(--n1-text); }
+.note-ref-btn.n2 { background:var(--n2-bg); border-color:var(--n2-border); color:var(--n2-text); }
+.note-ref-btn.n3 { background:var(--n3-bg); border-color:var(--n3-border); color:var(--n3-text); }
+.note-ref-btn.n4 { background:var(--n4-bg); border-color:var(--n4-border); color:var(--n4-text); }
+.note-ref-btn.n5 { background:var(--n5-bg); border-color:var(--n5-border); color:var(--n5-text); }
+
 /* ── STORY 10 — Compte-rendu d'entretien ─────────────────────────────────── */
 .cr-field-group {
   border-left: 4px solid var(--gray-300); border-radius: 0 10px 10px 0;
