@@ -833,8 +833,8 @@ async function showPlayerRadar(sessionId) {
         ${bilanRadarHTML}
         <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème</button>
         <div id="pBarSection" style="display:none;margin-top:12px">
-          ${_pAttId ? `<canvas id="pBarAtt"></canvas>` : ''}
-          ${_pDefId ? `<canvas id="pBarDef" style="margin-top:16px"></canvas>` : ''}
+          ${_pAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="pBarAtt"></canvas>` : ''}
+          ${_pDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="pBarDef"></canvas>` : ''}
         </div>
       </div>
     </div>` : '';

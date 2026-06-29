@@ -805,8 +805,8 @@ async function showCoachRadar(sessionId, playerId) {
         ${bilanRadarHTML}
         <button id="cBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="cToggleBarChart()">📊 Progression par thème</button>
         <div id="cBarSection" style="display:none;margin-top:12px">
-          ${_cAttId ? `<canvas id="cBarAtt"></canvas>` : ''}
-          ${_cDefId ? `<canvas id="cBarDef" style="margin-top:16px"></canvas>` : ''}
+          ${_cAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="cBarAtt"></canvas>` : ''}
+          ${_cDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="cBarDef"></canvas>` : ''}
         </div>
       </div>
     </div>` : '';
