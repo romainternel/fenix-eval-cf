@@ -419,14 +419,52 @@ function updateProgressBadges() {
 }
 
 function terminerProfil() {
-  // Si on vient de finir l'ATT et qu'il y a un DEF → passer au DEF
+  // Vérifier les critères non notés du profil actuel
+  const profil = CRITERIA[_swipeProfilId];
+  if (profil) {
+    const manques = [];
+    Object.values(profil.axes).forEach(axe => {
+      const nb = axe.criteres.filter(c => !_ratings[c.id]).length;
+      if (nb) manques.push({ label: axe.label, nb });
+    });
+    if (manques.length > 0) {
+      const total = manques.reduce((s, m) => s + m.nb, 0);
+      const liste = manques.map(m =>
+        `<li style="padding:4px 0">${m.label} — <strong>${m.nb} critère${m.nb > 1 ? 's' : ''} non noté${m.nb > 1 ? 's' : ''}</strong></li>`
+      ).join('');
+      const el = document.createElement('div');
+      el.className = 'modal-overlay';
+      el.innerHTML = `
+        <div class="modal-panel">
+          <div style="text-align:center;margin-bottom:16px">
+            <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+            <p class="modal-title" style="color:#92400E">${total} critère${total > 1 ? 's' : ''} oublié${total > 1 ? 's' : ''}</p>
+          </div>
+          <ul style="font-size:14px;color:var(--gray-600);list-style:none;padding:0;margin-bottom:16px">
+            ${liste}
+          </ul>
+          <p style="font-size:13px;color:var(--gray-400);text-align:center;margin-bottom:20px">
+            Tu peux revenir les noter ou terminer quand même.
+          </p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">← Revenir</button>
+            <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();_doTerminerProfil()">Terminer quand même</button>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+      return;
+    }
+  }
+  _doTerminerProfil();
+}
+
+function _doTerminerProfil() {
   if (_playerProfile && _playerProfile.profil_att === _swipeProfilId && _playerProfile.profil_def) {
     showToast('Attaque terminée ! Passe à la Défense.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setTimeout(() => switchProfilTab('def'), 600);
     return;
   }
-  // DEF ou GB → retour aux sessions
   showToast('Évaluation envoyée !');
   setTimeout(() => showSessionsList(), 1500);
 }
