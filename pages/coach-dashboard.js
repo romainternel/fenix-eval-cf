@@ -167,12 +167,12 @@ async function loadSessionPlayerList(sessionId) {
     }
     if (prof.profil_gb) {
       const s = avg(prof.profil_gb);
-      return s !== null ? `<span class="score-chip gb">🧤 ${s}</span>` : '';
+      return s !== null ? `<span class="score-chip gb" title="Moyenne staff — Gardien (${s}/5)">🧤 ${s}</span>` : '';
     }
     const att = avg(prof.profil_att), def = avg(prof.profil_def);
     return [
-      att !== null ? `<span class="score-chip att">⚡ ${att}</span>` : '',
-      def !== null ? `<span class="score-chip def">🛡 ${def}</span>` : '',
+      att !== null ? `<span class="score-chip att" title="Moyenne staff — Attaque (${att}/5)">⚡ ${att}</span>` : '',
+      def !== null ? `<span class="score-chip def" title="Moyenne staff — Défense (${def}/5)">🛡 ${def}</span>` : '',
     ].join('');
   }
 
