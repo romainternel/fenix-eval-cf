@@ -1269,23 +1269,27 @@ async function confirmDeletePlayer(playerId, nomComplet) {
   if (!window.confirm(`Supprimer ${nomComplet} ?\n\nCela supprimera aussi son compte, ses évaluations et profils.\nCette action est irréversible.`)) return;
 
   try {
-    // Supprimer le compte auth via Edge Function
-    const session = (await window.supabaseClient.auth.getSession()).data.session;
-    await fetch(
-      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/create-player-account',
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + session.access_token
-        },
-        body: JSON.stringify({ player_id: playerId })
-      }
-    );
+    // Tenter de supprimer le compte auth via Edge Function (non-bloquant)
+    try {
+      const session = (await window.supabaseClient.auth.getSession()).data.session;
+      await fetch(
+        'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/create-player-account',
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token
+          },
+          body: JSON.stringify({ player_id: playerId })
+        }
+      );
+    } catch (_) { /* Edge Function optionnelle — on continue */ }
 
     // Supprimer les données dans l'ordre
+    await window.supabaseClient.from('comptes_rendus').delete().eq('player_id', playerId);
     await window.supabaseClient.from('evaluations').delete().eq('player_id', playerId);
     await window.supabaseClient.from('entretiens').delete().eq('player_id', playerId);
+    await window.supabaseClient.from('session_player_statut').delete().eq('player_id', playerId);
     await window.supabaseClient.from('player_profiles').delete().eq('player_id', playerId);
     const { error } = await window.supabaseClient.from('players').delete().eq('id', playerId);
     if (error) throw error;
