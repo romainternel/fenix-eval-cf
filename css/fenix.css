@@ -1050,6 +1050,34 @@ body {
 .cc-pastille.empty { background: var(--gray-100); box-shadow: 0 0 0 3px var(--gray-200); }
 .cc-score-name { font-size: 11px; font-weight: 600; text-align: center; line-height: 1.2; }
 
+/* ── STORY 14 — Badge écart joueur/staff + tableau récap ──────────────────── */
+.delta-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 20px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; padding: 0 7px; white-space: nowrap;
+}
+.delta-badge.over  { background: rgba(234,88,12,0.12);  color: rgba(194,65,12,0.95); }
+.delta-badge.under { background: rgba(37,99,235,0.12);  color: rgba(37,99,235,0.95); }
+.delta-badge.even  { background: rgba(16,185,129,0.12); color: rgba(5,150,105,0.95); }
+.delta-badge.empty { background: var(--gray-100); color: var(--gray-400); }
+
+.recap-table {
+  width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px;
+}
+.recap-th-label, .recap-th {
+  padding: 5px 6px; font-weight: 700; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--gray-400);
+  border-bottom: 1.5px solid var(--gray-100); text-align: left;
+}
+.recap-th { text-align: center; }
+.recap-td-label, .recap-td {
+  padding: 6px 6px; border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700);
+}
+.recap-td-label { font-weight: 600; font-size: 12px; }
+.recap-td { text-align: center; font-weight: 600; color: var(--gray-600); }
+.recap-table tbody tr:last-child td { border-bottom: none; }
+
 /* ── STORY 13 — Bandeau entretien ─────────────────────────────────────────── */
 .bandeau-entretien {
   background: var(--fenix-navy);

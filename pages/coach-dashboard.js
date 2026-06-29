@@ -609,6 +609,34 @@ async function exportCoachPDF() {
   pdf.save(`FENIX_${safe}.pdf`);
 }
 
+function cRecapTableHTML(profilId, evalMap, title) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return '';
+  const rows = Object.values(profil.axes).map(axe => {
+    const jNs = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+    const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+    const avgJ = jNs.length ? +(jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
+    const avgS = sNs.length ? +(sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
+    return `<tr>
+      <td class="recap-td-label">${escHtml(axe.label)}</td>
+      <td class="recap-td">${avgS !== null ? avgS : '—'}</td>
+      <td class="recap-td">${avgJ !== null ? avgJ : '—'}</td>
+      <td class="recap-td">${deltaHTML(avgJ, avgS)}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
+    <table class="recap-table">
+      <thead><tr>
+        <th class="recap-th-label">Thème</th>
+        <th class="recap-th">Staff</th>
+        <th class="recap-th">Joueur</th>
+        <th class="recap-th">Écart</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 function _axesBtns(profilId) {
   const profil = CRITERIA[profilId];
   if (!profil) return '';
@@ -648,6 +676,11 @@ function showAxisDetail(profilId, axeId) {
             <span class="cc-score-name" style="color:${ns ? 'var(--n'+ns+'-text)' : 'var(--gray-400)'}">
               ${ns ? _CC_LABELS[ns] : '—'}
             </span>
+          </div>
+          <div class="cc-score-col">
+            <span class="cc-who">Écart</span>
+            <div style="height:32px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
+            <span class="cc-score-name" style="color:var(--gray-400)"> </span>
           </div>
         </div>
       </div>`;
@@ -832,6 +865,8 @@ async function showCoachRadar(sessionId, playerId) {
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
         </div>
         ${sessionRadarHTML}
+        ${_cAttId ? cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque') : ''}
+        ${_cDefId ? cRecapTableHTML(_cDefId, _coachEvalMap, '🛡 Défense') : ''}
         <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
         ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:4px">✓ Résultats partagés avec le joueur</p>' : ''}
       </div>

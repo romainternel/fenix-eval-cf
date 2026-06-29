@@ -1037,6 +1037,11 @@ function showPlayerAxisDetail(profilId, axeId) {
               ${ns ? _P_LABELS[ns] : '—'}
             </span>
           </div>
+          <div class="cc-score-col">
+            <span class="cc-who">Écart</span>
+            <div style="height:32px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
+            <span class="cc-score-name" style="color:var(--gray-400)"> </span>
+          </div>
         </div>
       </div>`;
   }).join('');

@@ -114,6 +114,15 @@ function noteLegendHTML() {
   </div>`;
 }
 
+/* ── Badge écart joueur/staff ─────────────────────────────────────────────── */
+function deltaHTML(nj, ns) {
+  if (!nj || !ns) return '<span class="delta-badge empty">—</span>';
+  const d = +(nj - ns).toFixed(1);
+  const cls = d > 0.05 ? 'over' : d < -0.05 ? 'under' : 'even';
+  const sign = d > 0 ? '+' : '';
+  return `<span class="delta-badge ${cls}">${sign}${d}</span>`;
+}
+
 function toggleNoteLegend(n) {
   const el = document.getElementById('noteLegendInfo');
   if (!el) return;
