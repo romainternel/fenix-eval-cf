@@ -672,7 +672,7 @@ async function showCoachRadar(sessionId, playerId) {
     ${bilanCard}
     <div class="card" style="margin-top:12px">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien</p>
+        <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien ${cr?.updated_at ? `<span style="font-weight:400;font-size:11px;color:var(--gray-400);text-transform:none;letter-spacing:0">(${new Date(cr.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})})</span>` : ''}</p>
         <div class="cr-field-group cr-att">
           <p class="cr-section-label">⚔️ Axes prioritaires — Attaque</p>
           <textarea id="crAxesAtt" class="cr-textarea" placeholder="Ex: Lecture & Orga, Finition...">${escHtml(cr?.axes_att || '')}</textarea>
