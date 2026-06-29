@@ -114,6 +114,45 @@ function noteLegendHTML() {
   </div>`;
 }
 
+/* ── Tableau tendances par thème (STORY 16) ──────────────────────────────── */
+function trendTableHTML(profilId, sessions, viewKey, title) {
+  const profil = CRITERIA[profilId];
+  if (!profil || sessions.length < 2) return '';
+
+  const rows = Object.values(profil.axes).map(axe => {
+    const avgs = sessions.map(s => {
+      const ns = axe.criteres.map(c => s.evalMap[c.id]?.[viewKey] || 0).filter(n => n > 0);
+      return ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : null;
+    });
+    const first = avgs.find(v => v !== null);
+    const last  = [...avgs].reverse().find(v => v !== null);
+    const delta = (first !== null && last !== null) ? +(last - first).toFixed(1) : null;
+    const dir   = delta === null ? 'flat' : delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
+    const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+    const cells = avgs.map(v => `<td class="trend-td">${v !== null ? v : '—'}</td>`).join('');
+    const dBadge = delta !== null
+      ? `<span class="trend-badge ${dir}">${delta > 0 ? '+' : ''}${delta}</span>`
+      : '—';
+    return `<tr>
+      <td class="trend-td-label">${escHtml(axe.label)}</td>
+      ${cells}
+      <td class="trend-td"><span class="trend-arrow ${dir}">${arrow}</span></td>
+      <td class="trend-td">${dBadge}</td>
+    </tr>`;
+  }).join('');
+
+  const headers = sessions.map(s => `<th class="trend-th">${escHtml(s.label)}</th>`).join('');
+  return `
+    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
+    <table class="trend-table">
+      <thead><tr>
+        <th class="trend-th-label">Thème</th>${headers}
+        <th class="trend-th">↕</th><th class="trend-th">Δ</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 /* ── Badge écart joueur/staff ─────────────────────────────────────────────── */
 function deltaHTML(nj, ns) {
   if (!nj || !ns) return '<span class="delta-badge empty">—</span>';

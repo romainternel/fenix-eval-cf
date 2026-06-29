@@ -555,6 +555,7 @@ function pToggleSession(sid) {
     chip.classList.toggle('active', _pSelectedSessions.has(chip.dataset.sid));
   });
   pRenderBilan();
+  pRenderTrendTable();
   if (_pShowBar) pRenderBarChart();
 }
 
@@ -694,11 +695,23 @@ function pRenderBarChart() {
   _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.88)',  'rgba(234,88,12,0.04)',  'rgba(194,65,12,0.95)');
 }
 
+function pRenderTrendTable() {
+  const el = pgid('pTrendSection');
+  if (!el) return;
+  const viewKey  = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const selected = _pAllSessions.filter(s => _pSelectedSessions.has(s.id));
+  if (selected.length < 2) { el.innerHTML = ''; return; }
+  el.innerHTML =
+    (_pAttId ? trendTableHTML(_pAttId, selected, viewKey, _pIsGb ? '🧤 Tendances Gardien' : '⚡ Tendances Attaque') : '') +
+    (_pDefId ? trendTableHTML(_pDefId, selected, viewKey, '🛡 Tendances Défense') : '');
+}
+
 function pSetViewMode(mode) {
   _pViewMode = mode;
   pgid('pToggleMoi')?.classList.toggle('active', mode === 'joueur');
   pgid('pToggleStaff')?.classList.toggle('active', mode === 'staff');
   pRenderBilan();
+  pRenderTrendTable();
   if (_pShowBar) pRenderBarChart();
 }
 
@@ -837,6 +850,7 @@ async function showPlayerRadar(sessionId) {
           ${_pAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="pBarAtt"></canvas>` : ''}
           ${_pDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="pBarDef"></canvas>` : ''}
         </div>
+        <div id="pTrendSection"></div>
       </div>
     </div>` : '';
 
@@ -901,7 +915,7 @@ async function showPlayerRadar(sessionId) {
 
   if (_pAttId) _pChartAtt = buildSessionRadar('pRadarAtt', _pAttId);
   if (_pDefId) _pChartDef = buildSessionRadar('pRadarDef', _pDefId);
-  if (showBilan) pRenderBilan();
+  if (showBilan) { pRenderBilan(); pRenderTrendTable(); }
 }
 
 /* ─── STORY 11 — Export PDF joueur ───────────────────────────────────────── */

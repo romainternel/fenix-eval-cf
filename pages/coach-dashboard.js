@@ -352,6 +352,7 @@ function cToggleSession(sid) {
     chip.classList.toggle('active', _cSelectedSessions.has(chip.dataset.sid));
   });
   cRenderBilan();
+  cRenderTrendTable();
   if (_cShowBar) cRenderBarChart();
 }
 
@@ -491,11 +492,24 @@ function cRenderBarChart() {
   _cBarDef = buildProfilBar('cBarDef', _cDefId, 'rgba(234,88,12,0.88)',  'rgba(234,88,12,0.04)',  'rgba(194,65,12,0.95)');
 }
 
+function cRenderTrendTable() {
+  const el = gid('cTrendSection');
+  if (!el) return;
+  const viewKey  = _cViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const selected = _cAllSessions.filter(s => _cSelectedSessions.has(s.id));
+  if (selected.length < 2) { el.innerHTML = ''; return; }
+  const isGb = !_cDefId && !!_cAttId;
+  el.innerHTML =
+    (_cAttId ? trendTableHTML(_cAttId, selected, viewKey, isGb ? '🧤 Tendances Gardien' : '⚡ Tendances Attaque') : '') +
+    (_cDefId ? trendTableHTML(_cDefId, selected, viewKey, '🛡 Tendances Défense') : '');
+}
+
 function cSetViewMode(mode) {
   _cViewMode = mode;
   gid('cToggleJoueur')?.classList.toggle('active', mode === 'joueur');
   gid('cToggleStaff')?.classList.toggle('active', mode === 'staff');
   cRenderBilan();
+  cRenderTrendTable();
   if (_cShowBar) cRenderBarChart();
 }
 
@@ -867,6 +881,7 @@ async function showCoachRadar(sessionId, playerId) {
           ${_cAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="cBarAtt"></canvas>` : ''}
           ${_cDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="cBarDef"></canvas>` : ''}
         </div>
+        <div id="cTrendSection"></div>
       </div>
     </div>` : '';
 
@@ -934,7 +949,7 @@ async function showCoachRadar(sessionId, playerId) {
 
   if (_cAttId) _chartAtt = buildSessionRadar('radarAtt', _cAttId);
   if (_cDefId) _chartDef = buildSessionRadar('radarDef', _cDefId);
-  if (showBilan) cRenderBilan();
+  if (showBilan) { cRenderBilan(); cRenderTrendTable(); }
 }
 
 async function coachShareResults(sessionId, playerId) {
