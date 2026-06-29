@@ -435,6 +435,7 @@ function terminerProfil() {
 let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
 let _pBilanAtt = null, _pBilanDef = null;
 let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
+let _pPdfSession = '', _pCrData = null;
 const _P_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _P_SESSION_COLORS = [
   { bg:'rgba(139,92,246,0.12)', border:'rgba(139,92,246,0.7)' },
@@ -548,6 +549,8 @@ async function showPlayerRadar(sessionId) {
   _pAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
 
   const label = sessionRes.data?.label || sessionId;
+  _pPdfSession = label;
+  _pCrData = cr;
 
   // ── Card 1 : session actuelle Moi vs Staff ───────────────────────────────
   function buildSessionRadar(canvasId, profilId) {
@@ -632,7 +635,10 @@ async function showPlayerRadar(sessionId) {
     </div>` : '';
 
   mc.innerHTML = `
-    <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="back-nav-inline" style="margin-bottom:0" onclick="showSessionsList()">← Sessions</div>
+      <button class="btn btn-ghost btn-sm" onclick="exportPlayerPDF()">📄 PDF</button>
+    </div>
     <div class="card">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:4px">Mes résultats</p>
@@ -682,6 +688,108 @@ async function showPlayerRadar(sessionId) {
   if (_pAttId) _pChartAtt = buildSessionRadar('pRadarAtt', _pAttId);
   if (_pDefId) _pChartDef = buildSessionRadar('pRadarDef', _pDefId);
   if (showBilan) pRenderBilan();
+}
+
+/* ─── STORY 11 — Export PDF joueur ───────────────────────────────────────── */
+async function exportPlayerPDF() {
+  if (!window.jspdf) { showNotif('Librairie PDF non chargée'); return; }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const PW = 210, PH = 297, M = 14, CW = PW - 2 * M;
+
+  function st(size, bold, rgb) {
+    pdf.setFontSize(size);
+    pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+    if (rgb) pdf.setTextColor(...rgb);
+  }
+  function newPageIfNeeded(y, need = 25) {
+    if (y + need > PH - M) { pdf.addPage(); return M + 6; }
+    return y;
+  }
+
+  // ── Bande header ─────────────────────────────────────────────────────────
+  pdf.setFillColor(10, 36, 99);
+  pdf.rect(0, 0, PW, 22, 'F');
+  pdf.setFillColor(200, 168, 75);
+  pdf.rect(0, 0, 4, 22, 'F');
+  st(14, true, [255, 255, 255]);
+  pdf.text('FENIX Eval CF', 8, 10);
+  st(9, false, [200, 168, 75]);
+  pdf.text(_playerName + '  ·  ' + _pPdfSession, 8, 18);
+
+  let y = 28;
+
+  // ── Radars ───────────────────────────────────────────────────────────────
+  st(7, true, [148, 163, 184]);
+  pdf.text('MES RÉSULTATS', M, y);
+  pdf.setFillColor(59, 130, 246);
+  pdf.circle(PW - M - 18, y - 0.5, 1.2, 'F');
+  st(7, false, [71, 85, 105]);
+  pdf.text('Moi', PW - M - 15, y);
+  pdf.setFillColor(234, 88, 12);
+  pdf.circle(PW - M - 7, y - 0.5, 1.2, 'F');
+  pdf.text('Staff', PW - M - 4, y);
+  y += 4;
+
+  const att = pgid('pRadarAtt'), def = pgid('pRadarDef');
+  if (att && def && !_pIsGb) {
+    const rW = (CW - 4) / 2;
+    pdf.addImage(att.toDataURL('image/png'), 'PNG', M, y, rW, rW);
+    pdf.addImage(def.toDataURL('image/png'), 'PNG', M + rW + 4, y, rW, rW);
+    y += rW + 5;
+  } else if (att) {
+    const rW = CW * 0.65;
+    pdf.addImage(att.toDataURL('image/png'), 'PNG', M + (CW - rW) / 2, y, rW, rW);
+    y += rW + 5;
+  }
+
+  // ── CR (si visible) ───────────────────────────────────────────────────────
+  if (_pCrData) {
+    y = newPageIfNeeded(y, 15);
+    pdf.setDrawColor(226, 232, 240); pdf.setLineWidth(0.3);
+    pdf.line(M, y, PW - M, y);
+    y += 5;
+    st(7, true, [148, 163, 184]);
+    pdf.text('COMPTE-RENDU D\'ENTRETIEN', M, y);
+    y += 6;
+
+    const crSecs = [
+      { label:'Axes prioritaires — Attaque', val:_pCrData.axes_att,     c:[230,57,70]  },
+      { label:'Axes prioritaires — Défense', val:_pCrData.axes_def,     c:[42,157,143] },
+      { label:'Objectif court terme',        val:_pCrData.objectifs_ct, c:[200,130,40] },
+      { label:'Objectif moyen terme',        val:_pCrData.objectifs_mt, c:[10,36,99]   },
+      { label:'Compte-rendu d\'entretien',   val:_pCrData.notes,        c:[147,51,234] },
+    ];
+    for (const s of crSecs) {
+      if (!s.val?.trim()) continue;
+      y = newPageIfNeeded(y, 20);
+      st(8, true, s.c);
+      pdf.text(s.label.toUpperCase(), M + 4, y);
+      y += 5;
+      st(10, false, [30, 41, 59]);
+      const lines = pdf.splitTextToSize(s.val.trim(), CW - 8);
+      const boxH  = Math.max(8, lines.length * 4.4 + 4);
+      pdf.setFillColor(248, 250, 252);
+      pdf.setDrawColor(...s.c); pdf.setLineWidth(0.8);
+      pdf.line(M, y - 1.5, M, y - 1.5 + boxH);
+      pdf.setLineWidth(0.2); pdf.setDrawColor(226, 232, 240);
+      pdf.roundedRect(M + 2, y - 1.5, CW - 2, boxH, 1.5, 1.5, 'FD');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(lines, M + 5, y + 2.5);
+      y += boxH + 5;
+    }
+  }
+
+  // ── Pied de page ─────────────────────────────────────────────────────────
+  const np = pdf.getNumberOfPages();
+  for (let p = 1; p <= np; p++) {
+    pdf.setPage(p);
+    st(7, false, [148, 163, 184]);
+    pdf.text(`FENIX Eval CF — ${new Date().toLocaleDateString('fr-FR')} — ${p}/${np}`, M, PH - 5);
+  }
+
+  const safe = (_playerName + '_' + _pPdfSession).replace(/[^a-zA-Z0-9_-]/g, '_');
+  pdf.save(`FENIX_${safe}.pdf`);
 }
 
 function showPlayerAxisDetail(profilId, axeId) {
