@@ -252,7 +252,7 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 
 /* ─── STORY 09 — Radar chart + détail par axe ────────────────────────────── */
 let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
-let _cBilanAtt = null, _cBilanDef = null, _cBarChart = null;
+let _cBilanAtt = null, _cBilanDef = null, _cBarAtt = null, _cBarDef = null;
 let _cAllSessions = [], _cViewMode = 'staff', _cAttId = null, _cDefId = null;
 let _cSelectedSessions = new Set(), _cShowBar = false;
 let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false;
@@ -332,50 +332,88 @@ function cToggleSession(sid) {
 
 function cToggleBarChart() {
   _cShowBar = !_cShowBar;
-  const el = gid('cBarSection');
+  const el  = gid('cBarSection');
   const btn = gid('cBarBtn');
   if (el)  el.style.display = _cShowBar ? 'block' : 'none';
   if (btn) btn.textContent  = _cShowBar ? '📊 Masquer la progression' : '📊 Progression par thème';
   if (_cShowBar) cRenderBarChart();
-  else if (_cBarChart) { _cBarChart.destroy(); _cBarChart = null; }
+  else {
+    if (_cBarAtt) { _cBarAtt.destroy(); _cBarAtt = null; }
+    if (_cBarDef) { _cBarDef.destroy(); _cBarDef = null; }
+  }
 }
 
 function cRenderBarChart() {
-  if (_cBarChart) { _cBarChart.destroy(); _cBarChart = null; }
-  const ctx = gid('cBarCanvas')?.getContext('2d');
-  if (!ctx) return;
-  const viewKey = _cViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
-  const allAxes = [];
-  [_cAttId, _cDefId].filter(Boolean).forEach(pid => {
-    const p = CRITERIA[pid];
-    if (p) Object.values(p.axes).forEach(axe => allAxes.push({ label: axe.label, criteres: axe.criteres }));
-  });
+  if (_cBarAtt) { _cBarAtt.destroy(); _cBarAtt = null; }
+  if (_cBarDef) { _cBarDef.destroy(); _cBarDef = null; }
+  const viewKey  = _cViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
   const selected = _cAllSessions.filter(s => _cSelectedSessions.has(s.id));
-  const datasets = selected.map(s => {
-    const i = _cAllSessions.indexOf(s);
-    const c = _C_SESSION_COLORS[i];
-    const bg = c.border.replace('0.7)', '0.55)').replace('0.8)', '0.55)');
-    return {
-      label: s.label,
-      data: allAxes.map(axe => {
+  if (!selected.length) return;
+
+  function buildProfilBar(canvasId, profilId, color) {
+    const ctx = gid(canvasId)?.getContext('2d');
+    if (!ctx || !profilId) return null;
+    const profil = CRITERIA[profilId];
+    if (!profil) return null;
+    const axes   = Object.values(profil.axes);
+    const labels = [], data = [], groups = [];
+    axes.forEach(axe => {
+      const start = labels.length;
+      selected.forEach(s => {
+        labels.push(s.label);
         const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(n => n > 0);
-        return ns.length ? +(ns.reduce((a,b) => a+b,0) / ns.length).toFixed(1) : 0;
-      }),
-      backgroundColor: bg, borderColor: c.border, borderWidth: 1.5, borderRadius: 4,
-    };
-  });
-  _cBarChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: allAxes.map(a => a.label), datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } },
-      scales: {
-        y: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 } }
+        data.push(ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : 0);
+      });
+      groups.push({ label: axe.label, start, count: selected.length });
+    });
+    const groupPlugin = {
+      id: 'grp_' + canvasId,
+      afterDraw(chart) {
+        const { ctx: c, chartArea, scales: { x } } = chart;
+        groups.forEach((g, gi) => {
+          const x1 = x.getPixelForValue(g.start);
+          const x2 = x.getPixelForValue(g.start + g.count - 1);
+          const mid = (x1 + x2) / 2;
+          c.save();
+          c.font = 'bold 10px system-ui,sans-serif';
+          c.fillStyle = '#334155';
+          c.textAlign = 'center';
+          c.fillText(g.label, mid, chartArea.top - 5);
+          if (gi > 0) {
+            const sep = x1 - (x.getPixelForValue(1) - x.getPixelForValue(0)) * 0.5;
+            c.strokeStyle = 'rgba(0,0,0,0.12)';
+            c.lineWidth = 1;
+            c.setLineDash([3,3]);
+            c.beginPath(); c.moveTo(sep, chartArea.top - 18); c.lineTo(sep, chartArea.bottom); c.stroke();
+          }
+          c.restore();
+        });
       }
-    }
-  });
+    };
+    return new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 3, barPercentage: 0.6 }] },
+      plugins: [groupPlugin],
+      options: {
+        responsive: true,
+        layout: { padding: { top: 24 } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          title(items) {
+            const i = items[0].dataIndex;
+            const g = groups.find(g => i >= g.start && i < g.start + g.count);
+            return g ? g.label + ' — ' + labels[i] : labels[i];
+          }
+        }}},
+        scales: {
+          y: { min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, grid:{ color:'rgba(0,0,0,0.06)' } },
+          x: { ticks:{ font:{ size:9 }, maxRotation:35, minRotation:35 } }
+        }
+      }
+    });
+  }
+
+  _cBarAtt = buildProfilBar('cBarAtt', _cAttId, 'rgba(59,130,246,0.65)');
+  _cBarDef = buildProfilBar('cBarDef', _cDefId, 'rgba(234,88,12,0.65)');
 }
 
 function cSetViewMode(mode) {
@@ -714,7 +752,10 @@ async function showCoachRadar(sessionId, playerId) {
         </div>
         ${bilanRadarHTML}
         <button id="cBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="cToggleBarChart()">📊 Progression par thème</button>
-        <div id="cBarSection" style="display:none;margin-top:12px"><canvas id="cBarCanvas"></canvas></div>
+        <div id="cBarSection" style="display:none;margin-top:12px">
+          ${_cAttId ? `<canvas id="cBarAtt"></canvas>` : ''}
+          ${_cDefId ? `<canvas id="cBarDef" style="margin-top:16px"></canvas>` : ''}
+        </div>
       </div>
     </div>` : '';
 

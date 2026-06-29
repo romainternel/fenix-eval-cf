@@ -471,7 +471,7 @@ function _doTerminerProfil() {
 
 /* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
 let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
-let _pBilanAtt = null, _pBilanDef = null, _pBarChart = null;
+let _pBilanAtt = null, _pBilanDef = null, _pBarAtt = null, _pBarDef = null;
 let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
 let _pSelectedSessions = new Set(), _pShowBar = false;
 let _pPdfSession = '', _pCrData = null;
@@ -560,50 +560,88 @@ function pToggleSession(sid) {
 
 function pToggleBarChart() {
   _pShowBar = !_pShowBar;
-  const el = pgid('pBarSection');
+  const el  = pgid('pBarSection');
   const btn = pgid('pBarBtn');
   if (el)  el.style.display = _pShowBar ? 'block' : 'none';
   if (btn) btn.textContent  = _pShowBar ? '📊 Masquer la progression' : '📊 Progression par thème';
   if (_pShowBar) pRenderBarChart();
-  else if (_pBarChart) { _pBarChart.destroy(); _pBarChart = null; }
+  else {
+    if (_pBarAtt) { _pBarAtt.destroy(); _pBarAtt = null; }
+    if (_pBarDef) { _pBarDef.destroy(); _pBarDef = null; }
+  }
 }
 
 function pRenderBarChart() {
-  if (_pBarChart) { _pBarChart.destroy(); _pBarChart = null; }
-  const ctx = pgid('pBarCanvas')?.getContext('2d');
-  if (!ctx) return;
-  const viewKey = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
-  const allAxes = [];
-  [_pAttId, _pDefId].filter(Boolean).forEach(pid => {
-    const p = CRITERIA[pid];
-    if (p) Object.values(p.axes).forEach(axe => allAxes.push({ label: axe.label, criteres: axe.criteres }));
-  });
+  if (_pBarAtt) { _pBarAtt.destroy(); _pBarAtt = null; }
+  if (_pBarDef) { _pBarDef.destroy(); _pBarDef = null; }
+  const viewKey  = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
   const selected = _pAllSessions.filter(s => _pSelectedSessions.has(s.id));
-  const datasets = selected.map(s => {
-    const i = _pAllSessions.indexOf(s);
-    const c = _P_SESSION_COLORS[i];
-    const bg = c.border.replace('0.7)', '0.55)').replace('0.8)', '0.55)');
-    return {
-      label: s.label,
-      data: allAxes.map(axe => {
+  if (!selected.length) return;
+
+  function buildProfilBar(canvasId, profilId, color) {
+    const ctx = pgid(canvasId)?.getContext('2d');
+    if (!ctx || !profilId) return null;
+    const profil = CRITERIA[profilId];
+    if (!profil) return null;
+    const axes   = Object.values(profil.axes);
+    const labels = [], data = [], groups = [];
+    axes.forEach(axe => {
+      const start = labels.length;
+      selected.forEach(s => {
+        labels.push(s.label);
         const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(n => n > 0);
-        return ns.length ? +(ns.reduce((a,b) => a+b,0) / ns.length).toFixed(1) : 0;
-      }),
-      backgroundColor: bg, borderColor: c.border, borderWidth: 1.5, borderRadius: 4,
-    };
-  });
-  _pBarChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: allAxes.map(a => a.label), datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } },
-      scales: {
-        y: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 } }
+        data.push(ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : 0);
+      });
+      groups.push({ label: axe.label, start, count: selected.length });
+    });
+    const groupPlugin = {
+      id: 'grp_' + canvasId,
+      afterDraw(chart) {
+        const { ctx: c, chartArea, scales: { x } } = chart;
+        groups.forEach((g, gi) => {
+          const x1  = x.getPixelForValue(g.start);
+          const x2  = x.getPixelForValue(g.start + g.count - 1);
+          const mid = (x1 + x2) / 2;
+          c.save();
+          c.font = 'bold 10px system-ui,sans-serif';
+          c.fillStyle = '#334155';
+          c.textAlign = 'center';
+          c.fillText(g.label, mid, chartArea.top - 5);
+          if (gi > 0) {
+            const sep = x1 - (x.getPixelForValue(1) - x.getPixelForValue(0)) * 0.5;
+            c.strokeStyle = 'rgba(0,0,0,0.12)';
+            c.lineWidth = 1;
+            c.setLineDash([3,3]);
+            c.beginPath(); c.moveTo(sep, chartArea.top - 18); c.lineTo(sep, chartArea.bottom); c.stroke();
+          }
+          c.restore();
+        });
       }
-    }
-  });
+    };
+    return new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 3, barPercentage: 0.6 }] },
+      plugins: [groupPlugin],
+      options: {
+        responsive: true,
+        layout: { padding: { top: 24 } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          title(items) {
+            const i = items[0].dataIndex;
+            const g = groups.find(g => i >= g.start && i < g.start + g.count);
+            return g ? g.label + ' — ' + labels[i] : labels[i];
+          }
+        }}},
+        scales: {
+          y: { min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, grid:{ color:'rgba(0,0,0,0.06)' } },
+          x: { ticks:{ font:{ size:9 }, maxRotation:35, minRotation:35 } }
+        }
+      }
+    });
+  }
+
+  _pBarAtt = buildProfilBar('pBarAtt', _pAttId, 'rgba(59,130,246,0.65)');
+  _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.65)');
 }
 
 function pSetViewMode(mode) {
@@ -742,7 +780,10 @@ async function showPlayerRadar(sessionId) {
         </div>
         ${bilanRadarHTML}
         <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème</button>
-        <div id="pBarSection" style="display:none;margin-top:12px"><canvas id="pBarCanvas"></canvas></div>
+        <div id="pBarSection" style="display:none;margin-top:12px">
+          ${_pAttId ? `<canvas id="pBarAtt"></canvas>` : ''}
+          ${_pDefId ? `<canvas id="pBarDef" style="margin-top:16px"></canvas>` : ''}
+        </div>
       </div>
     </div>` : '';
 
