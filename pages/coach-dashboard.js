@@ -252,8 +252,9 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 
 /* ─── STORY 09 — Radar chart + détail par axe ────────────────────────────── */
 let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
-let _cBilanAtt = null, _cBilanDef = null;
+let _cBilanAtt = null, _cBilanDef = null, _cBarChart = null;
 let _cAllSessions = [], _cViewMode = 'staff', _cAttId = null, _cDefId = null;
+let _cSelectedSessions = new Set(), _cShowBar = false;
 let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false;
 const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _C_SESSION_COLORS = [
@@ -285,15 +286,17 @@ function cRenderBilan() {
   if (_cBilanAtt) { _cBilanAtt.destroy(); _cBilanAtt = null; }
   if (_cBilanDef) { _cBilanDef.destroy(); _cBilanDef = null; }
   const viewKey = _cViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const selected = _cAllSessions.filter(s => _cSelectedSessions.has(s.id));
   function buildMulti(canvasId, profilId) {
     const ctx = gid(canvasId)?.getContext('2d');
-    if (!ctx || !profilId || !_cAllSessions.length) return null;
-    const firstRd = _axesData(profilId, _cAllSessions[0].evalMap, viewKey);
+    if (!ctx || !profilId || !selected.length) return null;
+    const firstRd = _axesData(profilId, selected[0].evalMap, viewKey);
     if (!firstRd) return null;
-    const datasets = _cAllSessions.map((s, i) => {
+    const datasets = selected.map(s => {
+      const i = _cAllSessions.indexOf(s);
       const rd = _axesData(profilId, s.evalMap, viewKey);
       const c = _C_SESSION_COLORS[i];
-      return { data:rd.values, backgroundColor:c.bg, borderColor:c.border, pointBackgroundColor:c.border, borderWidth:1.5, pointRadius:3 };
+      return { label:s.label, data:rd.values, backgroundColor:c.bg, borderColor:c.border, pointBackgroundColor:c.border, borderWidth:1.5, pointRadius:3 };
     });
     return new Chart(ctx, {
       type:'radar',
@@ -313,11 +316,74 @@ function cRenderBilan() {
   if (_cDefId) _cBilanDef = buildMulti('cBilanDef', _cDefId);
 }
 
+function cToggleSession(sid) {
+  if (_cSelectedSessions.has(sid)) {
+    if (_cSelectedSessions.size <= 1) return;
+    _cSelectedSessions.delete(sid);
+  } else {
+    _cSelectedSessions.add(sid);
+  }
+  document.querySelectorAll('.bilan-chip[data-sid]').forEach(chip => {
+    chip.classList.toggle('active', _cSelectedSessions.has(chip.dataset.sid));
+  });
+  cRenderBilan();
+  if (_cShowBar) cRenderBarChart();
+}
+
+function cToggleBarChart() {
+  _cShowBar = !_cShowBar;
+  const el = gid('cBarSection');
+  const btn = gid('cBarBtn');
+  if (el)  el.style.display = _cShowBar ? 'block' : 'none';
+  if (btn) btn.textContent  = _cShowBar ? '📊 Masquer la progression' : '📊 Progression par thème';
+  if (_cShowBar) cRenderBarChart();
+  else if (_cBarChart) { _cBarChart.destroy(); _cBarChart = null; }
+}
+
+function cRenderBarChart() {
+  if (_cBarChart) { _cBarChart.destroy(); _cBarChart = null; }
+  const ctx = gid('cBarCanvas')?.getContext('2d');
+  if (!ctx) return;
+  const viewKey = _cViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const allAxes = [];
+  [_cAttId, _cDefId].filter(Boolean).forEach(pid => {
+    const p = CRITERIA[pid];
+    if (p) Object.values(p.axes).forEach(axe => allAxes.push({ label: axe.label, criteres: axe.criteres }));
+  });
+  const selected = _cAllSessions.filter(s => _cSelectedSessions.has(s.id));
+  const datasets = selected.map(s => {
+    const i = _cAllSessions.indexOf(s);
+    const c = _C_SESSION_COLORS[i];
+    const bg = c.border.replace('0.7)', '0.55)').replace('0.8)', '0.55)');
+    return {
+      label: s.label,
+      data: allAxes.map(axe => {
+        const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(n => n > 0);
+        return ns.length ? +(ns.reduce((a,b) => a+b,0) / ns.length).toFixed(1) : 0;
+      }),
+      backgroundColor: bg, borderColor: c.border, borderWidth: 1.5, borderRadius: 4,
+    };
+  });
+  _cBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: allAxes.map(a => a.label), datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } },
+      scales: {
+        y: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 } }
+      }
+    }
+  });
+}
+
 function cSetViewMode(mode) {
   _cViewMode = mode;
   gid('cToggleJoueur')?.classList.toggle('active', mode === 'joueur');
   gid('cToggleStaff')?.classList.toggle('active', mode === 'staff');
   cRenderBilan();
+  if (_cShowBar) cRenderBarChart();
 }
 
 /* ─── STORY 10 — Compte-rendu ────────────────────────────────────────────── */
@@ -553,6 +619,8 @@ async function showCoachRadar(sessionId, playerId) {
 
   const sessions = (sessionsRes.data || []).slice(-4);
   _cAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
+  _cSelectedSessions = new Set(_cAllSessions.slice(-2).map(s => s.id));
+  _cShowBar = false;
 
   const isGb  = !!profile?.profil_gb;
   _cAttId = isGb ? profile.profil_gb : profile?.profil_att;
@@ -615,11 +683,14 @@ async function showCoachRadar(sessionId, playerId) {
 
   // ── Card 2 : bilan multi-sessions (si > 1 session évaluée) ──────────────
   const showBilan = _cAllSessions.length > 1;
-  const bilanLegend = _cAllSessions.map((s, i) => {
+
+  const bilanChips = _cAllSessions.map((s, i) => {
     const c = _C_SESSION_COLORS[i];
-    return `<div style="display:flex;align-items:center;gap:4px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${c.border}"></div>
-      <span>${escHtml(s.label)}</span></div>`;
+    const sel = _cSelectedSessions.has(s.id);
+    return `<button class="bilan-chip${sel ? ' active' : ''}" data-sid="${s.id}" onclick="cToggleSession('${s.id}')">
+      <span style="width:8px;height:8px;border-radius:50%;background:${c.border};display:inline-block;flex-shrink:0"></span>
+      ${escHtml(s.label)}
+    </button>`;
   }).join('');
 
   const bilanRadarHTML = isGb
@@ -632,15 +703,18 @@ async function showCoachRadar(sessionId, playerId) {
   const bilanCard = showBilan ? `
     <div class="card" style="margin-top:12px">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:8px">Bilan — Progression</p>
-        <div class="radar-toggle-row">
-          <div class="radar-session-legend">${bilanLegend}</div>
+        <p class="section-title" style="margin-bottom:10px">Bilan — Progression</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${bilanChips}</div>
+        <div class="radar-toggle-row" style="margin-bottom:8px">
+          <div></div>
           <div class="radar-view-toggle">
             <button class="radar-view-btn" id="cToggleJoueur" onclick="cSetViewMode('joueur')">Joueur</button>
             <button class="radar-view-btn active" id="cToggleStaff" onclick="cSetViewMode('staff')">Staff</button>
           </div>
         </div>
         ${bilanRadarHTML}
+        <button id="cBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="cToggleBarChart()">📊 Progression par thème</button>
+        <div id="cBarSection" style="display:none;margin-top:12px"><canvas id="cBarCanvas"></canvas></div>
       </div>
     </div>` : '';
 
