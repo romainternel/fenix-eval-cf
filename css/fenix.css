@@ -1050,6 +1050,16 @@ body {
 .cc-pastille.empty { background: var(--gray-100); box-shadow: 0 0 0 3px var(--gray-200); }
 .cc-score-name { font-size: 11px; font-weight: 600; text-align: center; line-height: 1.2; }
 
+/* ── STORY 15 — Score global Att/Def sur liste joueurs ───────────────────── */
+.score-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; white-space: nowrap;
+}
+.score-chip.att { background: rgba(22,101,52,0.1);  color: var(--att); }
+.score-chip.def { background: rgba(153,27,27,0.1);  color: var(--def); }
+.score-chip.gb  { background: rgba(30,64,175,0.1);  color: var(--gb);  }
+
 /* ── STORY 14 — Badge écart joueur/staff + tableau récap ──────────────────── */
 .delta-badge {
   display: inline-flex; align-items: center; justify-content: center;

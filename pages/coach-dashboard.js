@@ -147,11 +147,34 @@ async function loadSessionPlayerList(sessionId) {
   profiles.forEach(p => { profileMap[p.player_id] = p; });
 
   const countMap = {};
+  const evalsByPlayer = {};
   evals.forEach(e => {
     if (!countMap[e.player_id]) countMap[e.player_id] = { joueur: 0, staff: 0 };
     if (e.note_joueur) countMap[e.player_id].joueur++;
     if (e.note_staff)  countMap[e.player_id].staff++;
+    if (!evalsByPlayer[e.player_id]) evalsByPlayer[e.player_id] = {};
+    evalsByPlayer[e.player_id][e.critere_id] = e;
   });
+
+  function playerScoreChips(playerId) {
+    const prof = profileMap[playerId];
+    if (!prof) return '';
+    const pev = evalsByPlayer[playerId] || {};
+    function avg(profilId) {
+      if (!profilId || !CRITERIA[profilId]) return null;
+      const ns = getAllCriteres(profilId).map(c => pev[c.id]?.note_staff || 0).filter(n => n > 0);
+      return ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : null;
+    }
+    if (prof.profil_gb) {
+      const s = avg(prof.profil_gb);
+      return s !== null ? `<span class="score-chip gb">🧤 ${s}</span>` : '';
+    }
+    const att = avg(prof.profil_att), def = avg(prof.profil_def);
+    return [
+      att !== null ? `<span class="score-chip att">⚡ ${att}</span>` : '',
+      def !== null ? `<span class="score-chip def">🛡 ${def}</span>` : '',
+    ].join('');
+  }
 
   const statutMap = {};
   statuts.forEach(s => { statutMap[s.player_id] = s; });
@@ -188,6 +211,7 @@ async function loadSessionPlayerList(sessionId) {
     const initials = (p.prenom[0] + p.nom[0]).toUpperCase();
     const pctJ   = st.total > 0 ? Math.round(st.count.joueur / st.total * 100) : 0;
     const pctS   = st.total > 0 ? Math.round(st.count.staff  / st.total * 100) : 0;
+    const chips  = playerScoreChips(p.id);
     return `
       <div class="session-player-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <div style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="showCoachEval('${sessionId}','${p.id}')">
@@ -208,7 +232,8 @@ async function loadSessionPlayerList(sessionId) {
                 <span class="sps-progress-label">Staff</span>
                 <div class="sps-bar"><div class="sps-bar-fill staff" style="width:${pctS}%"></div></div>
                 <span class="sps-progress-count">${st.count.staff}/${st.total}</span>
-              </div>` : '<div style="font-size:11px;color:var(--gray-400);margin-top:2px">Aucun profil attribué</div>'}
+              </div>
+              ${chips ? `<div style="display:flex;gap:5px;margin-top:5px">${chips}</div>` : ''}` : '<div style="font-size:11px;color:var(--gray-400);margin-top:2px">Aucun profil attribué</div>'}
           </div>
           <span style="color:var(--gray-400);font-size:18px;flex-shrink:0">›</span>
         </div>
