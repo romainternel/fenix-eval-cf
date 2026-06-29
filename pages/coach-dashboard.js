@@ -651,13 +651,13 @@ async function exportCoachPDF() {
 function cRecapTableHTML(profilId, evalMap, title) {
   const profil = CRITERIA[profilId];
   if (!profil) return '';
-  const rows = Object.values(profil.axes).map(axe => {
+  const rows = Object.entries(profil.axes).map(([axeId, axe]) => {
     const jNs = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
     const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
     const avgJ = jNs.length ? +(jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
     const avgS = sNs.length ? +(sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
-    return `<tr>
-      <td class="recap-td-label">${escHtml(axe.label)}</td>
+    return `<tr class="recap-row" data-recap="${profilId}-${axeId}" onclick="showAxisDetail('${profilId}','${axeId}')">
+      <td class="recap-td-label recap-td-link">${escHtml(axe.label)}</td>
       <td class="recap-td">${avgS !== null ? avgS : '—'}</td>
       <td class="recap-td">${avgJ !== null ? avgJ : '—'}</td>
       <td class="recap-td">${deltaHTML(avgJ, avgS)}</td>
@@ -667,7 +667,7 @@ function cRecapTableHTML(profilId, evalMap, title) {
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
     <table class="recap-table">
       <thead><tr>
-        <th class="recap-th-label">Thème</th>
+        <th class="recap-th-label">Thème <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:var(--gray-300)">— clique pour le détail</span></th>
         <th class="recap-th">Staff</th>
         <th class="recap-th">Joueur</th>
         <th class="recap-th">Écart</th>
@@ -689,8 +689,8 @@ function showAxisDetail(profilId, axeId) {
   const axe = CRITERIA[profilId]?.axes[axeId];
   if (!axe) return;
 
-  document.querySelectorAll('.radar-axe-btn').forEach(b => b.classList.remove('active'));
-  gid(`raxe-${profilId}-${axeId}`)?.classList.add('active');
+  document.querySelectorAll('.recap-row').forEach(r => r.classList.remove('active'));
+  document.querySelector(`.recap-row[data-recap="${profilId}-${axeId}"]`)?.classList.add('active');
 
   const rows = axe.criteres.map(c => {
     const nj = _coachEvalMap[c.id]?.note_joueur || 0;
@@ -829,18 +829,15 @@ async function showCoachRadar(sessionId, playerId) {
     ? `<div class="radar-col-full">
          <p class="radar-profil-title">🧤 Gardien — ${escHtml(attLbl)}</p>
          <canvas id="radarAtt" style="max-height:280px"></canvas>
-         <div class="radar-axes-btns">${_axesBtns(_cAttId)}</div>
        </div>`
     : `<div class="radar-grid">
          ${_cAttId ? `<div class="radar-col">
            <p class="radar-profil-title">⚡ ${escHtml(attLbl)}</p>
            <canvas id="radarAtt" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${_axesBtns(_cAttId)}</div>
          </div>` : ''}
          ${_cDefId ? `<div class="radar-col">
            <p class="radar-profil-title">🛡 ${escHtml(defLbl)}</p>
            <canvas id="radarDef" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${_axesBtns(_cDefId)}</div>
          </div>` : ''}
        </div>`;
 
@@ -907,8 +904,7 @@ async function showCoachRadar(sessionId, playerId) {
         ${sessionRadarHTML}
         ${_cAttId ? cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque') : ''}
         ${_cDefId ? cRecapTableHTML(_cDefId, _coachEvalMap, '🛡 Défense') : ''}
-        <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
-        ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:4px">✓ Résultats partagés avec le joueur</p>' : ''}
+        ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:8px">✓ Résultats partagés avec le joueur</p>' : ''}
       </div>
     </div>
     <div id="axisDetail" style="display:none"></div>
