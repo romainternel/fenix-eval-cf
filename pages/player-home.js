@@ -471,8 +471,9 @@ function _doTerminerProfil() {
 
 /* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
 let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
-let _pBilanAtt = null, _pBilanDef = null;
+let _pBilanAtt = null, _pBilanDef = null, _pBarChart = null;
 let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
+let _pSelectedSessions = new Set(), _pShowBar = false;
 let _pPdfSession = '', _pCrData = null;
 const _P_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _P_SESSION_COLORS = [
@@ -513,15 +514,17 @@ function pRenderBilan() {
   if (_pBilanAtt) { _pBilanAtt.destroy(); _pBilanAtt = null; }
   if (_pBilanDef) { _pBilanDef.destroy(); _pBilanDef = null; }
   const viewKey = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const selected = _pAllSessions.filter(s => _pSelectedSessions.has(s.id));
   function buildMulti(canvasId, profilId) {
     const ctx = pgid(canvasId)?.getContext('2d');
-    if (!ctx || !profilId || !_pAllSessions.length) return null;
-    const firstRd = pAxesData(profilId, _pAllSessions[0].evalMap, viewKey);
+    if (!ctx || !profilId || !selected.length) return null;
+    const firstRd = pAxesData(profilId, selected[0].evalMap, viewKey);
     if (!firstRd) return null;
-    const datasets = _pAllSessions.map((s, i) => {
+    const datasets = selected.map(s => {
+      const i = _pAllSessions.indexOf(s);
       const rd = pAxesData(profilId, s.evalMap, viewKey);
       const c = _P_SESSION_COLORS[i];
-      return { data:rd.values, backgroundColor:c.bg, borderColor:c.border, pointBackgroundColor:c.border, borderWidth:1.5, pointRadius:3 };
+      return { label:s.label, data:rd.values, backgroundColor:c.bg, borderColor:c.border, pointBackgroundColor:c.border, borderWidth:1.5, pointRadius:3 };
     });
     return new Chart(ctx, {
       type:'radar',
@@ -541,11 +544,74 @@ function pRenderBilan() {
   if (_pDefId) _pBilanDef = buildMulti('pBilanDef', _pDefId);
 }
 
+function pToggleSession(sid) {
+  if (_pSelectedSessions.has(sid)) {
+    if (_pSelectedSessions.size <= 1) return;
+    _pSelectedSessions.delete(sid);
+  } else {
+    _pSelectedSessions.add(sid);
+  }
+  document.querySelectorAll('.bilan-chip[data-sid]').forEach(chip => {
+    chip.classList.toggle('active', _pSelectedSessions.has(chip.dataset.sid));
+  });
+  pRenderBilan();
+  if (_pShowBar) pRenderBarChart();
+}
+
+function pToggleBarChart() {
+  _pShowBar = !_pShowBar;
+  const el = pgid('pBarSection');
+  const btn = pgid('pBarBtn');
+  if (el)  el.style.display = _pShowBar ? 'block' : 'none';
+  if (btn) btn.textContent  = _pShowBar ? '📊 Masquer la progression' : '📊 Progression par thème';
+  if (_pShowBar) pRenderBarChart();
+  else if (_pBarChart) { _pBarChart.destroy(); _pBarChart = null; }
+}
+
+function pRenderBarChart() {
+  if (_pBarChart) { _pBarChart.destroy(); _pBarChart = null; }
+  const ctx = pgid('pBarCanvas')?.getContext('2d');
+  if (!ctx) return;
+  const viewKey = _pViewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  const allAxes = [];
+  [_pAttId, _pDefId].filter(Boolean).forEach(pid => {
+    const p = CRITERIA[pid];
+    if (p) Object.values(p.axes).forEach(axe => allAxes.push({ label: axe.label, criteres: axe.criteres }));
+  });
+  const selected = _pAllSessions.filter(s => _pSelectedSessions.has(s.id));
+  const datasets = selected.map(s => {
+    const i = _pAllSessions.indexOf(s);
+    const c = _P_SESSION_COLORS[i];
+    const bg = c.border.replace('0.7)', '0.55)').replace('0.8)', '0.55)');
+    return {
+      label: s.label,
+      data: allAxes.map(axe => {
+        const ns = axe.criteres.map(cr => s.evalMap[cr.id]?.[viewKey] || 0).filter(n => n > 0);
+        return ns.length ? +(ns.reduce((a,b) => a+b,0) / ns.length).toFixed(1) : 0;
+      }),
+      backgroundColor: bg, borderColor: c.border, borderWidth: 1.5, borderRadius: 4,
+    };
+  });
+  _pBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: allAxes.map(a => a.label), datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } },
+      scales: {
+        y: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 } }
+      }
+    }
+  });
+}
+
 function pSetViewMode(mode) {
   _pViewMode = mode;
   pgid('pToggleMoi')?.classList.toggle('active', mode === 'joueur');
   pgid('pToggleStaff')?.classList.toggle('active', mode === 'staff');
   pRenderBilan();
+  if (_pShowBar) pRenderBarChart();
 }
 
 async function showPlayerRadar(sessionId) {
@@ -585,6 +651,8 @@ async function showPlayerRadar(sessionId) {
 
   const sessions = (sessionsRes.data || []).slice(-4);
   _pAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
+  _pSelectedSessions = new Set(_pAllSessions.slice(-2).map(s => s.id));
+  _pShowBar = false;
 
   const label = sessionRes.data?.label || sessionId;
   _pPdfSession = label;
@@ -643,12 +711,6 @@ async function showPlayerRadar(sessionId) {
 
   // ── Card 2 : bilan multi-sessions (affiché seulement si > 1 session) ─────
   const showBilan = _pAllSessions.length > 1;
-  const bilanLegend = _pAllSessions.map((s, i) => {
-    const c = _P_SESSION_COLORS[i];
-    return `<div style="display:flex;align-items:center;gap:4px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${c.border}"></div>
-      <span>${escHtml(s.label)}</span></div>`;
-  }).join('');
 
   const bilanRadarHTML = _pIsGb
     ? `<div class="radar-col-full"><canvas id="pBilanAtt" style="max-height:280px"></canvas></div>`
@@ -657,18 +719,30 @@ async function showPlayerRadar(sessionId) {
          ${_pDefId ? `<div class="radar-col"><p class="radar-profil-title">🛡 Défense</p><canvas id="pBilanDef" style="width:100%"></canvas></div>` : ''}
        </div>`;
 
+  const bilanChips = _pAllSessions.map((s, i) => {
+    const c = _P_SESSION_COLORS[i];
+    const sel = _pSelectedSessions.has(s.id);
+    return `<button class="bilan-chip${sel ? ' active' : ''}" data-sid="${s.id}" onclick="pToggleSession('${s.id}')">
+      <span style="width:8px;height:8px;border-radius:50%;background:${c.border};display:inline-block;flex-shrink:0"></span>
+      ${escHtml(s.label)}
+    </button>`;
+  }).join('');
+
   const bilanCard = showBilan ? `
     <div class="card" style="margin-top:12px">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:8px">Bilan — Progression</p>
-        <div class="radar-toggle-row">
-          <div class="radar-session-legend">${bilanLegend}</div>
+        <p class="section-title" style="margin-bottom:10px">Bilan — Progression</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${bilanChips}</div>
+        <div class="radar-toggle-row" style="margin-bottom:8px">
+          <div></div>
           <div class="radar-view-toggle">
             <button class="radar-view-btn active" id="pToggleMoi" onclick="pSetViewMode('joueur')">Moi</button>
             <button class="radar-view-btn" id="pToggleStaff" onclick="pSetViewMode('staff')">Staff</button>
           </div>
         </div>
         ${bilanRadarHTML}
+        <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème</button>
+        <div id="pBarSection" style="display:none;margin-top:12px"><canvas id="pBarCanvas"></canvas></div>
       </div>
     </div>` : '';
 
