@@ -670,6 +670,8 @@ async function showCoachRadar(sessionId, playerId) {
   if (_chartDef)  { _chartDef.destroy();  _chartDef  = null; }
   if (_cBilanAtt) { _cBilanAtt.destroy(); _cBilanAtt = null; }
   if (_cBilanDef) { _cBilanDef.destroy(); _cBilanDef = null; }
+  if (_cBarAtt)   { _cBarAtt.destroy();   _cBarAtt   = null; }
+  if (_cBarDef)   { _cBarDef.destroy();   _cBarDef   = null; }
 
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 

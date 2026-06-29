@@ -707,6 +707,8 @@ async function showPlayerRadar(sessionId) {
   if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
   if (_pBilanAtt) { _pBilanAtt.destroy(); _pBilanAtt = null; }
   if (_pBilanDef) { _pBilanDef.destroy(); _pBilanDef = null; }
+  if (_pBarAtt)   { _pBarAtt.destroy();   _pBarAtt   = null; }
+  if (_pBarDef)   { _pBarDef.destroy();   _pBarDef   = null; }
 
   const mc = pgid('mainContent');
   mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
