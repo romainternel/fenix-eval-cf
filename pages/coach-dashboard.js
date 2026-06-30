@@ -93,7 +93,10 @@ async function showSessionDetail(sessionId) {
     </div>
     <div class="card">
       <div class="card-body">
-        <div style="font-size:18px;font-weight:800;color:var(--fenix-navy);margin-bottom:14px">${escHtml(s.label)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div id="sessionLabelText" style="font-size:18px;font-weight:800;color:var(--fenix-navy);flex:1">${escHtml(s.label)}</div>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0" onclick="editSessionLabel('${s.id}')">✏️ Renommer</button>
+        </div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <div class="info-row"><span class="info-label">ID</span><code class="info-value-code">${s.id}</code></div>
           <div class="info-row"><span class="info-label">Date</span><span class="info-value">${formatDate(s.date_session)}</span></div>
@@ -772,7 +775,7 @@ async function showCoachRadar(sessionId, playerId) {
   const allSessionIds = [...new Set([...(distinctEvalsRes.data || []).map(e => e.session_id), sessionId])];
 
   const [sessionsRes, allEvalsRes] = await Promise.all([
-    window.supabaseClient.from('sessions').select('id, label').in('id', allSessionIds).order('created_at', { ascending:true }),
+    window.supabaseClient.from('sessions').select('id, label, date_session').in('id', allSessionIds).order('created_at', { ascending:true }),
     window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
       .eq('player_id', playerId).in('session_id', allSessionIds)
   ]);
@@ -787,7 +790,7 @@ async function showCoachRadar(sessionId, playerId) {
   _cViewMode    = 'staff';
 
   const sessions = (sessionsRes.data || []).slice(-4);
-  _cAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
+  _cAllSessions = sessions.map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }));
   _cSelectedSessions = new Set(_cAllSessions.slice(-2).map(s => s.id));
   _cShowBar = false;
 
@@ -855,7 +858,7 @@ async function showCoachRadar(sessionId, playerId) {
     const sel = _cSelectedSessions.has(s.id);
     return `<button class="bilan-chip${sel ? ' active' : ''}" data-sid="${s.id}" onclick="cToggleSession('${s.id}')">
       <span style="width:8px;height:8px;border-radius:50%;background:${c.border};display:inline-block;flex-shrink:0"></span>
-      ${escHtml(s.label)}
+      ${escHtml(sessionShortLabel(s.idx, s.date))}
     </button>`;
   }).join('');
 
@@ -1212,6 +1215,33 @@ async function confirmReopenSession(sessionId) {
   if (error) { showToast('Erreur : ' + error.message); return; }
   showToast('Session réouverte');
   await renderSessions();
+}
+
+function editSessionLabel(sessionId) {
+  const textEl = document.getElementById('sessionLabelText');
+  if (!textEl) return;
+  const currentLabel = textEl.textContent.trim();
+  const wrapper = textEl.parentElement;
+  wrapper.innerHTML = `
+    <input id="sessionLabelInput" class="form-input" style="font-size:15px;font-weight:700;flex:1"
+      value="${escHtml(currentLabel)}"
+      onkeydown="if(event.key==='Enter')submitEditSessionLabel('${sessionId}');if(event.key==='Escape')showSessionDetail('${sessionId}')">
+    <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="submitEditSessionLabel('${sessionId}')">OK</button>
+    <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="showSessionDetail('${sessionId}')">✕</button>`;
+  const inp = document.getElementById('sessionLabelInput');
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+async function submitEditSessionLabel(sessionId) {
+  const inp = document.getElementById('sessionLabelInput');
+  if (!inp) return;
+  const newLabel = inp.value.trim();
+  if (!newLabel) return;
+  inp.disabled = true;
+  const { error } = await window.supabaseClient.from('sessions')
+    .update({ label: newLabel }).eq('id', sessionId);
+  if (error) { inp.disabled = false; showNotif('Erreur lors de la sauvegarde'); return; }
+  showSessionDetail(sessionId);
 }
 
 function showCreateSessionModal() {

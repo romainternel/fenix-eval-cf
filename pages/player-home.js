@@ -765,7 +765,7 @@ async function showPlayerRadar(sessionId) {
 
   const [sessionRes, sessionsRes, allEvalsRes, crRes] = await Promise.all([
     window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
-    window.supabaseClient.from('sessions').select('id, label').in('id', sharedIds).order('created_at', { ascending:true }),
+    window.supabaseClient.from('sessions').select('id, label, date_session').in('id', sharedIds).order('created_at', { ascending:true }),
     window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
       .eq('player_id', _playerId).in('session_id', sharedIds),
     window.supabaseClient.from('comptes_rendus').select('*').eq('session_id', sessionId).eq('player_id', _playerId).eq('visible_joueur', true).maybeSingle()
@@ -785,7 +785,7 @@ async function showPlayerRadar(sessionId) {
   _pDefId = _pIsGb ? null : _playerProfile?.profil_def;
 
   const sessions = (sessionsRes.data || []).slice(-4);
-  _pAllSessions = sessions.map(s => ({ id:s.id, label:s.label, evalMap:evalsBySession[s.id] || {} }));
+  _pAllSessions = sessions.map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }));
   _pSelectedSessions = new Set(_pAllSessions.slice(-2).map(s => s.id));
   _pShowBar = false;
 
@@ -856,7 +856,7 @@ async function showPlayerRadar(sessionId) {
     const sel = _pSelectedSessions.has(s.id);
     return `<button class="bilan-chip${sel ? ' active' : ''}" data-sid="${s.id}" onclick="pToggleSession('${s.id}')">
       <span style="width:8px;height:8px;border-radius:50%;background:${c.border};display:inline-block;flex-shrink:0"></span>
-      ${escHtml(s.label)}
+      ${escHtml(sessionShortLabel(s.idx, s.date))}
     </button>`;
   }).join('');
 

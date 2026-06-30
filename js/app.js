@@ -144,7 +144,7 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
       ? `<span class="trend-badge ${dir}">${delta > 0 ? '+' : ''}${delta}</span>` : '—';
 
     const subId = 'ts-' + profilId + '-' + axeId;
-    const subHeaders = sessions.map(s => `<th class="trend-sub-th">${escHtml(s.label)}</th>`).join('');
+    const subHeaders = sessions.map((s, i) => `<th class="trend-sub-th">${escHtml(sessionShortLabel(s.idx != null ? s.idx : i, s.date))}</th>`).join('');
     const subRows = axe.criteres.map(c => {
       const dotCells = sessions.map(s => {
         const n = s.evalMap[c.id]?.[viewKey] || 0;
@@ -171,7 +171,7 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     </tr>`;
   }).join('');
 
-  const headers = sessions.map(s => `<th class="trend-th">${escHtml(s.label)}</th>`).join('');
+  const headers = sessions.map((s, i) => `<th class="trend-th">${escHtml(sessionShortLabel(s.idx != null ? s.idx : i, s.date))}</th>`).join('');
   return `
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
     <div class="trend-table-wrap">
@@ -183,6 +183,17 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
       <tbody>${rows}</tbody>
     </table>
     </div>`;
+}
+
+/* ── Label court de session : ① 15/01 ────────────────────────────────────── */
+function sessionShortLabel(idx, dateStr) {
+  const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  const badge = nums[idx] != null ? nums[idx] : `#${idx + 1}`;
+  if (!dateStr) return badge;
+  const d = new Date(dateStr);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${badge} ${dd}/${mm}`;
 }
 
 /* ── Badge écart joueur/staff ─────────────────────────────────────────────── */
