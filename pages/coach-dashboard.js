@@ -1804,8 +1804,8 @@ function showCreateCoachModal() {
         <div class="form-group">
           <label class="form-label">Mot de passe <span class="required">*</span></label>
           <input class="form-input" name="password" type="password" required autocomplete="new-password">
-          <p class="form-hint">(min. 8 caractères)</p>
-          <p class="form-error" id="createCoachPwdError" style="display:none">Le mot de passe doit faire au moins 8 caractères.</p>
+          <p class="form-hint">(min. 5 caractères)</p>
+          <p class="form-error" id="createCoachPwdError" style="display:none">Le mot de passe doit faire au moins 5 caractères.</p>
         </div>
         <p class="form-error" id="createCoachError" style="display:none"></p>
         <div class="modal-actions">
@@ -1835,7 +1835,7 @@ async function submitCreateCoach(e) {
   pwdErrEl.style.display = 'none';
   errEl.style.display = 'none';
 
-  if (password.length < 8) {
+  if (password.length < 5) {
     pwdErrEl.style.display = 'block';
     return;
   }
