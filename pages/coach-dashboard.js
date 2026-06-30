@@ -1603,7 +1603,10 @@ function showCreatePlayerModal() {
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe temporaire <span class="required">*</span></label>
-          <input class="form-input" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 caractères minimum">
+          <div class="input-pwd-wrap">
+            <input class="form-input" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 caractères minimum">
+            <button type="button" class="btn-pwd-toggle" onclick="togglePwd(this)">Voir</button>
+          </div>
           <p class="form-hint">Le joueur pourra se connecter avec ce mot de passe.</p>
         </div>
         <div class="form-group">
@@ -1803,7 +1806,10 @@ function showCreateCoachModal() {
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe <span class="required">*</span></label>
-          <input class="form-input" name="password" type="password" required autocomplete="new-password">
+          <div class="input-pwd-wrap">
+            <input class="form-input" name="password" type="password" required autocomplete="new-password">
+            <button type="button" class="btn-pwd-toggle" onclick="togglePwd(this)">Voir</button>
+          </div>
           <p class="form-hint">(min. 5 caractères)</p>
           <p class="form-error" id="createCoachPwdError" style="display:none">Le mot de passe doit faire au moins 5 caractères.</p>
         </div>

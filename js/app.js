@@ -218,3 +218,10 @@ function toggleNoteLegend(n) {
   el.style.color         = `var(--n${n}-text)`;
   el.innerHTML = `<strong>${_NOTE_DESCS[n].label}</strong> — ${_NOTE_DESCS[n].desc}`;
 }
+
+function togglePwd(btn) {
+  const input = btn.previousElementSibling;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Masquer' : 'Voir';
+}

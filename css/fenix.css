@@ -1512,3 +1512,30 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+.input-pwd-wrap {
+  position: relative;
+}
+.input-pwd-wrap .form-input {
+  padding-right: 76px;
+}
+.btn-pwd-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fenix-slate-500, #64748b);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1;
+}
+.btn-pwd-toggle:hover {
+  color: var(--fenix-navy);
+  background: var(--fenix-slate-100, #f1f5f9);
+}
