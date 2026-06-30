@@ -564,7 +564,7 @@ function pToggleBarChart() {
   const el  = pgid('pBarSection');
   const btn = pgid('pBarBtn');
   if (el)  el.style.display = _pShowBar ? 'block' : 'none';
-  if (btn) btn.textContent  = _pShowBar ? '📊 Masquer la progression' : '📊 Progression par thème';
+  if (btn) btn.innerHTML = _pShowBar ? '📊 Masquer la progression' : '📊 Progression par thème <span style="font-size:10px;opacity:0.6;font-weight:400">(mode paysage conseillé)</span>';
   if (_pShowBar) pRenderBarChart();
   else {
     if (_pBarAtt) { _pBarAtt.destroy(); _pBarAtt = null; }
@@ -703,27 +703,52 @@ function pRecapTableHTML(profilId, evalMap, title) {
     const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
     const avgJ = jNs.length ? +(jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
     const avgS = sNs.length ? +(sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
+    const subId = 'pr-' + profilId + '-' + axeId;
+    const subRows = axe.criteres.map(c => {
+      const nj = evalMap[c.id]?.note_joueur || 0;
+      const ns = evalMap[c.id]?.note_staff  || 0;
+      return `<tr>
+        <td class="trend-sub-label">${escHtml(c.label)}</td>
+        <td class="trend-sub-td">${nj ? `<span class="trend-sub-dot n${nj}"></span>` : '<span class="trend-sub-dot empty">—</span>'}</td>
+        <td class="trend-sub-td">${ns ? `<span class="trend-sub-dot n${ns}"></span>` : '<span class="trend-sub-dot empty">—</span>'}</td>
+        <td class="trend-sub-td">${deltaHTML(nj, ns)}</td>
+      </tr>`;
+    }).join('');
     return `<tr class="recap-row" data-recap="${profilId}-${axeId}">
       <td class="recap-td-label">
-        <button class="recap-theme-btn" onclick="showPlayerAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>
+        <button class="recap-theme-btn" data-trend-toggle="${subId}" onclick="toggleTrendSub('${subId}')">${escHtml(axe.label)}</button>
       </td>
       <td class="recap-td">${avgJ !== null ? avgJ : '—'}</td>
       <td class="recap-td">${avgS !== null ? avgS : '—'}</td>
       <td class="recap-td">${deltaHTML(avgJ, avgS)}</td>
+    </tr>
+    <tr class="trend-sub-row" id="${subId}" style="display:none">
+      <td colspan="4" style="padding:0 0 8px 0;background:var(--gray-50)">
+        <table class="trend-sub-table">
+          <thead><tr>
+            <th class="trend-sub-th-label">Critère</th>
+            <th class="trend-sub-th">Moi</th>
+            <th class="trend-sub-th">Staff</th>
+            <th class="trend-sub-th">Écart</th>
+          </tr></thead>
+          <tbody>${subRows}</tbody>
+        </table>
+      </td>
     </tr>`;
   }).join('');
   return `
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
-    <p style="font-size:10px;color:var(--gray-300);margin-bottom:4px">Sélectionne un thème pour voir le détail</p>
+    <div class="trend-table-wrap">
     <table class="recap-table">
       <thead><tr>
-        <th class="recap-th-label">Thème</th>
+        <th class="recap-th-label">Thème <span style="font-weight:400;font-size:9px;color:var(--gray-300);text-transform:none;letter-spacing:0">— clique pour détail</span></th>
         <th class="recap-th">Moi</th>
         <th class="recap-th">Staff</th>
         <th class="recap-th">Écart</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
 }
 
 function pRenderTrendTable() {
@@ -873,7 +898,7 @@ async function showPlayerRadar(sessionId) {
           </div>
         </div>
         ${bilanRadarHTML}
-        <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème</button>
+        <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème <span style="font-size:10px;opacity:0.6;font-weight:400">(mode paysage conseillé)</span></button>
         <div id="pBarSection" style="display:none;margin-top:12px">
           ${_pAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="pBarAtt"></canvas>` : ''}
           ${_pDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="pBarDef"></canvas>` : ''}

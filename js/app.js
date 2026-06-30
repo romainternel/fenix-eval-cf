@@ -148,7 +148,7 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     const subRows = axe.criteres.map(c => {
       const dotCells = sessions.map(s => {
         const n = s.evalMap[c.id]?.[viewKey] || 0;
-        return `<td class="trend-sub-td">${n ? `<span class="trend-sub-dot n${n}">${n}</span>` : '<span class="trend-sub-dot empty">—</span>'}</td>`;
+        return `<td class="trend-sub-td">${n ? `<span class="trend-sub-dot n${n}"></span>` : '<span class="trend-sub-dot empty">—</span>'}</td>`;
       }).join('');
       return `<tr><td class="trend-sub-label">${escHtml(c.label)}</td>${dotCells}</tr>`;
     }).join('');
