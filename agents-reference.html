@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FENIX Stats — Agents BMAD</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0A2463;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    color: white;
+    letter-spacing: 4px;
+  }
+  .header p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .section-label {
+    text-align: center;
+    max-width: 1100px;
+    margin: 0 auto 1rem auto;
+  }
+  .section-label h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    color: white;
+    letter-spacing: 2px;
+  }
+  .section-label p {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.78rem;
+    margin-top: 0.15rem;
+    letter-spacing: 0.5px;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .flow-step.control {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .flow-arrow {
+    color: rgba(255,255,255,0.4);
+    font-size: 1rem;
+  }
+  .flow-branch-label {
+    color: rgba(255,255,255,0.45);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 100%;
+    text-align: center;
+    margin-top: -0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .divider {
+    max-width: 1100px;
+    margin: 3rem auto 2rem auto;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    position: relative;
+  }
+  .divider span {
+    position: absolute;
+    top: -0.7rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0A2463;
+    padding: 0 1rem;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+  }
+  .card.research::before { background: #8B5CF6; }
+  .card.brainstorm::before { background: #F59E0B; }
+  .card.analyst::before { background: #3B82F6; }
+  .card.pm::before { background: #10B981; }
+  .card.designer::before { background: #A855F7; }
+  .card.visual::before { background: #EC4899; }
+  .card.architect::before { background: #F97316; }
+  .card.scrum::before { background: #06B6D4; }
+  .card.dev::before { background: #0A2463; }
+  .card.qa::before { background: #EF4444; }
+  .card.risk::before { background: #14B8A6; }
+  .card.review::before { background: #6366F1; }
+  .card.security::before { background: #B91C1C; }
+  .card.regression::before { background: #65A30D; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .card-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .card.research .card-icon { background: #EDE9FE; }
+  .card.brainstorm .card-icon { background: #FEF3C7; }
+  .card.analyst .card-icon { background: #DBEAFE; }
+  .card.pm .card-icon { background: #D1FAE5; }
+  .card.designer .card-icon { background: #F3E8FF; }
+  .card.visual .card-icon { background: #FCE7F3; }
+  .card.architect .card-icon { background: #FFEDD5; }
+  .card.scrum .card-icon { background: #CFFAFE; }
+  .card.dev .card-icon { background: #E0E7FF; }
+  .card.qa .card-icon { background: #FEE2E2; }
+  .card.risk .card-icon { background: #CCFBF1; }
+  .card.review .card-icon { background: #E0E7FF; }
+  .card.security .card-icon { background: #FEE2E2; }
+  .card.regression .card-icon { background: #ECFCCB; }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    color: #0F172A;
+    line-height: 1.1;
+  }
+  .card-subtitle {
+    font-size: 0.7rem;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 1px;
+  }
+  .card-desc {
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+  .card-command {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    color: #64748B;
+    margin-bottom: 0.5rem;
+  }
+  .card-command span {
+    color: #0A2463;
+    font-weight: 600;
+  }
+  .card-produces {
+    font-size: 0.75rem;
+    color: #94A3B8;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .card-produces strong { color: #475569; }
+  .card-trigger {
+    font-size: 0.72rem;
+    color: #B91C1C;
+    background: #FEF2F2;
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .card-trigger strong { color: #991B1B; }
+
+  .footer {
+    text-align: center;
+    margin-top: 2rem;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+  }
+
+  @media print {
+    body { background: white; padding: 1rem; }
+    .header h1 { color: #0A2463; }
+    .header p { color: #64748B; }
+    .section-label h2 { color: #0A2463; }
+    .section-label p { color: #64748B; }
+    .flow-step { background: #E2E8F0; color: #0A2463; }
+    .flow-step.control { background: #CBD5E1; border-color: #94A3B8; }
+    .flow-arrow { color: #94A3B8; }
+    .footer { color: #94A3B8; }
+    .divider span { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>FENIX Stats — Agents BMAD</h1>
+  <p>Méthode de développement agile par agents IA</p>
+</div>
+
+<div class="section-label">
+  <h2>Squad Build</h2>
+  <p>De l'idée au code implémenté</p>
+</div>
+
+<div class="flow">
+  <div class="flow-step">🔬 Research</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">💡 Brainstorm</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">📋 Analyst</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">📦 PM</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🎨 Designer</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">✨ Visual Crafter</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🏗 Architect</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">📝 Scrum</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">💻 Dev</div>
+</div>
+
+<div class="grid">
+
+  <div class="card research">
+    <div class="card-header">
+      <div class="card-icon">🔬</div>
+      <div>
+        <div class="card-title">Research Analyst</div>
+        <div class="card-subtitle">Benchmark & Challenge</div>
+      </div>
+    </div>
+    <div class="card-desc">Analyse ce qui se fait ailleurs (handball.ai, XPS, Hudl...), challenge l'utilité des features, apporte les stats handball de référence pour calibrer les seuils.</div>
+    <div class="card-command"><span>"Joue le Research Analyst"</span></div>
+    <div class="card-produces">📄 <strong>docs/research/</strong> — benchmark + recommandations</div>
+  </div>
+
+  <div class="card brainstorm">
+    <div class="card-header">
+      <div class="card-icon">💡</div>
+      <div>
+        <div class="card-title">Brainstormer</div>
+        <div class="card-subtitle">Idées & Créativité</div>
+      </div>
+    </div>
+    <div class="card-desc">Génère des idées sans filtre, pioche dans d'autres sports (NBA, F1, football), propose des angles inattendus. Convoqué quand on cherche de nouvelles directions.</div>
+    <div class="card-command"><span>"Joue le Brainstormer"</span></div>
+    <div class="card-produces">📄 <strong>docs/brainstorm/</strong> — idées + vision 12 mois</div>
+  </div>
+
+  <div class="card analyst">
+    <div class="card-header">
+      <div class="card-icon">📋</div>
+      <div>
+        <div class="card-title">Analyst</div>
+        <div class="card-subtitle">Brief & Vision</div>
+      </div>
+    </div>
+    <div class="card-desc">Écoute, reformule, cadre. Transforme une idée floue en Brief structuré. Distingue le besoin réel de la solution proposée. Pense toujours au coach sur iPad.</div>
+    <div class="card-command"><span>"Joue l'Analyst"</span></div>
+    <div class="card-produces">📄 <strong>docs/brief.md</strong> — vision + scope + critères</div>
+  </div>
+
+  <div class="card pm">
+    <div class="card-header">
+      <div class="card-icon">📦</div>
+      <div>
+        <div class="card-title">Product Manager</div>
+        <div class="card-subtitle">PRD & Priorités</div>
+      </div>
+    </div>
+    <div class="card-desc">Transforme le Brief en PRD. Liste les features, définit les priorités (Must/Should/Nice), protège le scope. Décide ce qu'on ne fait PAS.</div>
+    <div class="card-command"><span>"Joue le PM"</span></div>
+    <div class="card-produces">📄 <strong>docs/prd.md</strong> — features + critères d'acceptation</div>
+  </div>
+
+  <div class="card designer">
+    <div class="card-header">
+      <div class="card-icon">🎨</div>
+      <div>
+        <div class="card-title">Designer</div>
+        <div class="card-subtitle">UX/UI & Maquettes</div>
+      </div>
+    </div>
+    <div class="card-desc">Conçoit l'expérience iPad en premier. Produit des maquettes ASCII de chaque écran avant que le code soit écrit. Respecte l'identité FENIX.</div>
+    <div class="card-command"><span>"Joue le Designer"</span></div>
+    <div class="card-produces">📄 <strong>docs/design/</strong> — maquettes ASCII + interactions</div>
+  </div>
+
+  <div class="card visual">
+    <div class="card-header">
+      <div class="card-icon">✨</div>
+      <div>
+        <div class="card-title">Visual Crafter</div>
+        <div class="card-subtitle">Polish & Esthétique</div>
+      </div>
+    </div>
+    <div class="card-desc">Transforme une interface fonctionnelle en interface premium. Spécifie les ombres, gradients, micro-animations, typographie fine et états interactifs. S'inspire de Linear, Stripe, Vercel — adapté FENIX.</div>
+    <div class="card-command"><span>"Joue le Visual Crafter"</span></div>
+    <div class="card-produces">📄 <strong>docs/visual/</strong> — tokens CSS + specs animations</div>
+  </div>
+
+  <div class="card architect">
+    <div class="card-header">
+      <div class="card-icon">🏗</div>
+      <div>
+        <div class="card-title">Architect</div>
+        <div class="card-subtitle">Technique & Structure</div>
+      </div>
+    </div>
+    <div class="card-desc">Décide comment c'est construit techniquement. Surveille la taille du fichier HTML. Anticipe les impacts sur l'existant. Protège la cohérence technique.</div>
+    <div class="card-command"><span>"Joue l'Architect"</span></div>
+    <div class="card-produces">📄 <strong>docs/architecture.md</strong> — décisions techniques</div>
+  </div>
+
+  <div class="card scrum">
+    <div class="card-header">
+      <div class="card-icon">📝</div>
+      <div>
+        <div class="card-title">Scrum Master</div>
+        <div class="card-subtitle">Stories & Planning</div>
+      </div>
+    </div>
+    <div class="card-desc">Découpe le PRD en stories atomiques, une par session Claude. Chaque story a des critères d'acceptation binaires. Séquence les dépendances intelligemment.</div>
+    <div class="card-command"><span>"Joue le Scrum Master"</span></div>
+    <div class="card-produces">📄 <strong>docs/stories/</strong> — stories priorisées</div>
+  </div>
+
+  <div class="card dev">
+    <div class="card-header">
+      <div class="card-icon">💻</div>
+      <div>
+        <div class="card-title">Developer</div>
+        <div class="card-subtitle">Code & Implémentation</div>
+      </div>
+    </div>
+    <div class="card-desc">Implémente les stories une par une dans FENIX-HANDBALL-CF-SUIVI.html. Respecte les conventions, réutilise l'existant, ne déborde jamais du scope.</div>
+    <div class="card-command"><span>"Joue le Developer"</span></div>
+    <div class="card-produces">🔧 <strong>Code dans le HTML</strong> — story implémentée</div>
+  </div>
+
+</div>
+
+<div class="divider"><span>Squad Contrôle Final</span></div>
+
+<div class="section-label">
+  <p>Du code implémenté au feu vert push — regard indépendant du squad build</p>
+</div>
+
+<div class="flow">
+  <div class="flow-step control">🎯 Risk Analyst</div>
+  <div class="flow-arrow">⤷</div>
+  <span class="flow-branch-label">en amont, juste après Architect</span>
+</div>
+
+<div class="flow">
+  <div class="flow-step">💻 Dev</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step control">🔍 Code Reviewer</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step control">🔐 Security Auditor</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">✅ QA</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step control">🛡 Regression Guardian</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🚀 Push</div>
+</div>
+
+<div class="grid">
+
+  <div class="card risk">
+    <div class="card-header">
+      <div class="card-icon">🎯</div>
+      <div>
+        <div class="card-title">Risk Analyst</div>
+        <div class="card-subtitle">Anticipation & Ruptures</div>
+      </div>
+    </div>
+    <div class="card-trigger"><strong>Quand :</strong> après l'Architecture, avant le découpage en stories — ou sur toute feature sensible.</div>
+    <div class="card-desc">Liste les scénarios de rupture avant le code : perte de connexion iPad, conflits d'édition concurrente, données partielles, permissions, montée en charge du fichier, régressions croisées.</div>
+    <div class="card-command"><span>"Joue le Risk Analyst"</span></div>
+    <div class="card-produces">📄 <strong>docs/risks/</strong> — risques priorisés P0–P3</div>
+  </div>
+
+  <div class="card review">
+    <div class="card-header">
+      <div class="card-icon">🔍</div>
+      <div>
+        <div class="card-title">Code Reviewer</div>
+        <div class="card-subtitle">Conformité & Dette technique</div>
+      </div>
+    </div>
+    <div class="card-trigger"><strong>Quand :</strong> systématiquement après chaque story, avant le QA.</div>
+    <div class="card-desc">Vérifie la conformité à l'architecture, les conventions, la réutilisation vs duplication, le scope et la gestion d'erreurs. Regard différent de celui qui a codé.</div>
+    <div class="card-command"><span>"Joue le Code Reviewer"</span></div>
+    <div class="card-produces">📄 <strong>docs/code-review/</strong> — verdict + remarques classées</div>
+  </div>
+
+  <div class="card security">
+    <div class="card-header">
+      <div class="card-icon">🔐</div>
+      <div>
+        <div class="card-title">Security Auditor</div>
+        <div class="card-subtitle">Droits & Accès Supabase</div>
+      </div>
+    </div>
+    <div class="card-trigger"><strong>Quand :</strong> toute feature touchant rôles, auth, ou nouvelle table Supabase.</div>
+    <div class="card-desc">Audite les policies RLS, la séparation coach/joueur (notamment le DISC), les fuites côté front, les clés exposées. Un finding Critique bloque le feu vert, sans exception.</div>
+    <div class="card-command"><span>"Joue le Security Auditor"</span></div>
+    <div class="card-produces">📄 <strong>docs/security/</strong> — findings Critique/Majeur/Mineur</div>
+  </div>
+
+  <div class="card regression">
+    <div class="card-header">
+      <div class="card-icon">🛡</div>
+      <div>
+        <div class="card-title">Regression Guardian</div>
+        <div class="card-subtitle">Checklist vivante</div>
+      </div>
+    </div>
+    <div class="card-trigger"><strong>Quand :</strong> avant chaque push vers GitHub Pages.</div>
+    <div class="card-desc">Maintient la checklist des features critiques (shot map, GK stats, vue mobile, DISC...) et vérifie qu'aucune n'a cassé silencieusement à cause de la nouvelle version.</div>
+    <div class="card-command"><span>"Joue le Regression Guardian"</span></div>
+    <div class="card-produces">📄 <strong>docs/regression/</strong> — checklist + rapport par version</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  FENIX Stats · CF FENIX Toulouse · BMAD Method · C:\Users\gromi\.claude\agents\
+</div>
+
+</body>
+</html>

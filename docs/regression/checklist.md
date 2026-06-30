@@ -1,6 +1,6 @@
 # Checklist de régression — FENIX Eval CF
 
-> Agent : Regression Guardian | Dernière mise à jour : 2026-06-30 (STORY-10)
+> Agent : Regression Guardian | Dernière mise à jour : 2026-06-30 (STORY-12)
 
 ---
 
@@ -18,12 +18,16 @@
 | R08 | Edge Function create-player-account | `supabase/functions/create-player-account/index.ts` | POST crée un compte joueur ; DELETE supprime | Critique | v=47 |
 | R09 | RLS joueur isolé | Supabase RLS | Un joueur ne peut pas accéder aux données d'un autre joueur | Critique | v=47 |
 | R10 | Edge Function manage-coach-account | `supabase/functions/manage-coach-account/index.ts` | POST crée un compte coach ; DELETE supprime un coach (pas un joueur) | Critique | Ajouté STORY-10 — à vérifier au déploiement |
-| R11 | Interface gestion coachs | `pages/coach-dashboard.js`, `coach.html` | Onglet Coachs accessible, liste affichée, ajout/suppression fonctionnels | Important | Ajouté STORY-11 — à vérifier après déploiement |
+| R11 | Interface gestion coachs | `pages/coach-dashboard.js`, `coach.html` | Onglet Coachs accessible, liste affichée, ajout/suppression fonctionnels | Important | Ajouté STORY-11 |
+| R12 | Export PPT résultats joueur | `pages/coach-dashboard.js`, `coach.html` | Bouton "📊 PPT" → fichier FENIX_[nom]_[session].pptx téléchargé ; sans joueur → toast, pas d'erreur | Important | Ajouté STORY-12 |
+| R13 | Show/hide password (login + modals) | `index.html`, `js/app.js`, `pages/coach-dashboard.js` | Bouton "Voir/Masquer" toggle le champ password → text dans login, création joueur et création coach | Important | Ajouté STORY-12 |
+| R14 | Radar font size | `pages/coach-dashboard.js`, `pages/player-home.js` | Labels du radar lisibles (font-size 12, weight 600) sur les deux dashboards | Secondaire | Ajouté STORY-12 |
 
 ---
 
 ## Notes
 
-- Les items R01-R09 sont validés à v=47. Aucun fichier frontend n'a été modifié en STORY-10 → pas de risque de régression sur R01-R09.
-- R10 est le nouveau point de régression ajouté par STORY-10. Il sera vérifié après déploiement par le test curl de la story.
-- Le prochain point à ajouter sera la feature gestion coachs (UI — STORY-11) après validation QA de STORY-11.
+- R01-R09 validés à v=47.
+- R10 ajouté STORY-10 (Edge Function manage-coach-account) — vérification post-déploiement.
+- R11 ajouté STORY-11 (interface gestion coachs UI).
+- R12-R14 ajoutés STORY-12 (export PPT, show/hide password, radar font size).

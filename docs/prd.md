@@ -1,122 +1,101 @@
-# PRD — Gestion des comptes coachs
+# PRD — Export PowerPoint résultats joueur
 
-> Agent : Product Manager | Date : 2026-06-30 | Feature : gestion-coachs
+> Agent : Product Manager | Date : 2026-06-30
 > Source : docs/brief.md
 
 ---
 
 ## 1. Objectif
 
-Permettre au coach principal de gérer les comptes coachs (créer, lister, supprimer) directement depuis le dashboard FENIX, sans passer par Supabase.
+Remplacer l'export PDF coach par un export PowerPoint 4 slides, format paysage 16:9, brandé FENIX, généré en un clic depuis la vue résultats d'un joueur.
 
 ---
 
 ## 2. Features
 
-### F1 — Onglet "Coachs" dans la navigation
+### F1 — Chargement PptxGenJS via CDN *(Must Have)*
+Ajouter la librairie PptxGenJS dans `coach.html` via CDN (jsDelivr ou unpkg). Elle doit être disponible avant tout clic sur le bouton PPT.
 
-Ajout d'un troisième onglet dans la barre de navigation du dashboard coach, après "Joueurs". Cet onglet est la surface d'entrée de toute la gestion des coachs.
+### F2 — Bouton "📊 PPT" *(Must Have)*
+Remplacer le bouton `onclick="exportCoachPDF()"` par `onclick="exportCoachPPT()"` dans la vue résultats. Libellé : "📊 PPT". L'ancienne fonction `exportCoachPDF()` et le chargement de jsPDF restent en place pour le joueur (player-home.js non modifié).
 
-**Description fonctionnelle :**
-- Onglet visible uniquement pour les utilisateurs avec `role='coach'`
-- Affiche la liste des comptes coach existants
-- Fournit le point d'entrée pour créer un nouveau coach
+### F3 — Slide 1 : Vue d'ensemble *(Must Have)*
+- Fond navy `#0A2463` sur toute la slide
+- Bande gold en haut (accent)
+- Titre "FENIX Eval CF" + sous-titre nom joueur + session en blanc/gold
+- Logo `assets/logo-transparent.jpeg` en coin bas-droit (watermark)
+- Deux radars Attaque + Défense côte à côte au centre (captures canvas `radarAtt` / `radarDef`)
+- Légende "● Joueur  ● Staff" en bas
+- Cas GB : un seul radar centré
 
-### F2 — Liste des coachs
+### F4 — Slide 2 : Critères Attaque *(Must Have)*
+- En-tête de slide : "ATTAQUE — [Profil label]" avec accent gold
+- Tableau par axe → critères : colonnes Critère | Note Joueur | Note Staff
+- Cellule de note colorée selon niveau : n1=#ef4444, n2=#f97316, n3=#eab308, n4=#84cc16, n5=#22c55e
+- Note vide (0) : cellule grise `#e2e8f0`, texte "—"
+- Texte critique en blanc sur fond coloré, tailles >n2 en noir pour lisibilité
 
-Affiche tous les comptes avec `role='coach'` dans `user_profiles`, avec le nom complet de chaque coach.
+### F5 — Slide 3 : Critères Défense *(Must Have)*
+Même format que Slide 2 mais pour le profil Défense. Si profil GB : fusionner avec Slide 2 (tout sur une slide titrée "GARDIEN DE BUT").
 
-**Description fonctionnelle :**
-- Chaque ligne : prénom + nom + badge "Vous" si c'est le compte courant
-- Bouton "Supprimer" sur chaque ligne, sauf pour le compte courant
-- État vide : message clair si aucun co-coach n'existe encore (le coach lui-même n'est pas surprenant dans la liste)
-- Bouton "+ Ajouter un coach" en haut de la liste
+### F6 — Slide 4 : Compte-rendu entretien *(Must Have)*
+- En-tête "COMPTE-RENDU D'ENTRETIEN"
+- 5 sections issues des textareas : Points forts, Axes prioritaires Att, Axes prioritaires Def, Objectif CT, Objectif MT, CR entretien
+- Sections vides : omises (non affichées)
+- Si aucun champ rempli : slide avec message "Aucun compte-rendu saisi"
 
-### F3 — Création d'un compte coach
-
-Modal de saisie → appel Edge Function → création atomique du compte auth + profil.
-
-**Description fonctionnelle :**
-- Champs : Prénom (required), Nom (required), Email (required), Mot de passe (required)
-- Validation côté client : email format valide, mot de passe ≥ 8 caractères
-- Appel POST à l'Edge Function `manage-coach-account`
-- Résultat : toast "Coach ajouté avec succès" + rafraîchissement de la liste
-- Erreur : toast lisible (ex : "Cet email est déjà utilisé") — pas de message technique
-
-### F4 — Suppression d'un compte coach
-
-Suppression du compte auth et du profil associé.
-
-**Description fonctionnelle :**
-- Bouton "Supprimer" visible uniquement sur les autres coachs (pas sur soi)
-- Confirmation demandée avant toute suppression
-- Appel DELETE à l'Edge Function `manage-coach-account`
-- Résultat : toast "Coach supprimé" + rafraîchissement de la liste
-- Erreur : toast lisible
-
-### F5 — Backend : schema + Edge Function
-
-Prérequis technique pour F2, F3, F4. Invisible pour l'utilisateur.
-
-**Description fonctionnelle :**
-- Ajout des colonnes `nom TEXT`, `prenom TEXT`, `email TEXT` dans `user_profiles` (nullable — compatibilité avec l'existant)
-- Nouvelle Edge Function `manage-coach-account` déployée sur Supabase
-  - POST `{ email, password, nom, prenom }` → crée auth user + insère user_profiles(role='coach')
-  - DELETE `{ coach_user_id }` → supprime auth user (+ user_profiles en cascade)
-  - Vérifie systématiquement que l'appelant est un coach (même garde que `create-player-account`)
+### F7 — Nom du fichier *(Must Have)*
+Format : `FENIX_[NomJoueur]_[Session].pptx` (caractères spéciaux remplacés par `_`)
 
 ---
 
 ## 3. Priorités
 
-| Feature | Priorité | Justification |
-|---------|---------|---------------|
-| F5 — Backend schema + Edge Function | Must Have | Prérequis de tout le reste |
-| F1 — Onglet Coachs | Must Have | Point d'entrée obligatoire |
-| F2 — Liste des coachs | Must Have | Nécessaire pour savoir ce qui existe |
-| F3 — Création coach | Must Have | Raison d'être de la feature |
-| F4 — Suppression coach | Must Have | Sans suppression, les erreurs sont irréversibles depuis l'app |
-
-Toutes les features sont Must Have — elles forment un ensemble indivisible. Une feature partielle (créer sans lister, ou lister sans supprimer) ne résout pas le problème.
+| Feature | Priorité |
+|---------|----------|
+| F1 CDN PptxGenJS | Must Have |
+| F2 Bouton PPT | Must Have |
+| F3 Slide 1 radars | Must Have |
+| F4 Slide 2 Attaque | Must Have |
+| F5 Slide 3 Défense | Must Have |
+| F6 Slide 4 CR | Must Have |
+| F7 Nom fichier | Must Have |
 
 ---
 
 ## 4. Critères d'acceptation globaux
 
-- [ ] Un coach peut créer un co-coach en < 2 minutes depuis l'app (mobile portrait)
-- [ ] Le co-coach peut se connecter immédiatement après création sur index.html
-- [ ] Zéro intervention sur le dashboard Supabase requise pour tout le flux
-- [ ] L'erreur FK constraint est impossible (atomicité garantie par l'Edge Function)
-- [ ] Les messages d'erreur sont lisibles et actionnables (pas de stacktrace, pas d'UUID brut)
-- [ ] Le coach courant ne peut pas supprimer son propre compte
+- [ ] Clic sur "📊 PPT" → fichier `.pptx` téléchargé sans erreur
+- [ ] Le fichier s'ouvre dans PowerPoint / LibreOffice sans message d'erreur
+- [ ] Slide 1 affiche les deux radars (ou un seul si GB) lisibles
+- [ ] Slides 2/3 listent tous les critères avec couleur correcte par note
+- [ ] Slide 4 n'affiche que les sections remplies
+- [ ] L'ancien export PDF joueur (player-home.js) fonctionne toujours
 
 ---
 
 ## 5. Hors scope
 
-- Modifier l'email ou le mot de passe d'un coach existant après création
-- Envoi automatique d'un email d'invitation au nouveau coach
-- Distinction rôles coach (admin / assistant) — v1 : tous les coachs ont les mêmes droits
-- Réinitialisation de mot de passe depuis l'app
-- Mode invité lecture seule
-- Historique des actions sur les comptes coach
+- Export PDF coach (supprimé, remplacé)
+- Export multi-joueurs
+- Export multi-sessions en un seul PPT
+- Personnalisation de la palette par l'utilisateur
+- Animation ou transitions dans le PPT
 
 ---
 
 ## 6. Dépendances
 
-- La Service Role Key Supabase doit être configurée dans les secrets de l'Edge Function (déjà fait pour `create-player-account` — même projet Supabase, même secret)
-- CLI Supabase disponible pour déployer la nouvelle Edge Function (`supabase functions deploy manage-coach-account`)
-- RLS existante sur `user_profiles` : vérifier que `SELECT WHERE role='coach'` est accessible à tous les coachs (policy "self or coach" — à confirmer en STORY-10)
+- `CRITERIA` (criteria-data.js) — structure des profils et critères
+- `_coachEvalMap` — map `critere_id → {note_joueur, note_staff}` déjà en mémoire
+- `_cAttId`, `_cDefId`, `_cPdfNom`, `_cPdfSession`, `_cPdfIsGb` — variables globales déjà disponibles
+- Canvas `radarAtt`, `radarDef` — déjà rendus au moment du clic
+- Textareas `crAxesAtt`, `crAxesDef`, `crCT`, `crMT`, `crNotes` — présents dans le DOM
 
 ---
 
-## 7. Risques identifiés
+## 7. Risques
 
-| Risque | Probabilité | Impact | Mitigation |
-|--------|------------|--------|-----------|
-| Email déjà utilisé dans Auth | Faible | Moyen | Message d'erreur lisible depuis l'API |
-| Suppression accidentelle d'un coach | Faible | Élevé | Dialog de confirmation obligatoire |
-| Auto-suppression = lockout | Très faible | Critique | Bouton absent pour le compte courant |
-| RLS bloque la liste des autres coachs | Faible | Élevé | À vérifier en STORY-10 (policy SELECT) |
-| user_profiles non cascadé à la suppression auth | Faible | Moyen | Suppression explicite dans l'Edge Function |
+- PptxGenJS CDN non disponible → toast d'erreur, dégradation gracieuse
+- Canvas radar non encore rendu au clic → guard avec vérification du DOM
+- Critères null/undefined dans CRITERIA → fallback "—" systématique
