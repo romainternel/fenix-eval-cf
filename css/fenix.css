@@ -969,6 +969,38 @@ body {
   box-shadow: 0 0 0 4px rgba(91,33,182,0.22), 0 2px 8px rgba(91,33,182,0.18);
 }
 
+/* VISUAL-06 — Arc de progression sur rating-btn sélectionné */
+.rating-btn.n1.selected {
+  background:
+    radial-gradient(circle at center, var(--n1-text) 55%, transparent 56%),
+    conic-gradient(var(--n1-text) 0% 20%, var(--n1-border) 20% 100%);
+  border-color: transparent;
+}
+.rating-btn.n2.selected {
+  background:
+    radial-gradient(circle at center, var(--n2-text) 55%, transparent 56%),
+    conic-gradient(var(--n2-text) 0% 40%, var(--n2-border) 40% 100%);
+  border-color: transparent;
+}
+.rating-btn.n3.selected {
+  background:
+    radial-gradient(circle at center, var(--n3-text) 55%, transparent 56%),
+    conic-gradient(var(--n3-text) 0% 60%, var(--n3-border) 60% 100%);
+  border-color: transparent;
+}
+.rating-btn.n4.selected {
+  background:
+    radial-gradient(circle at center, var(--n4-text) 55%, transparent 56%),
+    conic-gradient(var(--n4-text) 0% 80%, var(--n4-border) 80% 100%);
+  border-color: transparent;
+}
+.rating-btn.n5.selected {
+  background:
+    radial-gradient(circle at center, var(--n5-text) 55%, transparent 56%),
+    conic-gradient(var(--n5-text) 0% 100%, transparent 100%);
+  border-color: transparent;
+}
+
 /* ── INTRO CARD (légende notation) ──────────────────────────────────────── */
 .intro-card {
   background: var(--white); border-radius: 16px;
