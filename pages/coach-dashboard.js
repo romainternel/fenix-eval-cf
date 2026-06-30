@@ -896,13 +896,14 @@ async function showCoachRadar(sessionId, playerId) {
     </div>
     <div class="card">
       <div class="card-body">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
           <p class="section-title" style="margin:0">Résultats — ${escHtml(nom)}</p>
           <button class="btn btn-sm ${shared ? 'btn-ghost' : 'btn-primary'}"
             onclick="${shared ? `coachUnshareResults('${sessionId}','${playerId}')` : `coachShareResults('${sessionId}','${playerId}')`}">
             ${shared ? 'Retirer le partage' : 'Partager avec le joueur'}
           </button>
         </div>
+        <p style="font-size:12px;color:var(--gray-400);margin-top:4px;margin-bottom:10px">${escHtml(_cPdfSession)}</p>
         <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Joueur</div>
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>

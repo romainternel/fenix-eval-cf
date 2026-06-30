@@ -115,11 +115,21 @@ function noteLegendHTML() {
 }
 
 /* ── Tableau tendances par thème (STORY 16) ──────────────────────────────── */
+function toggleTrendSub(uid) {
+  const el = document.getElementById(uid);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'table-row';
+  const btn = document.querySelector(`[data-trend-toggle="${uid}"]`);
+  if (btn) btn.classList.toggle('open', !open);
+}
+
 function trendTableHTML(profilId, sessions, viewKey, title) {
   const profil = CRITERIA[profilId];
   if (!profil || sessions.length < 2) return '';
+  const colCount = sessions.length + 3;
 
-  const rows = Object.values(profil.axes).map(axe => {
+  const rows = Object.entries(profil.axes).map(([axeId, axe]) => {
     const avgs = sessions.map(s => {
       const ns = axe.criteres.map(c => s.evalMap[c.id]?.[viewKey] || 0).filter(n => n > 0);
       return ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : null;
@@ -131,13 +141,33 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
     const cells = avgs.map(v => `<td class="trend-td">${v !== null ? v : '—'}</td>`).join('');
     const dBadge = delta !== null
-      ? `<span class="trend-badge ${dir}">${delta > 0 ? '+' : ''}${delta}</span>`
-      : '—';
-    return `<tr>
-      <td class="trend-td-label">${escHtml(axe.label)}</td>
+      ? `<span class="trend-badge ${dir}">${delta > 0 ? '+' : ''}${delta}</span>` : '—';
+
+    const subId = 'ts-' + profilId + '-' + axeId;
+    const subHeaders = sessions.map(s => `<th class="trend-sub-th">${escHtml(s.label)}</th>`).join('');
+    const subRows = axe.criteres.map(c => {
+      const dotCells = sessions.map(s => {
+        const n = s.evalMap[c.id]?.[viewKey] || 0;
+        return `<td class="trend-sub-td">${n ? `<span class="trend-sub-dot n${n}">${n}</span>` : '<span class="trend-sub-dot empty">—</span>'}</td>`;
+      }).join('');
+      return `<tr><td class="trend-sub-label">${escHtml(c.label)}</td>${dotCells}</tr>`;
+    }).join('');
+
+    return `<tr class="trend-row">
+      <td class="trend-td-label">
+        <button class="trend-theme-btn" data-trend-toggle="${subId}" onclick="toggleTrendSub('${subId}')">${escHtml(axe.label)}</button>
+      </td>
       ${cells}
       <td class="trend-td"><span class="trend-arrow ${dir}">${arrow}</span></td>
       <td class="trend-td">${dBadge}</td>
+    </tr>
+    <tr class="trend-sub-row" id="${subId}" style="display:none">
+      <td colspan="${colCount}" style="padding:0 0 8px 0;background:var(--gray-50)">
+        <table class="trend-sub-table">
+          <thead><tr><th class="trend-sub-th-label">Critère</th>${subHeaders}</tr></thead>
+          <tbody>${subRows}</tbody>
+        </table>
+      </td>
     </tr>`;
   }).join('');
 
@@ -146,7 +176,7 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
     <table class="trend-table">
       <thead><tr>
-        <th class="trend-th-label">Thème</th>${headers}
+        <th class="trend-th-label">Thème <span style="font-weight:400;font-size:9px;color:var(--gray-300);text-transform:none;letter-spacing:0">— clique pour détail</span></th>${headers}
         <th class="trend-th">↕</th><th class="trend-th">Δ</th>
       </tr></thead>
       <tbody>${rows}</tbody>

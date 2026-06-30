@@ -695,6 +695,37 @@ function pRenderBarChart() {
   _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.88)',  'rgba(234,88,12,0.04)',  'rgba(194,65,12,0.95)');
 }
 
+function pRecapTableHTML(profilId, evalMap, title) {
+  const profil = CRITERIA[profilId];
+  if (!profil) return '';
+  const rows = Object.entries(profil.axes).map(([axeId, axe]) => {
+    const jNs = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+    const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+    const avgJ = jNs.length ? +(jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
+    const avgS = sNs.length ? +(sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
+    return `<tr class="recap-row" data-recap="${profilId}-${axeId}">
+      <td class="recap-td-label">
+        <button class="recap-theme-btn" onclick="showPlayerAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>
+      </td>
+      <td class="recap-td">${avgJ !== null ? avgJ : '—'}</td>
+      <td class="recap-td">${avgS !== null ? avgS : '—'}</td>
+      <td class="recap-td">${deltaHTML(avgJ, avgS)}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
+    <p style="font-size:10px;color:var(--gray-300);margin-bottom:4px">Sélectionne un thème pour voir le détail</p>
+    <table class="recap-table">
+      <thead><tr>
+        <th class="recap-th-label">Thème</th>
+        <th class="recap-th">Moi</th>
+        <th class="recap-th">Staff</th>
+        <th class="recap-th">Écart</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 function pRenderTrendTable() {
   const el = pgid('pTrendSection');
   if (!el) return;
@@ -798,18 +829,15 @@ async function showPlayerRadar(sessionId) {
     ? `<div class="radar-col-full">
          <p class="radar-profil-title">🧤 Gardien</p>
          <canvas id="pRadarAtt" style="max-height:280px"></canvas>
-         <div class="radar-axes-btns">${pAxesBtns(_pAttId)}</div>
        </div>`
     : `<div class="radar-grid">
          ${_pAttId ? `<div class="radar-col">
            <p class="radar-profil-title">⚡ Attaque</p>
            <canvas id="pRadarAtt" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${pAxesBtns(_pAttId)}</div>
          </div>` : ''}
          ${_pDefId ? `<div class="radar-col">
            <p class="radar-profil-title">🛡 Défense</p>
            <canvas id="pRadarDef" style="width:100%"></canvas>
-           <div class="radar-axes-btns">${pAxesBtns(_pDefId)}</div>
          </div>` : ''}
        </div>`;
 
@@ -876,7 +904,8 @@ async function showPlayerRadar(sessionId) {
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
         </div>
         ${sessionRadarHTML}
-        <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px">Clique sur un thème pour voir le détail ↓</p>
+        ${pRecapTableHTML(_pAttId, _pEvalMap, _pIsGb ? '🧤 Gardien' : '⚡ Attaque')}
+        ${_pDefId ? pRecapTableHTML(_pDefId, _pEvalMap, '🛡 Défense') : ''}
       </div>
     </div>
     <div id="pAxisDetail" style="display:none"></div>
@@ -1024,8 +1053,12 @@ function showPlayerAxisDetail(profilId, axeId) {
   const axe = CRITERIA[profilId]?.axes[axeId];
   if (!axe) return;
 
-  document.querySelectorAll('.radar-axe-btn').forEach(b => b.classList.remove('active'));
-  pgid(`praxe-${profilId}-${axeId}`)?.classList.add('active');
+  document.querySelectorAll('.recap-row').forEach(r => r.classList.remove('active'));
+  document.querySelectorAll('.recap-theme-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll(`.recap-row[data-recap="${profilId}-${axeId}"]`).forEach(r => {
+    r.classList.add('active');
+    r.querySelector('.recap-theme-btn')?.classList.add('active');
+  });
 
   const rows = axe.criteres.map(c => {
     const nj = _pEvalMap[c.id]?.note_joueur || 0;

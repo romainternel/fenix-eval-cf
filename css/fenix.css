@@ -1082,6 +1082,37 @@ body {
 .trend-badge.down { background: rgba(239,68,68,0.1);   color: rgba(185,28,28,0.95); }
 .trend-badge.flat { background: var(--gray-100); color: var(--gray-400); }
 
+.trend-theme-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--gray-700);
+  cursor: pointer; text-align: left; width: 100%;
+  text-decoration: underline; text-decoration-color: rgba(10,36,99,0.2);
+  text-underline-offset: 2px; touch-action: manipulation;
+}
+.trend-theme-btn:hover { color: var(--fenix-navy); text-decoration-color: var(--fenix-navy); }
+.trend-theme-btn.open  { color: var(--fenix-navy); font-weight: 700; }
+
+.trend-sub-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.trend-sub-th-label, .trend-sub-th {
+  padding: 4px 6px; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--gray-400);
+  border-bottom: 1px solid var(--gray-200); text-align: left;
+}
+.trend-sub-th { text-align: center; }
+.trend-sub-label { padding: 5px 6px; font-size: 11px; color: var(--gray-600); border-bottom: 1px solid var(--gray-100); }
+.trend-sub-td { padding: 5px 6px; text-align: center; border-bottom: 1px solid var(--gray-100); }
+.trend-sub-table tbody tr:last-child td { border-bottom: none; }
+.trend-sub-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 10px; font-weight: 700;
+}
+.trend-sub-dot.n1 { background: var(--n1-bg); color: var(--n1-text); }
+.trend-sub-dot.n2 { background: var(--n2-bg); color: var(--n2-text); }
+.trend-sub-dot.n3 { background: var(--n3-bg); color: var(--n3-text); }
+.trend-sub-dot.n4 { background: var(--n4-bg); color: var(--n4-text); }
+.trend-sub-dot.n5 { background: var(--n5-bg); color: var(--n5-text); }
+.trend-sub-dot.empty { color: var(--gray-300); font-size: 9px; }
+
 /* ── STORY 15 — Score global Att/Def sur liste joueurs ───────────────────── */
 .score-chip {
   display: inline-flex; align-items: center; gap: 3px;
