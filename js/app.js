@@ -174,13 +174,15 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
   const headers = sessions.map(s => `<th class="trend-th">${escHtml(s.label)}</th>`).join('');
   return `
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
+    <div class="trend-table-wrap">
     <table class="trend-table">
       <thead><tr>
         <th class="trend-th-label">Thème <span style="font-weight:400;font-size:9px;color:var(--gray-300);text-transform:none;letter-spacing:0">— clique pour détail</span></th>${headers}
         <th class="trend-th">↕</th><th class="trend-th">Δ</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
 }
 
 /* ── Badge écart joueur/staff ─────────────────────────────────────────────── */
