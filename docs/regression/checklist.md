@@ -1,6 +1,6 @@
 # Checklist de régression — FENIX Eval CF
 
-> Agent : Regression Guardian | Dernière mise à jour : 2026-06-30 (STORY-12)
+> Agent : Regression Guardian | Dernière mise à jour : 2026-07-01 (STORY-13)
 
 ---
 
@@ -22,6 +22,7 @@
 | R12 | Export PPT résultats joueur | `pages/coach-dashboard.js`, `coach.html` | Bouton "📊 PPT" → fichier FENIX_[nom]_[session].pptx téléchargé ; sans joueur → toast, pas d'erreur | Important | Ajouté STORY-12 |
 | R13 | Show/hide password (login + modals) | `index.html`, `js/app.js`, `pages/coach-dashboard.js` | Bouton "Voir/Masquer" toggle le champ password → text dans login, création joueur et création coach | Important | Ajouté STORY-12 |
 | R14 | Radar font size | `pages/coach-dashboard.js`, `pages/player-home.js` | Labels du radar lisibles (font-size 12, weight 600) sur les deux dashboards | Secondaire | Ajouté STORY-12 |
+| R15 | Export PPT html2canvas (STORY-13) | `pages/coach-dashboard.js`, `coach.html` | Bouton PPT → 4 slides avec captures DOM fidèles au rendu ; garde-fous : sans joueur → toast, html2canvas absent → toast | Important | Ajouté STORY-13 |
 
 ---
 
@@ -31,3 +32,4 @@
 - R10 ajouté STORY-10 (Edge Function manage-coach-account) — vérification post-déploiement.
 - R11 ajouté STORY-11 (interface gestion coachs UI).
 - R12-R14 ajoutés STORY-12 (export PPT, show/hide password, radar font size).
+- R15 ajouté STORY-13 (refonte export PPT html2canvas) — R12 subsiste pour la structure PPT, R15 couvre la capture DOM.

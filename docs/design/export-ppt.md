@@ -1,6 +1,115 @@
-# Design — Export PowerPoint
+# Design — Refonte export PPT par capture d'écran
 
-> Agent : Designer | Date : 2026-06-30
+> Agent : Designer | Date : 2026-06-30 (refonte STORY-12)
+
+---
+
+## Contexte de capture
+
+Le coach est sur la vue résultats d'un joueur dans `coach.html`. Cette vue contient déjà :
+- Les deux canvas radar (`radarAtt`, `radarDef`) rendus par Chart.js
+- Un tableau de détail critères par axe (Attaque / Défense)
+- Une section compte-rendu entretien avec des champs texte
+
+L'export PPT capture ces zones telles qu'elles apparaissent — pas de nouvelle UI à concevoir pour le contenu. Le design porte sur la **composition des slides** et le **feedback utilisateur** pendant l'export.
+
+---
+
+## Slide 1 — Couverture + Radars
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ ████████████████████████████ BANDE GOLD (0.12") ██████████████████████████████████ │
+│ ████████████████████████████ FOND NAVY ███████████████████████████████████████████ │
+│  FENIX Eval CF                                                            [LOGO]   │
+│  NomJoueur · Session                                                               │
+│                                                                                    │
+│       ┌──────────────────────────┐        ┌──────────────────────────┐            │
+│       │                          │        │                          │            │
+│       │   [capture canvas ATT]   │        │   [capture canvas DEF]   │            │
+│       │   toDataURL() direct     │        │   toDataURL() direct     │            │
+│       │                          │        │                          │            │
+│       └──────────────────────────┘        └──────────────────────────┘            │
+│  ● Joueur (bleu)   ● Staff (orange)                              [logo discret]   │
+│ ████████████████████ BANDE NAVY BAS ██████████████████████████████████████████████ │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+Cas GB : un seul canvas centré.
+
+---
+
+## Slide 2 — Tableau Attaque (ou GB)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ BANDE GOLD │ FOND NAVY │ ⚡ ATTAQUE — AILIER ATT          NomJoueur · Session     │
+├────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                    │
+│   ┌────────────────────────────────────────────────────────────────────────────┐   │
+│   │  [capture html2canvas du tableau critères Attaque — rendu CSS FENIX       │   │
+│   │   avec colonnes Critère / Joueur / Staff et couleurs n1→n5 intactes]      │   │
+│   └────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                      [logo]        │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Slide 3 — Tableau Défense (absent si GB)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ BANDE GOLD │ FOND NAVY │ 🛡 DÉFENSE — N1 DEF               NomJoueur · Session    │
+├────────────────────────────────────────────────────────────────────────────────────┤
+│   ┌────────────────────────────────────────────────────────────────────────────┐   │
+│   │  [capture html2canvas du tableau critères Défense]                        │   │
+│   └────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                      [logo]        │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Slide 4 — Compte-rendu entretien
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ BANDE GOLD │ FOND NAVY │ 📋 COMPTE-RENDU D'ENTRETIEN       NomJoueur · Session    │
+├────────────────────────────────────────────────────────────────────────────────────┤
+│   ┌────────────────────────────────────────────────────────────────────────────┐   │
+│   │  [capture html2canvas de la zone entretien (axes, objectifs CT/MT, CR)]  │   │
+│   └────────────────────────────────────────────────────────────────────────────┘   │
+│              — ou si zone vide —                                                   │
+│              "Aucun compte-rendu saisi." (texte PptxGenJS)                        │
+│                                                                      [logo]        │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Feedback utilisateur
+
+| État | Bouton | Toast |
+|------|--------|-------|
+| Repos | `📊 PPT` | — |
+| Export en cours | `Génération… ⏳` (disabled) | "Génération du PPT…" |
+| Succès | `📊 PPT` (réactivé) | "PPT exporté ✓" |
+| Erreur | `📊 PPT` (réactivé) | "Erreur export : [détail]" |
+| html2canvas absent | `📊 PPT` | "Librairie de capture non chargée" |
+| Joueur non chargé | `📊 PPT` | "Ouvrez d'abord la vue résultats d'un joueur" |
+| Zone DOM absente | slide "Données non disponibles", export continue | — |
+
+---
+
+## Zones à capturer
+
+| Slide | Contenu | Sélecteur | Méthode |
+|-------|---------|-----------|---------|
+| S1 | Radar Att | `#radarAtt` (canvas) | `canvas.toDataURL()` |
+| S1 | Radar Def | `#radarDef` (canvas) | `canvas.toDataURL()` |
+| S2 | Tableau critères Att | À identifier par Architect | `html2canvas(el)` |
+| S3 | Tableau critères Def | À identifier par Architect | `html2canvas(el)` |
+| S4 | Section entretien | À identifier par Architect | `html2canvas(el)` |
 > Source : docs/prd.md
 
 ---

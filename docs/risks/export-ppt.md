@@ -1,6 +1,38 @@
-# Risks — Export PowerPoint
+# Risks — Refonte export PPT par capture d'écran
 
-> Agent : Risk Analyst | Date : 2026-06-30
+> Agent : Risk Analyst | Date : 2026-06-30 (refonte STORY-12)
+
+---
+
+## Tableau des risques
+
+| # | Risque | Proba | Impact | Priorité | Recommandation |
+|---|--------|-------|--------|----------|----------------|
+| R1 | html2canvas CDN indisponible au moment de l'export | Faible | Moyen | P1 | Guard `if (!window.html2canvas)` → toast + return avant tout appel |
+| R2 | `#pptCaptureAtt` ou `#pptCaptureDef` absent du DOM (joueur sans profil att ou def) | Moyenne | Moyen | P1 | `captureEl()` retourne `null` si `gid(id)` est null → `addCapture()` affiche fallback texte, export continue |
+| R3 | html2canvas échoue sur un élément donné (exception interne) | Faible | Faible | P2 | Wrapper `try/catch` autour de chaque `captureEl()` → null en cas d'erreur, fallback texte |
+| R4 | Le fichier .pptx généré est trop lourd (> 5 Mo) si les captures sont en scale:3 | Faible | Faible | P3 | Conserver `scale: 2` comme spécifié dans le Visual Crafter — poids estimé 700 Ko–1.2 Mo |
+| R5 | Régression : slide 1 radars cassée si `cBilanAtt`/`cBilanDef` capturés à la place de `radarAtt`/`radarDef` | Faible | Critique | P1 | Le code doit explicitement cibler `gid('radarAtt')` (session unique) et non les canvas bilan |
+| R6 | La section CR capturée inclut le bouton "Sauvegarder" et le toggle visibilité | Moyenne | Faible | P2 | Capture `#pptCaptureCR` = la card entière — inclut les boutons. Acceptable visuellement. Alternative : masquer temporairement les boutons avant capture puis restaurer. |
+| R7 | html2canvas et les CSS `var()` non résolues sur certains navigateurs | Faible | Faible | P2 | Options `backgroundColor` explicite en fallback. html2canvas v1.4 résout les vars via `getComputedStyle`. |
+
+---
+
+## Détail P0/P1
+
+### R1 — CDN html2canvas indisponible
+**Critère d'acceptation** : guard `if (!window.html2canvas)` déclenche toast "Librairie de capture non chargée" et return sans erreur JS.
+
+### R2 — Zone DOM absente
+**Critère d'acceptation** : si `gid('pptCaptureAtt')` est null, la slide 2 affiche "Tableau non disponible." et l'export continue sur les slides suivantes.
+
+### R5 — Confusion canvas radarAtt vs cBilanAtt
+**Critère d'acceptation** : le Developer doit utiliser `gid('radarAtt')` (canvas de la session courante) et non `gid('cBilanAtt')` (canvas bilan multi-sessions). Ces deux canvas coexistent dans le DOM si le bilan multi-sessions est affiché.
+
+---
+
+## Pas de P0
+Aucun risque bloquant détecté. La feature est faisable avec les mitigations P1 ci-dessus.
 > Source : docs/arch/export-ppt.md
 
 ---

@@ -1,6 +1,87 @@
-# Visual — Export PowerPoint
+# Visual Crafter — Refonte export PPT par capture d'écran
 
-> Agent : Visual Crafter | Date : 2026-06-30
+> Agent : Visual Crafter | Date : 2026-06-30 (refonte STORY-12)
+
+---
+
+## Contexte
+
+Le contenu visuel des slides vient directement de l'app (captures html2canvas) — pas de nouveau token à concevoir pour le contenu. Mon travail porte sur les options html2canvas pour la fidélité visuelle, le rendu des en-têtes, et le sizing des images dans les slides.
+
+---
+
+## 1. Options html2canvas recommandées
+
+```javascript
+const captureOpts = {
+  scale: 2,                    // 2x rétina — évite le flou dans PowerPoint
+  useCORS: true,               // pour les images dans le DOM
+  backgroundColor: '#FFFFFF',  // résout les CSS var() non résolues
+  logging: false,
+  windowWidth: el.scrollWidth,
+  windowHeight: el.scrollHeight,
+};
+```
+
+> Pour la section entretien (fond légèrement gris) : `backgroundColor: '#F8FAFC'`
+
+---
+
+## 2. En-têtes slides (PptxGenJS — conservés de STORY-12)
+
+| Élément | Valeur |
+|---------|--------|
+| Bande top | Gold `#C8A84B`, h:0.12" |
+| Fond header | Navy `#0A2463`, h:1.2" |
+| Titre | Calibri 20pt bold, `#FFFFFF`, x:0.35 y:0.15 |
+| Sous-titre | Calibri 10pt, `#C8A84B`, x:0.35 y:0.75 |
+| Logo | x:9.0, y:5.1, w:0.7, h:0.4 |
+
+---
+
+## 3. Placement images capturées dans les slides
+
+### Slides 2, 3, 4 (contenu sous l'en-tête 1.2")
+
+```javascript
+slide.addImage({
+  data: imgB64,
+  x: 0.3, y: 1.35, w: 9.4, h: 4.1,
+  sizing: { type: 'contain', w: 9.4, h: 4.1 }
+});
+```
+
+`sizing: contain` = le tableau tient dans la zone quelle que soit sa hauteur, sans déformer.
+
+### Slide 1 (radars — canvas natif, inchangé)
+
+```
+Radar Att : x:0.4, y:1.3, w:4.2, h:3.8
+Radar Def : x:5.4, y:1.3, w:4.2, h:3.8
+Cas GB    : x:2.9, y:1.3, w:4.2, h:3.8
+```
+
+---
+
+## 4. Contraste en-têtes
+
+| Texte | Fond | Ratio | WCAG |
+|-------|------|-------|------|
+| Blanc `#FFFFFF` / Navy `#0A2463` | — | 10.7:1 | ✅ AAA |
+| Gold `#C8A84B` / Navy `#0A2463` | — | 4.9:1 | ✅ AA |
+
+---
+
+## 5. Poids estimé du fichier .pptx
+
+| Slide | Contenu | ~Ko |
+|-------|---------|-----|
+| S1 | 2 radars PNG @2x | ~300 |
+| S2 | Tableau Att html2canvas @2x | ~250 |
+| S3 | Tableau Def html2canvas @2x | ~250 |
+| S4 | Section CR html2canvas @2x | ~100 |
+
+**Total estimé : 700 Ko – 1.2 Mo** — acceptable pour PowerPoint.
 > Source : docs/design/export-ppt.md
 
 ---

@@ -652,7 +652,8 @@ async function exportCoachPDF() {
 }
 
 async function exportCoachPPT() {
-  if (!window.PptxGenJS) { showToast('Librairie PPT non chargée'); return; }
+  if (!window.PptxGenJS)   { showToast('Librairie PPT non chargée'); return; }
+  if (!window.html2canvas) { showToast('Librairie de capture non chargée'); return; }
   const attCanvas = gid('radarAtt');
   if (!attCanvas) { showToast('Ouvrez d\'abord la vue résultats d\'un joueur'); return; }
 
@@ -674,15 +675,8 @@ async function exportCoachPPT() {
 
     const prs = new window.PptxGenJS();
     prs.layout = 'LAYOUT_WIDE';
-
     const NAVY = '0A2463', GOLD = 'C8A84B', WHITE = 'FFFFFF', BG = 'F8FAFC';
-    const NOTE_COLORS = {
-      1: { fill:'EF4444', text:WHITE },
-      2: { fill:'F97316', text:WHITE },
-      3: { fill:'EAB308', text:'1E293B' },
-      4: { fill:'84CC16', text:'1E293B' },
-      5: { fill:'22C55E', text:'1E293B' },
-    };
+    const subHdr = `${_cPdfNom}  ·  ${_cPdfSession}`;
 
     function addHeader(slide, title, subtitle) {
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.12, fill:{ color:GOLD } });
@@ -692,45 +686,27 @@ async function exportCoachPPT() {
       if (logoB64) slide.addImage({ data:logoB64, x:9.0, y:5.1, w:0.7, h:0.4 });
     }
 
-    function noteCell(n) {
-      const c = NOTE_COLORS[n];
-      if (!c) return { text:'—', options:{ fill:{ color:'E2E8F0' }, color:'94A3B8', bold:false, align:'center', fontSize:9, fontFace:'Calibri' } };
-      return { text: String(n), options:{ fill:{ color:c.fill }, color:c.text, bold:true, align:'center', fontSize:10, fontFace:'Calibri' } };
-    }
-
-    function buildCriteresTable(slide, profilId, startY) {
-      const profil = CRITERIA[profilId];
-      if (!profil) return;
-      const rows = [[
-        { text:'Critère', options:{ bold:true, fill:{ color:'E2E8F0' }, color:'0A2463', fontSize:9, fontFace:'Calibri' } },
-        { text:'Joueur',  options:{ bold:true, fill:{ color:'E2E8F0' }, color:'0A2463', fontSize:9, fontFace:'Calibri', align:'center' } },
-        { text:'Staff',   options:{ bold:true, fill:{ color:'E2E8F0' }, color:'0A2463', fontSize:9, fontFace:'Calibri', align:'center' } },
-      ]];
-      Object.entries(profil.axes).forEach(([, axe]) => {
-        rows.push([
-          { text: axe.label.toUpperCase(), options:{ bold:true, fill:{ color:'EEF2FF' }, color:NAVY, fontSize:8, fontFace:'Calibri', colspan:3 } },
-          { text:'', options:{} }, { text:'', options:{} },
-        ]);
-        axe.criteres.forEach(c => {
-          const ev = _coachEvalMap[c.id] || {};
-          rows.push([
-            { text: c.label, options:{ fill:{ color:WHITE }, color:'1E293B', fontSize:9, fontFace:'Calibri' } },
-            noteCell(ev.note_joueur || 0),
-            noteCell(ev.note_staff  || 0),
-          ]);
+    async function captureEl(id, bg) {
+      const el = gid(id);
+      if (!el) return null;
+      try {
+        const cv = await window.html2canvas(el, {
+          scale: 2, useCORS: true, backgroundColor: bg || '#FFFFFF', logging: false,
+          windowWidth: el.scrollWidth, windowHeight: el.scrollHeight,
         });
-      });
-      slide.addTable(rows, {
-        x:0.3, y:startY, w:9.4,
-        rowH: 0.27,
-        colW: [6.5, 1.45, 1.45],
-        border: { type:'solid', color:'E2E8F0', pt:0.5 },
-      });
+        return cv.toDataURL('image/png');
+      } catch (_) { return null; }
     }
 
-    const attLbl = PROFIL_LABELS[_cAttId] || _cAttId || '—';
-    const defLbl = PROFIL_LABELS[_cDefId] || _cDefId || '—';
-    const subHdr = `${_cPdfNom}  ·  ${_cPdfSession}`;
+    function addCapture(slide, b64, fallback) {
+      if (b64) {
+        slide.addImage({ data:b64, x:0.3, y:1.35, w:9.4, h:4.1,
+          sizing: { type:'contain', w:9.4, h:4.1 } });
+      } else {
+        slide.addText(fallback, { x:0.5, y:2, fontSize:12,
+          color:'94A3B8', fontFace:'Calibri', italic:true });
+      }
+    }
 
     const s1 = prs.addSlide();
     s1.background = { color: NAVY };
@@ -738,7 +714,6 @@ async function exportCoachPPT() {
     s1.addShape(prs.ShapeType.rect, { x:0, y:0, w:0.15, h:5.625, fill:{ color:GOLD } });
     s1.addText('FENIX Eval CF', { x:0.4, y:0.3,  w:8, fontSize:28, bold:true,  color:WHITE, fontFace:'Calibri' });
     s1.addText(subHdr,          { x:0.4, y:0.85, w:8, fontSize:14, bold:false, color:GOLD,  fontFace:'Calibri' });
-
     const defCanvas = gid('radarDef');
     if (!_cPdfIsGb && defCanvas) {
       s1.addImage({ data: attCanvas.toDataURL('image/png'), x:0.4, y:1.3, w:4.2, h:3.8 });
@@ -753,52 +728,26 @@ async function exportCoachPPT() {
 
     const s2 = prs.addSlide();
     s2.background = { color: BG };
-    addHeader(s2, `${_cPdfIsGb ? '🧤 GARDIEN DE BUT' : '⚡ ATTAQUE'} — ${attLbl.toUpperCase()}`, subHdr);
-    buildCriteresTable(s2, _cAttId, 1.35);
+    addHeader(s2, _cPdfIsGb ? '🧤 GARDIEN DE BUT' : '⚡ ATTAQUE', subHdr);
+    addCapture(s2, await captureEl('pptCaptureAtt', '#FFFFFF'), 'Tableau non disponible.');
 
     if (!_cPdfIsGb && _cDefId) {
       const s3 = prs.addSlide();
       s3.background = { color: BG };
-      addHeader(s3, `🛡 DÉFENSE — ${defLbl.toUpperCase()}`, subHdr);
-      buildCriteresTable(s3, _cDefId, 1.35);
+      addHeader(s3, '🛡 DÉFENSE', subHdr);
+      addCapture(s3, await captureEl('pptCaptureDef', '#FFFFFF'), 'Tableau non disponible.');
     }
 
     const s4 = prs.addSlide();
     s4.background = { color: BG };
     addHeader(s4, '📋 COMPTE-RENDU D\'ENTRETIEN', subHdr);
-
-    const crSecs = [
-      { id:'crAxesAtt', label:'AXES PRIORITAIRES — ATTAQUE' },
-      { id:'crAxesDef', label:'AXES PRIORITAIRES — DÉFENSE' },
-      { id:'crCT',      label:'OBJECTIF COURT TERME' },
-      { id:'crMT',      label:'OBJECTIF MOYEN TERME' },
-      { id:'crNotes',   label:'COMPTE-RENDU ENTRETIEN' },
-    ];
-    const filled = crSecs.map(s => ({ ...s, val: (gid(s.id)?.value || '').trim() })).filter(s => s.val);
-
-    if (filled.length === 0) {
-      s4.addText('Aucun compte-rendu saisi.', { x:0.5, y:2, fontSize:12, color:'94A3B8', fontFace:'Calibri', italic:true });
+    const crVide = !['crAxesAtt','crAxesDef','crCT','crMT','crNotes']
+      .some(id => gid(id)?.value?.trim());
+    if (crVide) {
+      s4.addText('Aucun compte-rendu saisi.', { x:0.5, y:2, fontSize:12,
+        color:'94A3B8', fontFace:'Calibri', italic:true });
     } else {
-      const cols = [
-        filled.filter((_, i) => i % 2 === 0),
-        filled.filter((_, i) => i % 2 !== 0),
-      ];
-      const xPos = [0.3, 5.1];
-      cols.forEach((col, ci) => {
-        let y = 1.4;
-        col.forEach(sec => {
-          s4.addText(sec.label, { x:xPos[ci], y, w:4.5, fontSize:8, bold:true, color:NAVY, fontFace:'Calibri' });
-          y += 0.22;
-          s4.addText(sec.val, {
-            x:xPos[ci], y, w:4.5, h:0.7,
-            fontSize:8, color:'1E293B', fontFace:'Calibri',
-            wrap:true, shrinkText:true,
-            fill:{ color:WHITE },
-            line:{ color:'D0D7E5', pt:0.5 },
-          });
-          y += 0.85;
-        });
-      });
+      addCapture(s4, await captureEl('pptCaptureCR', '#F8FAFC'), 'Compte-rendu non disponible.');
     }
 
     const safe = (`${_cPdfNom}_${_cPdfSession}`).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -1074,14 +1023,14 @@ async function showCoachRadar(sessionId, playerId) {
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
         </div>
         ${sessionRadarHTML}
-        ${_cAttId ? cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque') : ''}
-        ${_cDefId ? cRecapTableHTML(_cDefId, _coachEvalMap, '🛡 Défense') : ''}
+        ${_cAttId ? `<div id="pptCaptureAtt">${cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque')}</div>` : ''}
+        ${_cDefId ? `<div id="pptCaptureDef">${cRecapTableHTML(_cDefId, _coachEvalMap, '🛡 Défense')}</div>` : ''}
         ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:8px">✓ Résultats partagés avec le joueur</p>' : ''}
       </div>
     </div>
     <div id="axisDetail" style="display:none"></div>
     ${bilanCard}
-    <div class="card" style="margin-top:12px">
+    <div class="card" style="margin-top:12px" id="pptCaptureCR">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien ${cr?.updated_at ? `<span style="font-weight:400;font-size:11px;color:var(--gray-400);text-transform:none;letter-spacing:0">(${new Date(cr.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})})</span>` : ''}</p>
         <div class="cr-field-group cr-att">

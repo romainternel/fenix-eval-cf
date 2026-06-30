@@ -1,7 +1,88 @@
-# PRD — Export PowerPoint résultats joueur
+# PRD — Refonte export PPT par capture d'écran
 
 > Agent : Product Manager | Date : 2026-06-30
-> Source : docs/brief.md
+> Source : docs/brief.md (refonte STORY-12)
+
+---
+
+## 1. Objectif
+
+Remplacer la génération programmatique PptxGenJS (tableaux, formes, textes via API JS) par des captures d'écran des zones HTML/CSS déjà rendues dans l'application, afin que le PPT exporté soit visuellement fidèle à ce que le coach voit à l'écran.
+
+---
+
+## 2. Features
+
+### F1 — Capture des radars Chart.js (Slide 1)
+Les canvas `radarAtt` et `radarDef` sont déjà en mémoire. Capturer via `canvas.toDataURL('image/png')` et insérer côte à côte dans la slide 1. Pas besoin de html2canvas — API Canvas native suffisante.
+
+### F2 — Capture du tableau critères Attaque (Slide 2)
+Capturer le nœud DOM du tableau critères Attaque déjà rendu dans la vue résultats via html2canvas. Insérer en pleine slide sous l'en-tête.
+
+### F3 — Capture du tableau critères Défense (Slide 3)
+Idem F2 pour le tableau Défense. Absent si profil GB (gardien de but).
+
+### F4 — Capture de la section compte-rendu entretien (Slide 4)
+Capturer la zone DOM contenant les champs entretien. Si la zone est vide ou absente, slide avec message "Aucun compte-rendu saisi."
+
+### F5 — En-têtes slides via PptxGenJS
+Conserver les en-têtes (bande navy, titre joueur + session, logo) générés par PptxGenJS. Seul le contenu sous l'en-tête change (image capturée vs shapes/tableaux JS).
+
+### F6 — Ajout html2canvas CDN
+Ajouter `https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js` dans `coach.html` avant `coach-dashboard.js`.
+
+---
+
+## 3. Priorités
+
+| Feature | Priorité | Justification |
+|---------|----------|---------------|
+| F1 — Radars (canvas natif) | Must Have | Déjà fonctionnel via `toDataURL()` |
+| F2 — Tableau critères Att | Must Have | Slide principale de valeur |
+| F3 — Tableau critères Def | Must Have | Symétrique F2, sauf GB |
+| F4 — Section CR entretien | Must Have | Complément radar |
+| F5 — En-têtes PptxGenJS | Must Have | Déjà en place — conserver |
+| F6 — CDN html2canvas | Must Have | Prérequis technique F2/F3/F4 |
+
+---
+
+## 4. Critères d'acceptation
+
+- [ ] html2canvas chargé dans `coach.html` avant `coach-dashboard.js`
+- [ ] Slide 1 : radars capturés via `toDataURL()`, côte à côte sur fond navy
+- [ ] Slide 2 : tableau critères Attaque capturé via html2canvas, inséré sous l'en-tête
+- [ ] Slide 3 : tableau critères Défense capturé — absent si `_cPdfIsGb`
+- [ ] Slide 4 : section CR capturée — "Aucun CR saisi" si zone vide ou absente
+- [ ] Si html2canvas non chargé → toast + return, pas d'erreur JS
+- [ ] Si zone DOM cible absente → slide avec message gracieux, export continue
+- [ ] Fichier nommé `FENIX_[nom]_[session].pptx`
+- [ ] `player-home.js` non modifié
+
+---
+
+## 5. Hors scope
+
+- Modifier le rendu HTML des zones capturées
+- Capturer l'intégralité de la page
+- Export mobile
+- Choix de résolution ou de qualité par l'utilisateur
+- Export PDF coach
+
+---
+
+## 6. Dépendances
+
+- PptxGenJS v3 déjà en CDN dans `coach.html` ✓
+- Vue résultats coach avec `radarAtt`, `radarDef`, tableau critères et section CR ✓
+- html2canvas v1.4.1 à ajouter (F6)
+
+---
+
+## 7. Risques
+
+- **html2canvas + CSS variables** : `var(--couleur)` peuvent ne pas être résolues → passer `backgroundColor` explicite
+- **Contenu hors viewport** : html2canvas capture ce qui est visible → utiliser `scrollX:0, scrollY:0` et dimensions adaptées
+- **Hauteur variable des tableaux** : peut déborder de la slide → scaling via `addImage` avec `sizing: { type:'contain' }`
 
 ---
 
