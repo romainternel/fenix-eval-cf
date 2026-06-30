@@ -283,37 +283,6 @@ body {
 .badge-type.def { background: var(--def-tag); color: var(--def); }
 .badge-type.gb  { background: var(--gb-tag);  color: var(--gb); }
 
-/* ── BOUTONS NOTATION 1→5 ───────────────────────────────────────────────── */
-.rating-group {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
-.rating-btn {
-  flex: 1;
-  aspect-ratio: 1;
-  border: 2px solid var(--gray-200);
-  border-radius: 12px;
-  background: var(--white);
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--gray-600);
-  cursor: pointer;
-  transition: transform 0.1s, border-color 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 56px;
-  -webkit-tap-highlight-color: transparent;
-}
-.rating-btn:active { transform: scale(0.93); }
-
-.rating-btn[data-n="1"].selected, .rating-btn[data-n="1"]:hover { background: var(--n1-bg); border-color: var(--n1-border); color: var(--n1-text); }
-.rating-btn[data-n="2"].selected, .rating-btn[data-n="2"]:hover { background: var(--n2-bg); border-color: var(--n2-border); color: var(--n2-text); }
-.rating-btn[data-n="3"].selected, .rating-btn[data-n="3"]:hover { background: var(--n3-bg); border-color: var(--n3-border); color: var(--n3-text); }
-.rating-btn[data-n="4"].selected, .rating-btn[data-n="4"]:hover { background: var(--n4-bg); border-color: var(--n4-border); color: var(--n4-text); }
-.rating-btn[data-n="5"].selected, .rating-btn[data-n="5"]:hover { background: var(--n5-bg); border-color: var(--n5-border); color: var(--n5-text); }
-
 .rating-labels {
   display: flex;
   justify-content: space-between;
@@ -419,7 +388,7 @@ body {
 .btn-ghost:hover { background: #EEF2FF; border-color: #C7D2FE; color: var(--fenix-navy); }
 .btn-secondary { background: var(--white); color: var(--fenix-navy); border: 1.5px solid var(--surface-border); }
 .btn-secondary:hover { background: var(--gray-50); box-shadow: var(--shadow-sm); }
-.btn-danger   { background: #FEE2E2; color: #991B1B; }
+.btn-danger   { background: var(--def-tag); color: var(--def); border: 1.5px solid var(--def-light); width: 100%; }
 .btn-danger:hover { background: #FECACA; }
 .btn-full     { width: 100%; }
 .btn-sm       { padding: 8px 14px; font-size: 14px; }
@@ -532,7 +501,6 @@ body {
 }
 
 .session-badge-open   { background: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
-.session-badge-closed { background: var(--gray-100); color: var(--gray-400); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
 
 /* ── LOGOUT BTN ─────────────────────────────────────────────────────────── */
 /* VISUAL-01 — Correction WCAG : opacité 0.6 -> 0.75 */
@@ -774,10 +742,6 @@ body {
 }
 .form-sub { font-size: 11px; color: var(--gray-400); margin-left: 6px; font-weight: 400; letter-spacing: 0; text-transform: none; }
 
-/* ── BOUTON SECONDARY / DANGER ──────────────────────────────────────────── */
-.btn-secondary { background: var(--gray-100); color: var(--gray-800); }
-.btn-danger    { background: var(--def-tag);  color: var(--def); border: 1.5px solid var(--def-light); width: 100%; }
-
 /* ── INFO ROW (détail session / joueur) ─────────────────────────────────── */
 .info-row { display: flex; gap: 12px; align-items: baseline; }
 .info-label {
@@ -816,7 +780,7 @@ body {
 }
 
 .session-badge-closed {
-  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   padding: 2px 8px; border-radius: 20px;
   background: var(--gray-200); color: var(--gray-600);
 }
