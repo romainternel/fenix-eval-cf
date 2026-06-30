@@ -3,21 +3,42 @@
    v1 — 2026-06
 ──────────────────────────────────────────────────────────────────────────── */
 
+/* VISUAL-01 — Fondations : tokens CSS enrichis + corrections WCAG */
 :root {
-  /* Couleurs Fenix */
+  /* ── COULEURS PRIMAIRES (inchangées) ── */
   --fenix-navy:   #0A2463;
   --fenix-accent: #C8A84B;
   --white:        #FFFFFF;
 
-  /* Gris système */
+  /* ── VARIANTES NAVY (nouvelles) ── */
+  --fenix-navy-800: #071A4A;
+  --fenix-navy-600: #0F3080;
+  --fenix-navy-100: #E8EDF8;
+  --fenix-navy-50:  #F0F3FA;
+
+  /* ── VARIANTES GOLD (nouvelles) ── */
+  --fenix-gold:     #C8A84B;
+  --fenix-gold-600: #A8872E;
+  --fenix-gold-200: #EDD89A;
+  --fenix-gold-100: #F7EDD4;
+  --fenix-gold-glow: rgba(200,168,75,0.20);
+
+  /* ── CORRECTION CRITIQUE : fenix-blue manquant ── */
+  --fenix-blue:       #1E40AF;
+  --fenix-blue-light: #EEF2FF;
+
+  /* ── GRIS SYSTEME (compléments aux existants) ── */
   --gray-50:  #F8FAFC;
   --gray-100: #F1F5F9;
   --gray-200: #E2E8F0;
+  --gray-300: #CBD5E1;
   --gray-400: #94A3B8;
+  --gray-500: #64748B;
   --gray-600: #475569;
+  --gray-700: #334155;
   --gray-800: #1E293B;
 
-  /* Types de profil */
+  /* ── TYPES DE PROFIL (inchangés) ── */
   --att:       #166534;
   --att-light: #22C55E;
   --att-tag:   #DCFCE7;
@@ -28,28 +49,62 @@
   --gb-light:  #3B82F6;
   --gb-tag:    #DBEAFE;
 
-  /* Échelle de notation 1→5 */
-  --n1-bg: #FEE2E2; --n1-border: #FBBFBF; --n1-text: #991B1B;
-  --n2-bg: #FEF3C7; --n2-border: #FCD34D; --n2-text: #92400E;
-  --n3-bg: #D1FAE5; --n3-border: #6EE7B7; --n3-text: #065F46;
-  --n4-bg: #DBEAFE; --n4-border: #93C5FD; --n4-text: #1E40AF;
-  --n5-bg: #EDE9FE; --n5-border: #C4B5FD; --n5-text: #5B21B6;
+  /* ── ECHELLE DE NOTATION (fonds plus saturés) ── */
+  --n1-bg: #FECACA; --n1-border: #FBBFBF; --n1-text: #991B1B;
+  --n2-bg: #FDE68A; --n2-border: #FCD34D; --n2-text: #92400E;
+  --n3-bg: #A7F3D0; --n3-border: #6EE7B7; --n3-text: #065F46;
+  --n4-bg: #BAD7FF; --n4-border: #93C5FD; --n4-text: #1E40AF;
+  --n5-bg: #DDD6FE; --n5-border: #C4B5FD; --n5-text: #5B21B6;
 
-  /* Shadows */
-  --shadow-sm:   0 1px 4px rgba(10,36,99,0.07), 0 0 0 1px rgba(10,36,99,0.04);
-  --shadow-md:   0 4px 16px rgba(10,36,99,0.12), 0 1px 4px rgba(10,36,99,0.06);
+  /* ── SURFACES ── */
+  --surface-card:           #FFFFFF;
+  --surface-card-alt:       #FAFBFD;
+  --surface-border:         #E2E8F2;
+  --surface-border-strong:  #C9D4E8;
+
+  /* ── OMBRES ENRICHIES ── */
+  --shadow-xs:         0 1px 2px rgba(10,36,99,0.06);
+  --shadow-sm:         0 1px 4px rgba(10,36,99,0.08), 0 0 0 1px rgba(10,36,99,0.04);
+  --shadow-md:         0 4px 16px rgba(10,36,99,0.12), 0 1px 4px rgba(10,36,99,0.06);
+  --shadow-lg:         0 8px 32px rgba(10,36,99,0.16), 0 2px 8px rgba(10,36,99,0.08);
+  --shadow-xl:         0 20px 48px rgba(10,36,99,0.22), 0 4px 12px rgba(10,36,99,0.10);
+  --shadow-glow-gold:  0 0 0 3px rgba(200,168,75,0.25);
+  --shadow-glow-navy:  0 0 0 3px rgba(10,36,99,0.18);
+  --shadow-inset-sm:   inset 0 1px 3px rgba(10,36,99,0.08);
   --shadow-glow: 0 0 0 3px rgba(79,70,229,0.15);
 
-  /* Surface */
-  --surface-border: #E8EDF5;
+  /* ── GRADIENTS ── */
+  --gradient-header:        linear-gradient(135deg, #0A2463 0%, #071A4A 100%);
+  --gradient-navy-gold:     linear-gradient(135deg, var(--fenix-navy) 0%, #1a3570 100%);
+  --gradient-card-top:      linear-gradient(180deg, #FFFFFF 0%, #FAFBFD 100%);
+  --gradient-gold-btn:      linear-gradient(135deg, #D4B05A 0%, #B8942E 100%);
+  --gradient-progress:      linear-gradient(90deg, var(--fenix-navy) 0%, #1E40AF 100%);
+  --gradient-progress-done: linear-gradient(90deg, #16A34A 0%, #22C55E 100%);
 
-  /* Layout */
-  --header-h:   60px;
-  --backnav-h:  44px;
+  /* ── EASING ── */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:    cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── LAYOUT (inchangé) ── */
+  --header-h:    60px;
+  --backnav-h:   44px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left:   env(safe-area-inset-left, 0px);
   --safe-right:  env(safe-area-inset-right, 0px);
 }
+
+/* VISUAL-01 — Corrections WCAG obligatoires */
+/* section-title : gray-400 -> gray-500 (ratio 4.6:1) */
+.section-title { color: var(--gray-500); }
+/* rating-labels : gray-400 -> gray-500 */
+.rating-labels { color: var(--gray-500); }
+/* progress-label : gray-400 -> gray-500 */
+.progress-label { color: var(--gray-500); }
+/* player-card-email : gray-400 -> gray-500 */
+.player-card-email { color: var(--gray-500); }
+/* btn-logout : opacité 0.6 -> 0.75 */
+.btn-logout { color: rgba(255,255,255,0.75); }
 
 /* ── RESET & BASE ───────────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -81,19 +136,28 @@ body {
 }
 
 /* ── HEADER ─────────────────────────────────────────────────────────────── */
+/* VISUAL-02 — Header premium : gradient + stripe glow + typographie */
 .fenix-header {
-  background: var(--fenix-navy);
+  background: var(--gradient-header);
   display: flex;
   align-items: stretch;
   position: sticky;
   top: 0;
   z-index: 200;
-  box-shadow: 0 2px 10px rgba(10,36,99,0.35);
+  box-shadow:
+    0 2px 12px rgba(10,36,99,0.40),
+    0 1px 3px rgba(10,36,99,0.20);
+  border-bottom: 1px solid rgba(200,168,75,0.12);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
   min-height: var(--header-h);
 }
-.header-stripe { width: 6px; background: var(--fenix-accent); flex-shrink: 0; }
+.header-stripe {
+  width: 5px;
+  background: var(--fenix-accent);
+  box-shadow: 0 0 14px rgba(200,168,75,0.40);
+  flex-shrink: 0;
+}
 .header-inner  { display: flex; align-items: center; gap: 14px; padding: 10px 20px; flex: 1; }
 .header-logo {
   width: 40px; height: 40px;
@@ -103,8 +167,22 @@ body {
   flex-shrink: 0; overflow: hidden;
 }
 .header-logo img { width: 36px; height: 36px; object-fit: contain; }
-.header-text h1 { font-size: 15px; font-weight: 700; color: var(--white); line-height: 1.3; }
-.header-text p  { font-size: 12px; color: var(--fenix-accent); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+.header-text h1 {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--white);
+  line-height: 1.2;
+}
+.header-text p {
+  font-size: 10px;
+  color: var(--fenix-accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  font-weight: 600;
+  opacity: 0.88;
+}
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
 /* ── BACK NAV ───────────────────────────────────────────────────────────── */
@@ -139,29 +217,38 @@ body {
 }
 
 /* ── SECTION TITLE ──────────────────────────────────────────────────────── */
+/* VISUAL-01 — Correction WCAG : gray-500 (ratio 4.6:1) + taille améliorée */
 .section-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 15px;
   font-weight: 400;
-  color: var(--gray-400);
+  color: var(--gray-500);
   letter-spacing: 2.5px;
   text-transform: uppercase;
   margin-bottom: 12px;
 }
 
 /* ── CARDS ──────────────────────────────────────────────────────────────── */
+/* VISUAL-03 — Cartes génériques : fond teinté, états interactifs */
 .card {
-  background: var(--white);
+  background: var(--gradient-card-top);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--surface-border);
   margin-bottom: 12px;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: box-shadow 0.18s var(--ease-smooth),
+              transform 0.18s var(--ease-smooth),
+              border-color 0.18s;
 }
 .card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  border-color: var(--surface-border-strong);
+}
+.card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
 }
 .card-body { padding: 18px 16px; }
 .card-header-block {
@@ -232,7 +319,7 @@ body {
   justify-content: space-between;
   margin-top: 6px;
   font-size: 11px;
-  color: var(--gray-400);
+  color: var(--gray-500); /* VISUAL-01 : gray-400 -> gray-500 WCAG */
 }
 
 /* ── PILL NIVEAU ────────────────────────────────────────────────────────── */
@@ -251,21 +338,23 @@ body {
 .niveau-pill.n5 { background:var(--n5-bg); border-color:var(--n5-border); color:var(--n5-text); }
 
 /* ── BARRE DE PROGRESSION ───────────────────────────────────────────────── */
+/* VISUAL-04 — Progress bar générique : hauteur 8px + inset shadow */
 .progress-bar {
-  height: 6px;
+  height: 8px;
   background: var(--gray-200);
   border-radius: 99px;
   overflow: hidden;
+  box-shadow: var(--shadow-inset-sm);
 }
 .progress-fill {
   height: 100%;
   background: var(--fenix-accent);
   border-radius: 99px;
-  transition: width 0.3s ease;
+  transition: width 0.45s var(--ease-out-quart);
 }
 .progress-label {
   font-size: 12px;
-  color: var(--gray-400);
+  color: var(--gray-500);
   margin-top: 4px;
   display: flex;
   justify-content: space-between;
@@ -394,30 +483,63 @@ body {
 .status-none { color: var(--gray-400); }
 
 /* ── SESSION CARD ───────────────────────────────────────────────────────── */
+/* VISUAL-03 — Session card : fond teinté, états interactifs, hover */
 .session-card {
   background: var(--white);
   border-radius: 14px;
-  border: 1.5px solid var(--gray-200);
+  border: 1.5px solid var(--surface-border);
   padding: 18px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s,
+              box-shadow 0.18s var(--ease-smooth),
+              transform 0.15s var(--ease-smooth);
   text-decoration: none;
   display: block;
   color: inherit;
 }
-.session-card:active { border-color: var(--fenix-navy); box-shadow: 0 4px 16px rgba(10,36,99,0.12); }
-.session-card.open   { border-left: 4px solid var(--fenix-accent); }
-.session-card.closed { border-left: 4px solid var(--gray-400); opacity: 0.75; }
+.session-card:active {
+  border-color: var(--fenix-navy);
+  box-shadow: 0 4px 16px rgba(10,36,99,0.12);
+  transform: scale(0.995);
+}
+/* Session ouverte : fond teinté gold subtil */
+.session-card.open {
+  border-left: 4px solid var(--fenix-accent);
+  background: linear-gradient(135deg, #FFFDF5 0%, #FFFFFF 55%);
+}
+/* Session ouverte : badge plus vivant */
+.session-card.open .session-badge-open {
+  background: var(--fenix-gold-200);
+  color: var(--fenix-gold-600);
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+/* Session fermée : retrait visuel clair */
+.session-card.closed {
+  border-left: 4px solid var(--gray-300);
+  background: var(--gray-50);
+  opacity: 0.72;
+}
+
+/* Hover uniquement sur appareils avec pointeur (tablette coach, desktop) */
+@media (hover: hover) {
+  .session-card:hover {
+    border-color: var(--surface-border-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+}
 
 .session-badge-open   { background: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
 .session-badge-closed { background: var(--gray-100); color: var(--gray-400); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
 
 /* ── LOGOUT BTN ─────────────────────────────────────────────────────────── */
+/* VISUAL-01 — Correction WCAG : opacité 0.6 -> 0.75 */
 .btn-logout {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.75);
   background: none;
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 6px;
@@ -447,14 +569,20 @@ body {
 .empty-state p    { font-size: 14px; }
 
 /* ── SPINNER ────────────────────────────────────────────────────────────── */
+/* VISUAL-05 — Spinner plus fluide avec fenix-spin */
 .spinner {
   width: 24px; height: 24px;
   border: 3px solid var(--gray-200);
   border-top-color: var(--fenix-navy);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: fenix-spin 0.65s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   margin: 0 auto;
 }
+@keyframes fenix-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+/* Conserver spin pour compatibilité avec l'existant */
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .loading-state { text-align: center; padding: 40px; }
@@ -500,43 +628,77 @@ body {
 .section-saison { font-size: 12px; color: var(--gray-400); margin-bottom: 16px; }
 
 /* ── PLAYER CARD ────────────────────────────────────────────────────────── */
+/* VISUAL-03 — Player card : avatar gradient, hover, flèche animée */
 .players-list { display: flex; flex-direction: column; gap: 10px; }
 .player-card {
   background: var(--white);
   border-radius: 12px;
-  border: 1.5px solid var(--gray-200);
+  border: 1.5px solid var(--surface-border);
   padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
-.player-card:active { border-color: var(--fenix-navy); box-shadow: 0 4px 12px rgba(10,36,99,0.1); }
+.player-card:active {
+  border-color: var(--fenix-navy);
+  background: var(--fenix-navy-50);
+  box-shadow: 0 4px 12px rgba(10,36,99,0.12);
+  transform: scale(0.99);
+}
+/* Avatar avec gradient navy */
 .player-card-avatar {
   width: 44px; height: 44px;
-  background: var(--fenix-navy);
+  background: linear-gradient(135deg, var(--fenix-navy) 0%, #1a3570 100%);
   color: var(--fenix-accent);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(10,36,99,0.18);
 }
 .player-card-body { flex: 1; min-width: 0; }
 .player-card-name  { font-size: 16px; font-weight: 700; color: var(--gray-800); }
-.player-card-email { font-size: 13px; color: var(--gray-400); margin-top: 2px; }
+.player-card-email { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
 .player-card-profils { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.player-card-arrow { color: var(--gray-400); font-size: 20px; flex-shrink: 0; }
+.player-card-arrow {
+  color: var(--gray-400);
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: color 0.15s, transform 0.15s;
+}
+
+/* Badge profil : padding légèrement plus grand */
+.badge-profil {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+/* Hover tablette/desktop coach */
+@media (hover: hover) {
+  .player-card:hover {
+    border-color: var(--fenix-navy-100);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+  .player-card:hover .player-card-arrow {
+    color: var(--fenix-navy);
+    transform: translateX(3px);
+  }
+}
 
 /* ── BADGE PROFIL ───────────────────────────────────────────────────────── */
-.badge-profil {
-  font-size: 12px; font-weight: 700;
-  letter-spacing: 1px; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 20px; display: inline-block;
-}
+/* (règles de base définies dans VISUAL-03 ci-dessus, couleurs ici) */
 .badge-profil.att        { background: var(--att-tag); color: var(--att); }
 .badge-profil.def        { background: var(--def-tag); color: var(--def); }
 .badge-profil.gb         { background: var(--gb-tag);  color: var(--gb); }
@@ -635,15 +797,23 @@ body {
 }
 
 /* ── BARRE PROGRESSION ÉVAL JOUEUR ──────────────────────────────────────── */
+/* VISUAL-04 — Progress bar eval : 8px + gradient navy->blue + done vert */
 .eval-progress-bar {
-  height: 6px; border-radius: 3px; background: var(--gray-200); overflow: hidden;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gray-200);
+  overflow: hidden;
+  box-shadow: var(--shadow-inset-sm);
 }
 .eval-progress-fill {
-  height: 100%; border-radius: 3px;
-  background: var(--fenix-navy);
-  transition: width 0.3s ease;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--gradient-progress);
+  transition: width 0.45s var(--ease-out-quart);
 }
-.eval-progress-fill.done { background: var(--att-light); }
+.eval-progress-fill.done {
+  background: var(--gradient-progress-done);
+}
 
 .session-badge-closed {
   font-size: 11px; font-weight: 700; letter-spacing: 1px;
@@ -739,6 +909,7 @@ body {
 }
 
 /* ── RATING BUTTONS (pastilles colorées) ─────────────────────────────────── */
+/* VISUAL-04 — Rating-btn : fonds saturés, ring sélection, focus clavier */
 .rating-group {
   display: flex; gap: 10px; margin-bottom: 6px;
 }
@@ -747,27 +918,56 @@ body {
   max-width: 52px; min-width: 0;
   border-radius: 50%;
   border: 3px solid transparent;
+  border-width: 2.5px;
   font-size: 0;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+  transition: transform 0.12s var(--ease-spring),
+              box-shadow 0.12s,
+              border-color 0.1s,
+              filter 0.1s;
+  box-shadow: var(--shadow-xs), inset 0 1px 0 rgba(255,255,255,0.7);
   -webkit-tap-highlight-color: transparent;
 }
-.rating-btn:active { transform: scale(0.88); }
+.rating-btn:active { transform: scale(0.85); }
 
-/* Couleurs de base (non sélectionné) */
+/* Focus clavier / switch access */
+.rating-btn:focus-visible {
+  outline: 3px solid var(--fenix-accent);
+  outline-offset: 3px;
+}
+
+/* Couleurs de base (non sélectionné) — fonds plus saturés via VISUAL-01 */
 .rating-btn.n1 { background: var(--n1-bg);  border-color: var(--n1-border); }
 .rating-btn.n2 { background: var(--n2-bg);  border-color: var(--n2-border); }
 .rating-btn.n3 { background: var(--n3-bg);  border-color: var(--n3-border); }
 .rating-btn.n4 { background: var(--n4-bg);  border-color: var(--n4-border); }
 .rating-btn.n5 { background: var(--n5-bg);  border-color: var(--n5-border); }
 
-/* Sélectionné : couleur pleine */
-.rating-btn.n1.selected { background: var(--n1-text); border-color: var(--n1-text); box-shadow: 0 0 0 3px var(--n1-border); }
-.rating-btn.n2.selected { background: var(--n2-text); border-color: var(--n2-text); box-shadow: 0 0 0 3px var(--n2-border); }
-.rating-btn.n3.selected { background: var(--n3-text); border-color: var(--n3-text); box-shadow: 0 0 0 3px var(--n3-border); }
-.rating-btn.n4.selected { background: var(--n4-text); border-color: var(--n4-text); box-shadow: 0 0 0 3px var(--n4-border); }
-.rating-btn.n5.selected { background: var(--n5-text); border-color: var(--n5-text); box-shadow: 0 0 0 3px var(--n5-border); }
+/* Hover desktop */
+.rating-btn:hover { filter: brightness(0.92); }
+
+/* Sélectionné : couleur pleine + ring coloré élargi */
+.rating-btn.n1.selected {
+  background: var(--n1-text); border-color: var(--n1-text);
+  box-shadow: 0 0 0 4px rgba(153,27,27,0.22), 0 2px 8px rgba(153,27,27,0.20);
+}
+.rating-btn.n2.selected {
+  background: var(--n2-text); border-color: var(--n2-text);
+  box-shadow: 0 0 0 4px rgba(146,64,14,0.22), 0 2px 8px rgba(146,64,14,0.18);
+}
+.rating-btn.n3.selected {
+  background: var(--n3-text); border-color: var(--n3-text);
+  box-shadow: 0 0 0 4px rgba(6,95,70,0.22), 0 2px 8px rgba(6,95,70,0.18);
+}
+.rating-btn.n4.selected {
+  background: var(--n4-text); border-color: var(--n4-text);
+  box-shadow: 0 0 0 4px rgba(30,64,175,0.22), 0 2px 8px rgba(30,64,175,0.18);
+}
+.rating-btn.n5.selected {
+  background: var(--n5-text); border-color: var(--n5-text);
+  box-shadow: 0 0 0 4px rgba(91,33,182,0.22), 0 2px 8px rgba(91,33,182,0.18);
+}
 
 /* ── INTRO CARD (légende notation) ──────────────────────────────────────── */
 .intro-card {
@@ -818,15 +1018,16 @@ body {
 }
 
 /* ── RATING PREVIEW (double-tap) ─────────────────────────────────────────── */
+/* VISUAL-04 — Etat pending : spring scale + logique existante conservée */
 .rating-btn.pending {
-  border-width: 3px; transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-width: 3px; transform: scale(1.15);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
 }
-.rating-btn.n1.pending { background: var(--n1-border); border-color: var(--n1-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
-.rating-btn.n2.pending { background: var(--n2-border); border-color: var(--n2-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
-.rating-btn.n3.pending { background: var(--n3-border); border-color: var(--n3-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
-.rating-btn.n4.pending { background: var(--n4-border); border-color: var(--n4-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
-.rating-btn.n5.pending { background: var(--n5-border); border-color: var(--n5-text); transform: scale(1.15); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+.rating-btn.n1.pending { background: var(--n1-border); border-color: var(--n1-text); }
+.rating-btn.n2.pending { background: var(--n2-border); border-color: var(--n2-text); }
+.rating-btn.n3.pending { background: var(--n3-border); border-color: var(--n3-text); }
+.rating-btn.n4.pending { background: var(--n4-border); border-color: var(--n4-text); }
+.rating-btn.n5.pending { background: var(--n5-border); border-color: var(--n5-text); }
 
 .rating-preview { display: none; flex-direction: column; gap: 2px; margin-top: 8px; }
 .rating-preview.active { display: flex; }
@@ -1187,4 +1388,116 @@ body {
 
 @media (max-width: 600px) {
   .radar-grid { grid-template-columns: 1fr; }
+}
+
+/* ── VISUAL-05 — Micro-animations et polish final ────────────────────────── */
+
+/* Apparition en glissement vers le haut */
+@keyframes fenix-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pop de confirmation (save, completion) */
+@keyframes fenix-confirm-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  70%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+/* Pop notation sélectionnée */
+@keyframes fenix-rating-confirm {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.18); }
+  65%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Badge apparition (eval complète) */
+@keyframes fenix-badge-in {
+  from { opacity: 0; transform: scale(0.7) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Pulse gold invitation (session ouverte) */
+@keyframes fenix-open-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(200,168,75,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(200,168,75,0.15); }
+}
+
+/* Application par composant */
+.session-card {
+  animation: fenix-slide-up 0.22s var(--ease-smooth) both;
+}
+/* Note : le JS doit ajouter style="animation-delay: Xms" (0, 40, 80...) sur chaque carte */
+
+.player-card {
+  animation: fenix-slide-up 0.20s var(--ease-smooth) both;
+}
+
+.save-status.saved {
+  animation: fenix-confirm-pop 0.25s var(--ease-spring);
+}
+
+/* Classe ajoutée par JS après confirmation de note */
+.rating-btn.just-selected {
+  animation: fenix-rating-confirm 0.22s var(--ease-spring);
+}
+
+/* Pulse d'invitation — 1 seule fois après ouverture de session */
+.session-card.open.highlight-pulse {
+  animation: fenix-open-pulse 1.2s ease 0.3s 1;
+}
+
+/* Progress fill done : animation d'entrée */
+.eval-progress-fill.done {
+  animation: fenix-badge-in 0.3s var(--ease-spring);
+}
+
+/* Modal overlay et panel */
+.modal-overlay { animation: fadeIn 0.18s var(--ease-smooth); }
+.modal-panel   { animation: slideUp 0.22s var(--ease-out-quart); }
+
+/* Tab button : underline animée */
+.tab-btn {
+  position: relative;
+  color: var(--gray-500);
+  transition: color 0.15s;
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%; right: 50%;
+  height: 2px;
+  background: var(--fenix-accent);
+  transition: left 0.2s var(--ease-smooth), right 0.2s var(--ease-smooth);
+}
+.tab-btn.active {
+  color: var(--fenix-navy);
+  font-weight: 700;
+}
+.tab-btn.active::after {
+  left: 16px;
+  right: 16px;
+}
+.tab-btn:hover:not(.active) { color: var(--gray-700); }
+
+/* Focus enrichi sur formulaires */
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--fenix-navy);
+  background: var(--white);
+  box-shadow: var(--shadow-glow-navy), var(--shadow-xs);
+}
+
+/* ── ACCESSIBILITE : respecter les préférences système ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
