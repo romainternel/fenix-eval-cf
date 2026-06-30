@@ -1,7 +1,7 @@
 # CLAUDE.md — FENIX Eval CF
 
 > Fichier de référence lu automatiquement par tous les agents BMAD avant de travailler sur ce projet.
-> Dernière mise à jour : 2026-06-30
+> Dernière mise à jour : 2026-06-30 (STORY-12 — export PPT, gestion coachs, show/hide pwd, radar font)
 
 ---
 
@@ -28,6 +28,7 @@
 - `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`
 - `https://cdn.jsdelivr.net/npm/chart.js@4`
 - `https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js`
+- `https://cdn.jsdelivr.net/npm/pptxgenjs@3/dist/pptxgen.bundle.js` (coach.html uniquement)
 
 ---
 
@@ -45,10 +46,11 @@ fenix-eval-cf/
 │
 ├── assets/
 │   ├── favicon.svg
-│   └── logo-fenix.png
+│   ├── logo-fenix.png
+│   └── logo-transparent.jpeg   # Logo fond transparent, utilisé dans l'export PPT
 │
 ├── css/
-│   └── fenix.css            # Feuille de style unique (~1500 lignes), versionnée
+│   └── fenix.css            # Feuille de style unique (~1541 lignes), versionnée
 │
 ├── js/
 │   ├── supabase-client.js   # Init client Supabase (window.supabaseClient)
@@ -56,18 +58,17 @@ fenix-eval-cf/
 │   └── criteria-data.js     # Données statiques des critères d'évaluation par profil
 │
 ├── pages/
-│   ├── coach-dashboard.js   # Logique complète du dashboard coach (~1757 lignes)
+│   ├── coach-dashboard.js   # Logique complète du dashboard coach (~2100 lignes)
 │   └── player-home.js       # Logique complète du dashboard joueur (~1146 lignes)
 │
 ├── supabase/
 │   └── functions/
-│       └── create-player-account/
-│           └── index.ts     # Edge Function : créer/supprimer compte joueur
+│       ├── create-player-account/
+│       │   └── index.ts     # Edge Function : créer/supprimer compte joueur
+│       └── manage-coach-account/
+│           └── index.ts     # Edge Function : créer/supprimer compte coach
 │
-└── docs/
-    └── visual/
-        ├── fenix-eval-cf-visual-specs.md   # Audit Visual Crafter (tokens, états, animations)
-        └── stories-visual.md               # Stories VISUAL-01 à VISUAL-05+
+└── docs/                    # Documentation BMAD (stories, QA, régression, design, arch…)
 ```
 
 **Rôle de chaque fichier JS** :
@@ -107,14 +108,14 @@ fenix-eval-cf/
 
 | Fichier | Version actuelle |
 |---------|-----------------|
-| `css/fenix.css` | v=47 |
+| `css/fenix.css` | v=49 |
 | `js/supabase-client.js` | v=32 |
-| `js/app.js` | v=42 |
+| `js/app.js` | v=43 |
 | `js/criteria-data.js` | v=32 |
-| `pages/coach-dashboard.js` | v=39 |
-| `pages/player-home.js` | v=39 |
+| `pages/coach-dashboard.js` | v=44 |
+| `pages/player-home.js` | v=40 |
 
-> **Règle** : quand un fichier est modifié, incrémenter son `?v=N` dans **tous** les HTML qui le chargent (index.html, player.html, coach.html selon le cas). Le numéro global de version de l'itération est le plus grand des `?v=N` en cours.
+> **Règle** : quand un fichier est modifié, incrémenter son `?v=N` dans **tous** les HTML qui le chargent (index.html, player.html, coach.html selon le cas). Le numéro global de version de l'itération est **49** (le plus grand `?v=N` en cours).
 
 ---
 
@@ -225,7 +226,7 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 
 ### Création de comptes
 - **Joueurs** : via Edge Function `create-player-account` (POST avec `email`, `password`, `player_id`) — appelée depuis coach-dashboard.js avec le Bearer token du coach
-- **Coachs** : actuellement via Supabase Dashboard (pas d'interface codée) — **TODO voir section 10**
+- **Coachs** : via Edge Function `manage-coach-account` (POST avec `email`, `password`, `nom`, `prenom`) + UI dans l'onglet Coachs de coach.html
 
 ---
 
@@ -254,7 +255,7 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 
 ### Taille des fichiers
 - `fenix.css` : ~1500 lignes — garder dans un seul fichier, ne pas splitter
-- `coach-dashboard.js` : ~1757 lignes — garder dans un seul fichier
+- `coach-dashboard.js` : ~2100 lignes — garder dans un seul fichier
 - `player-home.js` : ~1146 lignes — garder dans un seul fichier
 
 ### Offline
@@ -282,6 +283,7 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Login email/password
 - [x] Routing par rôle (coach → coach.html, joueur → player.html)
 - [x] Logout
+- [x] Show/hide password sur le login (bouton Voir/Masquer)
 
 #### Dashboard Coach — Sessions
 - [x] Lister sessions (ouvertes / fermées)
@@ -294,6 +296,8 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 #### Dashboard Coach — Joueurs
 - [x] Lister joueurs avec profil actif
 - [x] Créer un joueur (nom, email, profil, compte auth via Edge Function)
+- [x] Mot de passe minimum 5 caractères à la création joueur
+- [x] Show/hide password dans le modal de création joueur
 - [x] Éditer un joueur (nom, email, profils de poste)
 - [x] Supprimer un joueur (supprime compte auth)
 - [x] Vue détail joueur avec historique profils
@@ -304,7 +308,14 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Table de progression par thème (`trendTableHTML`) avec sous-lignes dépliables
 - [x] Table récapitulatif par profil (`cRecapTableHTML`) avec sous-lignes dépliables
 - [x] Badge delta joueur/staff (deltaHTML)
-- [x] Export PDF
+- [x] Export PPT (PptxGenJS v3, 4 slides : radars, critères att, critères def, CR entretien)
+
+#### Dashboard Coach — Coachs
+- [x] Onglet Coachs dans la navigation de coach.html
+- [x] Lister les coachs existants (badge "Vous" sur le compte connecté)
+- [x] Créer un compte coach (nom, email, mot de passe min. 5 car., show/hide password)
+- [x] Supprimer un compte coach
+- [x] Edge Function `manage-coach-account` déployée sur Supabase (POST create, DELETE delete)
 
 #### Dashboard Joueur
 - [x] Liste des sessions ouvertes/fermées avec barre de progression
@@ -318,19 +329,19 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Export PDF joueur
 - [x] Hint "👆 Sélectionne les sessions à comparer" sur les bilan chips
 
-#### Visual Polish (stories VISUAL-01 à 06, v=47)
+#### Visual Polish (stories VISUAL-01 à 06, v=49)
 - [x] VISUAL-01 : Tokens CSS complets (40+ variables)
 - [x] VISUAL-02 : Header gradient navy/gold
 - [x] VISUAL-03 : Cards ivoire teintées, hover/active
 - [x] VISUAL-04 : Rating buttons 2.5px border, focus gold
 - [x] VISUAL-05 : Animation `fenix-slide-up`, prefers-reduced-motion
 - [x] VISUAL-06 : Arc conic-gradient sur rating-btn selected (n1-n5)
-
-### Features en cours / non terminées
-- [ ] Interface de gestion des coachs (ajout/suppression de comptes coach via l'app — actuellement Supabase Dashboard uniquement)
+- [x] Radar labels font-size 12 sur coach et joueur (était 9)
+- [x] apple-touch-icon 180×180 sur toutes les pages (raccourci écran iPhone)
+- [x] Logo transparent `assets/logo-transparent.jpeg` (utilisé dans l'export PPT)
 
 ### Features prévues / roadmap connue
-- [ ] Entretiens individuels (table `entretiens` existe en DB, pas d'UI)
+- [ ] Entretiens individuels (table `entretiens` existe en DB, pas d'UI — UI à créer)
 - [ ] Mode "invité coach" (lecture seule, sans authentification complète) — décision non prise
 - [ ] Bilan multi-sessions joueur : test avec 2ème session disponible (juillet 2026 — STORY 09b)
 - [ ] Notifications ou rappels d'évaluation
@@ -339,28 +350,21 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 
 ## 10. Décisions techniques en attente / roadmap
 
-### 1. Gestion des coachs (PRIORITÉ HAUTE)
-**Problème** : ajouter un 2ème compte coach via Supabase Dashboard est complexe et sujet aux erreurs (foreign key error si l'utilisateur n'existe pas encore dans auth.users). L'Edge Function `create-player-account` existe pour les joueurs mais pas pour les coachs.
+### ~~1. Gestion des coachs~~ — IMPLÉMENTÉE
+Edge Function `manage-coach-account` déployée (STORY-10) + UI onglet Coachs dans coach.html (STORY-11). Mot de passe minimum 5 caractères, show/hide password inclus.
 
-**Décision prise** : coder une interface dans le dashboard coach pour créer/gérer les comptes coachs (UI + Edge Function ou réutilisation de `create-player-account`).
-
-**À implémenter** :
-- Nouvelle Edge Function `create-coach-account` (ou extension de l'existante)
-- Section "Gestion des coachs" dans coach.html (accessible uniquement au coach principal)
-- Liste des coachs existants, ajout (nom, email, password), suppression
-
-### 2. Mode "invité coach"
+### 1. Mode "invité coach"
 **Problème** : des coachs occasionnels veulent voir les résultats sans avoir de compte permanent.
 
 **Options** : (a) compte coach standard, (b) lien partagé avec token, (c) pas de mode invité.
 
 **Décision** : non prise — à valider avec l'utilisateur.
 
-### 3. Entretiens individuels
+### 2. Entretiens individuels
 La table `entretiens` est créée en DB. Aucune UI n'existe. À prioriser avec le PM.
 
-### 4. Incrémentation des versions
-**Règle actuelle** : incrémentation manuelle du `?v=N` dans les balises `<script>` et `<link>`. Le numéro de version global est 47. Aucun outil de build ne gère ça automatiquement — risque d'oubli.
+### 3. Incrémentation des versions
+**Règle actuelle** : incrémentation manuelle du `?v=N` dans les balises `<script>` et `<link>`. Le numéro de version global est **49**. Aucun outil de build ne gère ça automatiquement — risque d'oubli.
 
-### 5. index.html non mis à jour
-`index.html` charge encore `app.js?v=1`, `supabase-client.js?v=1`, `css/fenix.css?v=1` alors que ces fichiers sont à des versions supérieures. À synchroniser si la page de login est modifiée.
+### 4. index.html partiellement synchronisé
+`index.html` charge `css/fenix.css?v=49` et `js/app.js?v=43` (à jour). `js/supabase-client.js` reste à `v=1` dans index.html (v=32 canonique) — contenu non modifié depuis la création, fonctionnellement OK mais à synchroniser si le fichier est un jour modifié.
