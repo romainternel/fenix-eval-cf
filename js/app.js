@@ -185,15 +185,15 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     </div>`;
 }
 
-/* ── Label court de session : ① 15/01 ────────────────────────────────────── */
+/* ── Label court de session : ① janv. 26 ────────────────────────────────── */
 function sessionShortLabel(idx, dateStr) {
   const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
   const badge = nums[idx] != null ? nums[idx] : `#${idx + 1}`;
   if (!dateStr) return badge;
   const d = new Date(dateStr);
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${badge} ${dd}/${mm}`;
+  const mois = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${badge} ${mois[d.getMonth()]} ${yy}`;
 }
 
 /* ── Badge écart joueur/staff ─────────────────────────────────────────────── */
