@@ -534,7 +534,7 @@ function pRenderBilan() {
         plugins:{ legend:{ display:false } },
         scales:{ r:{ min:0, max:5,
           ticks:{ stepSize:1, display:false },
-          pointLabels:{ font:{ size:9, weight:'600' } },
+          pointLabels:{ font:{ size:12, weight:'600' } },
           grid:{ color:'rgba(0,0,0,0.08)' }
         }}
       }
@@ -843,7 +843,7 @@ async function showPlayerRadar(sessionId) {
         plugins:{ legend:{ display:false } },
         scales:{ r:{ min:0, max:5,
           ticks:{ stepSize:1, display:false },
-          pointLabels:{ font:{ size:9, weight:'600' } },
+          pointLabels:{ font:{ size:12, weight:'600' } },
           grid:{ color:'rgba(0,0,0,0.08)' }
         }}
       }
