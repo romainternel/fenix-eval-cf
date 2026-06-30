@@ -888,7 +888,8 @@ async function showPlayerRadar(sessionId) {
   const bilanCard = showBilan ? `
     <div class="card" style="margin-top:12px">
       <div class="card-body">
-        <p class="section-title" style="margin-bottom:10px">Bilan — Progression</p>
+        <p class="section-title" style="margin-bottom:6px">Bilan — Progression</p>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:10px">👆 Sélectionne les sessions à comparer sur le radar</p>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${bilanChips}</div>
         <div class="radar-toggle-row" style="margin-bottom:8px">
           <div></div>
