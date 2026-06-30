@@ -1119,12 +1119,16 @@ body {
 .recap-td-label { font-weight: 600; font-size: 12px; }
 .recap-td { text-align: center; font-weight: 600; color: var(--gray-600); }
 .recap-table tbody tr:last-child td { border-bottom: none; }
-.recap-row { cursor: pointer; transition: background 0.12s; }
-.recap-row:hover { background: var(--gray-50); }
-.recap-row.active { background: rgba(10,36,99,0.05); }
-.recap-td-link { text-decoration: underline; text-decoration-color: var(--gray-200); text-underline-offset: 2px; }
-.recap-row:hover .recap-td-link,
-.recap-row.active .recap-td-link { color: var(--fenix-navy); text-decoration-color: var(--fenix-navy); font-weight: 700; }
+.recap-row.active { background: rgba(10,36,99,0.04); }
+.recap-theme-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--gray-700);
+  cursor: pointer; text-align: left; width: 100%;
+  text-decoration: underline; text-decoration-color: rgba(10,36,99,0.2);
+  text-underline-offset: 2px; touch-action: manipulation;
+}
+.recap-theme-btn:hover { color: var(--fenix-navy); text-decoration-color: var(--fenix-navy); }
+.recap-theme-btn.active { color: var(--fenix-navy); font-weight: 700; text-decoration-color: var(--fenix-navy); }
 
 /* ── STORY 13 — Bandeau entretien ─────────────────────────────────────────── */
 .bandeau-entretien {

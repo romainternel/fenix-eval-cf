@@ -656,8 +656,10 @@ function cRecapTableHTML(profilId, evalMap, title) {
     const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
     const avgJ = jNs.length ? +(jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
     const avgS = sNs.length ? +(sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
-    return `<tr class="recap-row" data-recap="${profilId}-${axeId}" onclick="showAxisDetail('${profilId}','${axeId}')">
-      <td class="recap-td-label recap-td-link">${escHtml(axe.label)}</td>
+    return `<tr class="recap-row" data-recap="${profilId}-${axeId}">
+      <td class="recap-td-label">
+        <button class="recap-theme-btn" onclick="showAxisDetail('${profilId}','${axeId}')">${escHtml(axe.label)}</button>
+      </td>
       <td class="recap-td">${avgS !== null ? avgS : '—'}</td>
       <td class="recap-td">${avgJ !== null ? avgJ : '—'}</td>
       <td class="recap-td">${deltaHTML(avgJ, avgS)}</td>
@@ -665,9 +667,10 @@ function cRecapTableHTML(profilId, evalMap, title) {
   }).join('');
   return `
     <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-top:14px;margin-bottom:2px">${title}</p>
+    <p style="font-size:10px;color:var(--gray-300);margin-bottom:4px">Sélectionne un thème pour voir le détail</p>
     <table class="recap-table">
       <thead><tr>
-        <th class="recap-th-label">Thème <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:var(--gray-300)">— clique pour le détail</span></th>
+        <th class="recap-th-label">Thème</th>
         <th class="recap-th">Staff</th>
         <th class="recap-th">Joueur</th>
         <th class="recap-th">Écart</th>
@@ -690,7 +693,10 @@ function showAxisDetail(profilId, axeId) {
   if (!axe) return;
 
   document.querySelectorAll('.recap-row').forEach(r => r.classList.remove('active'));
-  document.querySelector(`.recap-row[data-recap="${profilId}-${axeId}"]`)?.classList.add('active');
+  document.querySelectorAll('.recap-theme-btn').forEach(b => b.classList.remove('active'));
+  const activeRow = document.querySelector(`.recap-row[data-recap="${profilId}-${axeId}"]`);
+  activeRow?.classList.add('active');
+  activeRow?.querySelector('.recap-theme-btn')?.classList.add('active');
 
   const rows = axe.criteres.map(c => {
     const nj = _coachEvalMap[c.id]?.note_joueur || 0;
