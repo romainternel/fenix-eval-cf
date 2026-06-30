@@ -1497,3 +1497,18 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── GESTION COACHS — STORY-11 ── */
+.coach-you-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--fenix-gold-600);
+  background: var(--fenix-gold-100);
+  border: 1px solid var(--fenix-accent);
+  border-radius: 20px;
+  padding: 2px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}

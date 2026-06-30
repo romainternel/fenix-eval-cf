@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/fenix.css?v=47">
+  <link rel="stylesheet" href="css/fenix.css?v=48">
 </head>
 <body>
 
@@ -33,6 +33,7 @@
   <nav style="background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;overflow-x:auto;">
     <button class="tab-btn active" onclick="showTab('sessions')" id="tab-sessions">Sessions</button>
     <button class="tab-btn" onclick="showTab('players')" id="tab-players">Joueurs</button>
+    <button class="tab-btn" onclick="showTab('coachs')" id="tab-coachs">Coachs</button>
   </nav>
 
   <main class="page-content" id="mainContent">
@@ -45,7 +46,7 @@
   <script src="js/supabase-client.js?v=32"></script>
   <script src="js/app.js?v=42"></script>
   <script src="js/criteria-data.js?v=32"></script>
-  <script src="pages/coach-dashboard.js?v=39"></script>
+  <script src="pages/coach-dashboard.js?v=40"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const auth = await requireAuth('coach');
@@ -58,6 +59,7 @@
       document.getElementById('tab-' + tab).classList.add('active');
       if (tab === 'sessions') renderSessions();
       if (tab === 'players')  renderPlayers();
+      if (tab === 'coachs')   renderCoachs();
     }
   </script>
 

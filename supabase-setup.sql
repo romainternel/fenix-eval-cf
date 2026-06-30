@@ -148,6 +148,22 @@ RETURNS UUID AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 
+-- Nettoyage des policies existantes (idempotent)
+DROP POLICY IF EXISTS "user_profiles_self"   ON user_profiles;
+DROP POLICY IF EXISTS "user_profiles_coach"  ON user_profiles;
+DROP POLICY IF EXISTS "players_coach_all"    ON players;
+DROP POLICY IF EXISTS "players_joueur_self"  ON players;
+DROP POLICY IF EXISTS "pp_coach_all"         ON player_profiles;
+DROP POLICY IF EXISTS "pp_joueur_self"       ON player_profiles;
+DROP POLICY IF EXISTS "sessions_coach_all"   ON sessions;
+DROP POLICY IF EXISTS "sessions_joueur_read" ON sessions;
+DROP POLICY IF EXISTS "eval_coach_all"       ON evaluations;
+DROP POLICY IF EXISTS "eval_joueur_read"     ON evaluations;
+DROP POLICY IF EXISTS "eval_joueur_write"    ON evaluations;
+DROP POLICY IF EXISTS "eval_joueur_update"   ON evaluations;
+DROP POLICY IF EXISTS "cr_coach_all"         ON entretiens;
+DROP POLICY IF EXISTS "cr_joueur_read"       ON entretiens;
+
 -- user_profiles : chacun voit son propre profil ; le coach voit tout
 CREATE POLICY "user_profiles_self"   ON user_profiles FOR SELECT USING (id = auth.uid() OR is_coach());
 CREATE POLICY "user_profiles_coach"  ON user_profiles FOR ALL    USING (is_coach());
@@ -162,10 +178,9 @@ CREATE POLICY "pp_joueur_self"       ON player_profiles FOR SELECT USING (player
 
 -- sessions : coach = tout ; joueur = lecture des sessions ouvertes + ses sessions passées
 CREATE POLICY "sessions_coach_all"   ON sessions FOR ALL    USING (is_coach());
-CREATE POLICY "sessions_joueur_read" ON sessions FOR SELECT USING (true);  -- affinée si besoin
+CREATE POLICY "sessions_joueur_read" ON sessions FOR SELECT USING (true);
 
 -- evaluations : joueur écrit uniquement note_joueur sur son player_id
--- (le check métier se fait côté JS ; Supabase bloque l'écriture cross-player)
 CREATE POLICY "eval_coach_all"       ON evaluations FOR ALL    USING (is_coach());
 CREATE POLICY "eval_joueur_read"     ON evaluations FOR SELECT USING (player_id = my_player_id());
 CREATE POLICY "eval_joueur_write"    ON evaluations FOR INSERT WITH CHECK (player_id = my_player_id());

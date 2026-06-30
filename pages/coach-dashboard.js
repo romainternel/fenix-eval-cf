@@ -1734,6 +1734,182 @@ async function submitCreatePlayer(e) {
   }
 }
 
+/* ══════════════════════════════════════════════════════ COACHS — STORY-11 */
+let _coaches = [];
+
+async function renderCoachs() {
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const { data, error } = await window.supabaseClient
+    .from('user_profiles')
+    .select('id, role, nom, prenom, email')
+    .eq('role', 'coach')
+    .order('prenom');
+
+  if (error) {
+    gid('mainContent').innerHTML = `<p class="form-error" style="margin:20px">Erreur : ${escHtml(error.message)}</p>`;
+    return;
+  }
+
+  _coaches = data || [];
+  const otherCoachs = _coaches.filter(c => c.id !== _coachUser.id);
+
+  gid('mainContent').innerHTML = `
+    <div class="section-header">
+      <h2 class="section-title">Gestion des coachs</h2>
+    </div>
+    ${_coaches.map((c, i) => coachCardHTML(c, i)).join('')}
+    ${otherCoachs.length === 0
+      ? `<p style="font-size:13px;color:var(--gray-400);text-align:center;margin:16px 0">Aucun co-coach pour l'instant</p>`
+      : ''}
+    <button class="btn btn-primary btn-full" style="margin-top:20px" onclick="showCreateCoachModal()">+ Ajouter un coach</button>`;
+}
+
+function coachCardHTML(coach, idx) {
+  const isSelf = coach.id === _coachUser.id;
+  const displayName = [coach.prenom, coach.nom].filter(Boolean).join(' ') || 'Coach';
+  const delay = idx * 60;
+  return `
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:8px;animation:fenix-slide-up 200ms var(--ease-out-quart) both;animation-delay:${delay}ms">
+      <span style="font-size:15px;font-weight:600;color:var(--gray-800)">${escHtml(displayName)}</span>
+      ${isSelf
+        ? `<span class="coach-you-badge">Vous</span>`
+        : `<button class="btn btn-danger btn-sm" onclick="deleteCoach('${escHtml(coach.id)}', '${escHtml(displayName)}')">Supprimer</button>`}
+    </div>`;
+}
+
+function showCreateCoachModal() {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'createCoachModal';
+  overlay.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">Ajouter un coach</h3>
+        <button class="modal-close" onclick="closeModal('createCoachModal')">✕</button>
+      </div>
+      <form id="createCoachForm" onsubmit="submitCreateCoach(event)">
+        <div class="form-group">
+          <label class="form-label">Prénom <span class="required">*</span></label>
+          <input class="form-input" name="prenom" required autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom <span class="required">*</span></label>
+          <input class="form-input" name="nom" required autocomplete="family-name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" name="email" type="email" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mot de passe <span class="required">*</span></label>
+          <input class="form-input" name="password" type="password" required autocomplete="new-password">
+          <p class="form-hint">(min. 8 caractères)</p>
+          <p class="form-error" id="createCoachPwdError" style="display:none">Le mot de passe doit faire au moins 8 caractères.</p>
+        </div>
+        <p class="form-error" id="createCoachError" style="display:none"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createCoachModal')">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="createCoachBtn">Créer</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeModal('createCoachModal');
+  });
+  overlay.querySelector('[name="prenom"]').focus();
+}
+
+async function submitCreateCoach(e) {
+  e.preventDefault();
+  const btn      = gid('createCoachBtn');
+  const errEl    = gid('createCoachError');
+  const pwdErrEl = gid('createCoachPwdError');
+  const fd       = new FormData(e.target);
+  const prenom   = fd.get('prenom').trim();
+  const nom      = fd.get('nom').trim();
+  const email    = fd.get('email').trim();
+  const password = fd.get('password');
+
+  pwdErrEl.style.display = 'none';
+  errEl.style.display = 'none';
+
+  if (password.length < 8) {
+    pwdErrEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Création…';
+
+  try {
+    const session = (await window.supabaseClient.auth.getSession()).data.session;
+    const res = await fetch(
+      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/manage-coach-account',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ email, password, nom, prenom })
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) {
+      const msg = (result.error || '').toLowerCase().includes('already')
+        ? 'Cet email est déjà utilisé par un autre compte.'
+        : (result.error || 'Erreur lors de la création');
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Créer';
+      return;
+    }
+
+    closeModal('createCoachModal');
+    showToast('Coach ajouté avec succès');
+    await renderCoachs();
+
+  } catch (err) {
+    errEl.textContent = err.message || 'Erreur réseau';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Créer';
+  }
+}
+
+async function deleteCoach(coachUserId, displayName) {
+  if (!confirm('Supprimer ' + displayName + ' ?\nCette action est irréversible.')) return;
+
+  try {
+    const session = (await window.supabaseClient.auth.getSession()).data.session;
+    const res = await fetch(
+      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/manage-coach-account',
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ coach_user_id: coachUserId })
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) {
+      showToast(result.error || 'Erreur lors de la suppression');
+      return;
+    }
+
+    showToast('Coach supprimé');
+    await renderCoachs();
+
+  } catch (err) {
+    showToast(err.message || 'Erreur réseau');
+  }
+}
+
 /* ─── Utilitaires ─────────────────────────────────────────────────────────── */
 function closeModal(id) {
   var m = document.getElementById(id);
