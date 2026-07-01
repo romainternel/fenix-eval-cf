@@ -799,13 +799,14 @@ async function exportCoachPPT() {
     }
 
     // ── Helper : 1 slide par axe, 2 colonnes, ratio 2:1 ─────────────────
-    const CAPTURE_W = 1880, CAPTURE_H = 940;
+    // CAPTURE_W / CAPTURE_H = 2:1 = ratio de la boîte PPT 9.4" × 4.72"
+    const CAPTURE_W = 950, CAPTURE_H = 475;
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       for (const [axeId, axe] of Object.entries(profil.axes)) {
         const half = Math.ceil(axe.criteres.length / 2);
-        function rowHTML(c, isLast) {
+        const rowHTML = (c, isLast) => {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
           const border = isLast ? 'none' : '1px solid #E2E8F0';
@@ -830,7 +831,7 @@ async function exportCoachPPT() {
               </div>
             </div>
           </div>`;
-        }
+        };
         const colL = axe.criteres.slice(0, half);
         const colR = axe.criteres.slice(half);
         const div = createOffscreen(CAPTURE_W);
