@@ -674,15 +674,15 @@ async function exportCoachPPT() {
     } catch (_) {}
 
     const prs = new window.PptxGenJS();
-    prs.layout = 'LAYOUT_WIDE';
+    prs.layout = 'LAYOUT_16x9';
     const NAVY = '0A2463', GOLD = 'C8A84B', WHITE = 'FFFFFF', BG = 'F8FAFC';
     const subHdr = `${_cPdfNom}  ·  ${_cPdfSession}`;
 
     function addHeader(slide, title, subtitle) {
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.06, fill:{ color:GOLD } });
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.72, fill:{ color:NAVY } });
-      slide.addText(title,    { x:0.3, y:0.06, w:8.3, fontSize:18, bold:true,  color:WHITE, fontFace:'Calibri' });
-      slide.addText(subtitle, { x:0.3, y:0.43, w:8.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri' });
+      slide.addText(title,    { x:0.3, y:0.06, w:8.3, fontSize:18, bold:true,  color:WHITE, fontFace:'Calibri', align:'center' });
+      slide.addText(subtitle, { x:0.3, y:0.43, w:8.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri', align:'center' });
       if (logoB64) slide.addImage({ data:logoB64, x:9.05, y:0.09, w:0.72, h:0.54 });
     }
 
@@ -847,8 +847,8 @@ async function exportCoachPPT() {
 
       const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
       const CW = 1960, CH = 975, PAD = 12, HDR_H = 40, AXE_H = 32;
-      const availH = CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H;
-      const rowH   = Math.max(26, Math.floor(availH / totalCriteres));
+      const availH = CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H - 40;
+      const rowH   = Math.max(24, Math.floor(availH / totalCriteres));
       const showDesc = rowH >= 34;
       const fzLabel = rowH >= 44 ? 14 : rowH >= 34 ? 13 : 12;
 

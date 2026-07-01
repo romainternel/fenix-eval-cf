@@ -1,6 +1,6 @@
 # Checklist de régression — FENIX Eval CF
 
-> Agent : Regression Guardian | Dernière mise à jour : 2026-07-01 (STORY-14)
+> Agent : Regression Guardian | Dernière mise à jour : 2026-07-01 (STORY-PPT-V57)
 
 ---
 
@@ -23,7 +23,7 @@
 | R13 | Show/hide password (login + modals) | `index.html`, `js/app.js`, `pages/coach-dashboard.js` | Bouton "Voir/Masquer" toggle le champ password → text dans login, création joueur et création coach | Important | Ajouté STORY-12 |
 | R14 | Radar font size | `pages/coach-dashboard.js`, `pages/player-home.js` | Labels du radar lisibles (font-size 12, weight 600) sur les deux dashboards | Secondaire | Ajouté STORY-12 |
 | R15 | Export PPT html2canvas (STORY-13) | `pages/coach-dashboard.js`, `coach.html` | Bouton PPT → 4 slides avec captures DOM fidèles au rendu ; garde-fous : sans joueur → toast, html2canvas absent → toast | Important | Supersédé par R16 |
-| R16 | Export PPT v2 5 slides (STORY-14) | `pages/coach-dashboard.js`, `coach.html` | Bouton PPT → 5 slides : radar fond blanc, résumé côte à côte, 4 cartes axes Att, 4 cartes axes Def, CR ; logo-fenix.png visible ; guards PptxGenJS/html2canvas/radarAtt | Important | Ajouté STORY-14 |
+| R16 | Export PPT v2 5 slides (STORY-14 → v57) | `pages/coach-dashboard.js`, `coach.html` | Bouton PPT → 5 slides : slide 10"×5.625" plein cadre, titres centrés, tous critères (incl. Skills) visibles slides 3&4, résumé pleine largeur slide 2 | Important | v57 — 2026-07-01 |
 | R17 | `showAxisDetail()` après refactoring | `pages/coach-dashboard.js` | Clic sur thème dans tableau récap → `#axisDetail` affiche le détail avec pastilles colorées, titres, labels | Important | Ajouté STORY-14 |
 
 ---
@@ -36,3 +36,4 @@
 - R12-R14 ajoutés STORY-12 (export PPT, show/hide password, radar font size).
 - R15 ajouté STORY-13 (refonte export PPT html2canvas) — supersédé par R16.
 - R16/R17 ajoutés STORY-14 (PPT v2 : 5 slides, fond blanc, cartes axes, showAxisDetail refactoring).
+- R16 mis à jour STORY-PPT-V57 (layout LAYOUT_16x9, titres centrés, Skills overflow fix).
