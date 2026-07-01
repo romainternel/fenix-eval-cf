@@ -1,4 +1,4 @@
-# PRD — Refonte export PPT v2
+# PRD — Bilan d'entretien joueur + simplification exports
 
 > Agent : Product Manager | Date : 2026-07-01
 
@@ -6,64 +6,114 @@
 
 ## Objectif
 
-Remplacer l'implémentation actuelle de `exportCoachPPT()` (STORY-13) par une version en 5 slides dont le contenu correspond exactement à ce que le coach voit dans l'application, avec le bon rendu visuel.
+Donner au joueur une fiche de bilan lisible dans son app (niveaux par axe + objectifs) et simplifier les exports coach à un seul PPT de 3 slides.
 
 ---
 
 ## Features — Must Have
 
-### F1 — Slide 1 : Radars fond blanc avec titres profil
-Capture d'un conteneur temporaire reconstruit en JS : deux `<img>` (toDataURL des canvas radarAtt/radarDef) avec les titres de profil (ex. "⚡ DC", "🛡 N°2") et la légende "● Joueur ● Staff" — tout sur fond blanc. Inséré dans PptxGenJS via `addImage`.
+### F1 — Carte bilan joueur in-app
 
-**Critère d'acceptation** : fond blanc, titres profil visibles au-dessus des radars, légende en bas.
+Nouvelle section dans la vue résultats joueur (`pages/player-home.js`), affichée uniquement si le CR est partagé (`visible_joueur = true`).
 
-### F2 — Slide 2 : Résumé Att + Def côte à côte
-Capture `#pptCaptureAtt` positionnée à gauche de la slide. Capture `#pptCaptureDef` positionnée à droite. Si GB : `#pptCaptureAtt` centré seul. Images disposées via `addImage` avec `sizing: contain`.
+**Contenu** :
+- Titre "📋 BILAN D'ENTRETIEN" + date de mise à jour du CR
+- Pour chaque profil (ATT et DEF, ou GB) : tableau axes avec 3 colonnes :
+  - Axe (label)
+  - Mon niveau (level pill coloré — basé sur la moyenne des notes_joueur du critère arrondie)
+  - Niveau Coach (level pill coloré — basé sur notes_staff)
+- Axes prioritaires (texte libre depuis cr.axes_att / cr.axes_def)
+- Objectif court terme (cr.objectifs_ct)
+- Objectif moyen terme (cr.objectifs_mt)
 
-**Critère d'acceptation** : les deux tableaux récap apparaissent sur la même slide ; si GB, seul le tableau GB est centré.
+**Données** : tout est déjà chargé en mémoire (`_pEvalMap`, `_pCrData`, `CRITERIA`). Aucun appel réseau supplémentaire.
 
-### F3 — Slides 3 & 4 : 4 cartes axes en grille 2×2
-Pour chaque profil (Att et Def), générer le HTML de chaque axe via une fonction pure `buildAxisDetailHTML(profilId, axeId)` (extraite de `showAxisDetail()`). Injecter chaque axe dans un conteneur off-screen, capturer avec html2canvas, disposer les 4 captures en grille 2×2 dans PptxGenJS. Slide 4 absente si GB.
+**Critères d'acceptation** :
+- Carte absente si `visible_joueur = false` ou si le CR n'existe pas
+- Les 5 niveaux (Fragile/En travail/Acquis/Maîtrisé/Référence) s'affichent avec leurs couleurs (même palette que le PPT coach)
+- Les 3 sections (axes prioritaires, obj CT, obj MT) ne s'affichent que si le champ n'est pas vide
+- Profil GB : un seul tableau (pas de section DEF)
 
-**Critère d'acceptation** : 4 zones visibles par slide, chaque zone = label axe + liste critères avec descriptions + pastilles colorées n1-n5 ou vide.
+---
 
-### F4 — Slide 5 : CR entretien (inchangée)
-Conserver exactement la logique de STORY-13 : capture `#pptCaptureCR`, fallback "Aucun compte-rendu saisi." si vide.
+### F2 — PPT coach simplifié : 3 slides
 
-**Critère d'acceptation** : comportement identique à STORY-13 sur la slide CR.
+Refonte de `exportCoachPPT()` dans `pages/coach-dashboard.js`.
 
-### F5 — Logo fenix.png dans chaque header
-`logo-fenix.png` fetché en base64 et inséré dans le coin bas-droit de chaque slide via `addImage`.
+**Structure cible** :
+- Slide 1 : Radar (inchangé — existant)
+- Slide 2 : Critères détail Attaque (inchangé — existant, fix v59)
+- Slide 3 : Critères détail Défense (inchangé — existant, fix v59, absent si GB)
 
-**Critère d'acceptation** : logo visible sur les 5 slides.
+**Suppressions** :
+- Slide 2 actuelle (résumé par axe avec pills côte à côte) → retirée
+- Slide 5 actuelle (capture CR entretien) → retirée
+- La numérotation devient : radar=1, att=2, def=3
 
-### F6 — Extraction `buildAxisDetailHTML()` comme fonction pure
-Refactorer `showAxisDetail()` pour extraire la génération HTML dans une fonction pure `buildAxisDetailHTML(profilId, axeId)` qui ne manipule pas le DOM. `showAxisDetail()` l'appelle ensuite. Utilisée aussi par `exportCoachPPT()`.
+**Critères d'acceptation** :
+- Le fichier PPTX généré contient exactement 3 slides (2 si GB)
+- Toujours < 15 secondes de génération
+- Les slides 1-3 sont visuellement identiques à v59
 
-**Critère d'acceptation** : `showAxisDetail()` fonctionne toujours après le refactor.
+---
+
+### F3 — Suppression exports inutiles
+
+**`exportProgressionPPT()`** :
+- Retirer la fonction de `coach-dashboard.js`
+- Retirer le bouton `📈 PPT Prog.` de la toolbar résultats
+
+**`exportCoachPDF()`** :
+- Retirer la fonction de `coach-dashboard.js`
+- Retirer le bouton correspondant (s'il existe dans la toolbar)
+
+**`jsPDF` CDN** :
+- Retirer la ligne `<script jspdf>` de `coach.html`
+
+**Critères d'acceptation** :
+- La toolbar résultats coach ne montre qu'un seul bouton export : `📊 PPT`
+- Aucune erreur console liée aux fonctions supprimées
+- `coach.html` n'inclut plus `jspdf`
+
+---
+
+## Should Have
+
+*(Aucun dans cette itération — scope volontairement resserré)*
 
 ---
 
 ## Hors scope
 
-- Modifier le style CSS des zones capturées
-- Slide de couverture graphique élaborée
-- Export multi-joueurs
-- Support mobile de l'export PPT
-- Grille adaptative si > 4 axes (tous les profils FENIX ont exactement 4 axes)
-- Modifier `player-home.js`, `fenix.css`, `index.html`, `player.html`
+- Envoi email de la fiche bilan au joueur
+- Bilan multi-sessions dans la fiche bilan joueur
+- Refonte graphique de `pRecapTableHTML` (conservé tel quel)
+- Nouveau champ DB
+- Modification de `fenix.css`, `index.html`, `player.html` CDN
+
+---
+
+## Priorité de livraison
+
+| # | Story | Priorité | Taille |
+|---|-------|----------|--------|
+| STORY-15 | Bilan joueur in-app | P0 | M |
+| STORY-16 | PPT coach 3 slides | P1 | S |
+| STORY-17 | Cleanup exports | P1 | S |
+
+STORY-16 et STORY-17 peuvent être livrées dans n'importe quel ordre entre elles.
 
 ---
 
 ## Dépendances
 
-- STORY-13 livrée (CDN html2canvas, PptxGenJS, wrappers `#pptCaptureAtt`, `#pptCaptureDef`, `#pptCaptureCR`)
+- `comptes_rendus` table et données : disponibles (existant)
+- `_pEvalMap`, `_pCrData`, `CRITERIA` : globaux déjà chargés dans la vue résultats joueur
+- `exportCoachPPT()` v59 : base pour STORY-16 (retrait slides 2 et 5)
 
 ---
 
-## Risques
+## Risques PM
 
-- `buildAxisDetailHTML()` utilise `_coachEvalMap` (global) et `escHtml()` (global) — accessibles
-- Canvas toDataURL cross-origin : non applicable (données locales Chart.js)
-- CSS vars fenix.css dans conteneur off-screen : à valider par l'Architect
-- Profil GB : slide 4 absente, slide 2 centrée — cas à tester explicitement
+- Si la fiche bilan joueur est trop similaire au `pRecapTableHTML` existant → confusion. Solution : design clairement différent (level labels vs chiffres) et positionnement après la carte CR
+- Si la suppression du PDF déclenche des erreurs parce qu'un bouton PDF est référencé ailleurs → vérifier toutes les occurrences avant suppression

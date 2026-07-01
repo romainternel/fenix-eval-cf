@@ -695,6 +695,82 @@ function pRenderBarChart() {
   _pBarDef = buildProfilBar('pBarDef', _pDefId, 'rgba(234,88,12,0.88)',  'rgba(234,88,12,0.04)',  'rgba(194,65,12,0.95)');
 }
 
+function pLevelFromAvg(avg) {
+  return avg !== null && avg !== undefined ? Math.min(5, Math.max(1, Math.round(avg))) : null;
+}
+
+function pBilanEntretienHTML(attId, defId, evalMap, cr) {
+  if (!cr) return '';
+  const LVL = {
+    1:{bg:'#FEE2E2',col:'#991B1B',lbl:'Fragile'},
+    2:{bg:'#FEF3C7',col:'#92400E',lbl:'En travail'},
+    3:{bg:'#D1FAE5',col:'#065F46',lbl:'Acquis'},
+    4:{bg:'#DBEAFE',col:'#1E40AF',lbl:'Maîtrisé'},
+    5:{bg:'#EDE9FE',col:'#5B21B6',lbl:'Référence'},
+  };
+  function pill(avg) {
+    const n = pLevelFromAvg(avg);
+    if (!n) return `<span class="bilan-level-pill" style="background:#F1F5F9;color:#94A3B8">—</span>`;
+    return `<span class="bilan-level-pill" style="background:${LVL[n].bg};color:${LVL[n].col}">${LVL[n].lbl}</span>`;
+  }
+  function axeTable(profilId) {
+    const profil = CRITERIA[profilId];
+    if (!profil) return '';
+    const rows = Object.entries(profil.axes).map(([, axe]) => {
+      const jNs = axe.criteres.map(c => evalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+      const sNs = axe.criteres.map(c => evalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+      const avgJ = jNs.length ? jNs.reduce((a,b) => a+b,0) / jNs.length : null;
+      const avgS = sNs.length ? sNs.reduce((a,b) => a+b,0) / sNs.length : null;
+      return `<tr>
+        <td class="bilan-entretien-table-label">${escHtml(axe.label)}</td>
+        <td class="bilan-entretien-table-pill">${pill(avgJ)}</td>
+        <td class="bilan-entretien-table-pill">${pill(avgS)}</td>
+      </tr>`;
+    }).join('');
+    return `<table class="bilan-entretien-table">
+      <thead><tr>
+        <th class="bilan-entretien-table-th-label">Axe</th>
+        <th class="bilan-entretien-table-th-pill">Mon niveau</th>
+        <th class="bilan-entretien-table-th-pill">Coach</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+  const dateStr = cr.updated_at
+    ? new Date(cr.updated_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'})
+    : '';
+  let sections = '';
+  if (attId) {
+    const lbl = defId ? '⚡ Attaque' : '🧤 Gardien';
+    sections += `<div class="bilan-entretien-section">
+      <p class="bilan-entretien-section-label">${lbl}</p>
+      ${axeTable(attId)}
+      ${cr.axes_att ? `<p class="bilan-axes-prioritaires-label">Axes prioritaires</p><p class="bilan-axes-prioritaires">${escHtml(cr.axes_att)}</p>` : ''}
+    </div>`;
+  }
+  if (defId) {
+    sections += `<div class="bilan-entretien-section">
+      <p class="bilan-entretien-section-label">🛡 Défense</p>
+      ${axeTable(defId)}
+      ${cr.axes_def ? `<p class="bilan-axes-prioritaires-label">Axes prioritaires</p><p class="bilan-axes-prioritaires">${escHtml(cr.axes_def)}</p>` : ''}
+    </div>`;
+  }
+  const objBlock = (cr.objectifs_ct || cr.objectifs_mt) ? `<div class="bilan-objectifs-section">
+      ${cr.objectifs_ct ? `<p class="cr-section-label">🎯 Objectif court terme</p><p class="cr-text">${escHtml(cr.objectifs_ct)}</p>` : ''}
+      ${cr.objectifs_mt ? `<p class="cr-section-label" style="margin-top:10px">🚀 Objectif moyen terme</p><p class="cr-text">${escHtml(cr.objectifs_mt)}</p>` : ''}
+    </div>` : '';
+  return `<div class="card" style="margin-top:12px">
+    <div class="bilan-entretien-header">
+      <span class="bilan-entretien-header-title">📋 Bilan d'entretien</span>
+      ${dateStr ? `<span class="bilan-entretien-header-date">${dateStr}</span>` : ''}
+    </div>
+    <div class="card-body" style="padding:0">
+      ${sections}
+      ${objBlock}
+    </div>
+  </div>`;
+}
+
 function pRecapTableHTML(profilId, evalMap, title) {
   const profil = CRITERIA[profilId];
   if (!profil) return '';
@@ -935,6 +1011,7 @@ async function showPlayerRadar(sessionId) {
     </div>
     <div id="pAxisDetail" style="display:none"></div>
     ${bilanCard}
+    ${pBilanEntretienHTML(_pAttId, _pDefId, _pEvalMap, cr)}
     ${cr ? `
     <div class="card" style="margin-top:12px">
       <div class="card-body">

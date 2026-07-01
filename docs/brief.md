@@ -1,52 +1,76 @@
-# Brief — Refonte export PPT v2 (rendu slides)
+# Brief — Bilan d'entretien joueur + simplification exports
 
-> Agent : Analyst | Date : 2026-07-01 (remplacement de STORY-13)
+> Agent : Analyst | Date : 2026-07-01
 
 ---
 
 ## 1. Contexte
 
-STORY-13 a livré une première version de l'export PPT par capture html2canvas. Le résultat est insatisfaisant sur 3 points : (1) le slide 1 radar sur fond navy est visuellement lourd et ne correspond pas au rendu de l'app (fond blanc, titres de profil) ; (2) les slides 2/3 ne capturent que le tableau récap résumé (moyennes par axe) alors que le coach veut voir le détail critère par critère avec les cercles colorés ; (3) une slide de synthèse Att+Def côte à côte est souhaitée avant le détail.
+L'entretien individuel coach/joueur est le moment culminant du cycle d'évaluation FENIX : on passe en revue les résultats, on identifie les axes prioritaires et on fixe des objectifs. La table `comptes_rendus` existe en base (axes_att, axes_def, objectifs_ct, objectifs_mt, notes, visible_joueur) et le coach peut déjà saisir et partager ces informations. L'export PPT coach (v59, 5 slides) est opérationnel. L'export PPT progression a été livré en v60 mais n'est pas encore validé.
+
+---
 
 ## 2. Problème
 
-Le coach ne peut pas exporter un PPT dont le contenu correspond à ce qu'il voit dans l'application. Deux zones importantes manquent : la vue détail des critères (avec descriptions et pastilles colorées Joueur/Staff/Écart), et une slide de synthèse avec les deux tableaux récap côte à côte.
+**P1 — Le joueur n'a pas de bilan lisible.**
+Le joueur voit des moyennes numériques (3.4, 4.2…) dans le tableau récap. Ce n'est pas ce qu'il retient de l'entretien. Ce qu'il veut savoir : "suis-je Acquis ou Maîtrisé en Finition ? Qu'est-ce que mon coach attend de moi ?" → les niveaux nommés et les objectifs dans une vue unique.
+
+**P2 — Le PPT coach accumule des slides peu utiles.**
+La slide 2 (résumé par axe) montre des pills Joueur + Staff côte à côte — trop chargée pour guider une conversation. La slide 5 (capture du formulaire CR) est redondante avec ce que le coach voit déjà dans l'app. Le PPT progression (v60) n'a pas de cas d'usage validé.
+
+**P3 — Les exports s'accumulent sans purpose clair.**
+PDF + PPT résumé + PPT progression + PPT critères = 4 exports. Le coach ne sait plus quoi utiliser et quand.
+
+---
 
 ## 3. Utilisateurs
 
-- **Coach FENIX CF** — PC/Mac, en fin de session d'évaluation, veut un PPT présentable pour un entretien joueur
-- **Fréquence** : occasionnel (une fois par joueur par session)
-- **Bénéficiaire** : aussi le joueur qui reçoit la présentation
+| Utilisateur | Moment | Appareil | Besoin réel |
+|-------------|--------|----------|-------------|
+| Joueur | Après l'entretien, vestiaire ou domicile | iPhone | Ses niveaux par axe en langage humain + ses objectifs |
+| Coach | Pendant l'entretien, face au joueur | Laptop / tablette | Une vue de synthèse claire, pilotable en conversation |
+| Coach | Après l'entretien, archivage | Desktop | Un fichier exporté propre pour le dossier joueur |
+
+---
 
 ## 4. Vision
 
-Un PPT en 5 slides dont chaque slide reproduit fidèlement la vue correspondante dans l'application : radar blanc avec labels de profil, tableau synthèse Att+Def côte à côte, puis 4 cartes détail par axe pour l'Attaque, puis 4 cartes détail par axe pour la Défense, puis le CR entretien.
+> **Donner au joueur une fiche de bilan lisible dans son app — niveaux par axe en langage humain et objectifs fixés — et réduire les exports coach à l'essentiel utile.**
+
+---
 
 ## 5. Scope
 
 ### Dedans
-- **Slide 1** : capture html2canvas d'une zone radar reconstituée (fond blanc, 2 img radar toDataURL + titres profil + légende)
-- **Slide 2** : capture `#pptCaptureAtt` (gauche) + `#pptCaptureDef` (droite) côte à côte sur une slide (ou 1 centré si GB)
-- **Slide 3** : 4 cartes axes Attaque en grille 2×2 — chaque carte = détail critères d'un axe (label + texte + pastilles colorées n1-n5)
-- **Slide 4** : 4 cartes axes Défense en grille 2×2 (absente si GB)
-- **Slide 5** : capture `#pptCaptureCR` (inchangée de STORY-13)
-- Extraction de `buildAxisDetailHTML(profilId, axeId)` comme fonction pure réutilisable
+- **Bilan joueur in-app** : nouvelle carte dans les résultats joueur (visible si `visible_joueur = true`), affichant les niveaux par axe (labels Fragile/En travail/Acquis/Maîtrisé/Référence pour Joueur et Staff) + axes prioritaires + objectifs CT + MT
+- **PPT coach simplifié** : 3 slides (radar + critères ATT + critères DEF) — suppression slides 2 (résumé) et 5 (CR)
+- **Suppression PPT progression** : bouton et fonction `exportProgressionPPT()` retirés
+- **Suppression PDF coach** : bouton et fonction `exportCoachPDF()` retirés
+- **Nettoyage CDN** : retrait de `jsPDF` du CDN coach.html
 
 ### Dehors
-- Modification du style CSS des zones capturées
-- Export multi-joueurs ou multi-sessions
-- Slide supplémentaire de couverture graphique élaborée
-- Modification de `player-home.js`, `fenix.css`, `index.html`, `player.html`
+- Envoi email / notification joueur
+- Bilan multi-sessions dans la fiche joueur (backlog)
+- Refonte du tableau récap numérique `pRecapTableHTML` (conservé tel quel)
+- Nouveau champ en base (pas de migration nécessaire)
+- Modification du CSS existant de la vue résultats
+
+---
 
 ## 6. Critères de succès
 
-- Slide 1 : fond blanc, radars lisibles avec titres profil (ex. "⚡ DC", "🛡 N°2"), légende Joueur/Staff
-- Slide 2 : tableaux récap Att et Def visibles côte à côte (ou centré si GB)
-- Slides 3/4 : 4 cartes par slide avec noms critères, descriptions, pastilles colorées
-- Export sans erreur même si un axe n'a pas de notes (pastilles "vides")
-- Slide 5 CR : inchangée
+- Un joueur ouvre ses résultats après un entretien et lit son niveau nommé sur chaque axe + ses deux objectifs — sans décoder un chiffre
+- Le PPT coach génère exactement 3 slides (pas plus) en < 15 secondes
+- La section export du coach ne propose qu'un seul bouton `📊 PPT`
+- Aucun appel API supplémentaire côté joueur (données déjà chargées)
+
+---
 
 ## 7. Questions en suspens
 
-- Nombre exact d'axes par profil : peut varier (3 à 5 axes). Si > 4, la grille 2×2 devient 2×3 ou similaire → à trancher par l'Architect (comportement si profil à 5 axes : probablement 2+3 → accepté en l'état)
-- Logos : logo-fenix.png dans le header de chaque slide (déjà en CDN non, mais en asset local) + logo-transparent.jpeg pour slide de couverture éventuelle → à décider par le Designer
+- Q1 : La fiche bilan joueur remplace-t-elle `pRecapTableHTML` ou s'y ajoute-t-elle ?
+  → Recommandation : **s'y ajoute**, uniquement quand `visible_joueur = true` — les deux vues coexistent sans conflit
+- Q2 : Faut-il conserver `jsPDF` dans le CDN si le PDF est supprimé ?
+  → Non, à retirer de coach.html (player.html ne le charge pas)
+- Q3 : Le PPT corridor (slides critères att/def) reste-t-il dense ?
+  → Oui mais utile au coach — à conserver en l'état (fix Skills v59 déjà appliqué)

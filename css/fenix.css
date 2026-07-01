@@ -1539,3 +1539,112 @@ body {
   color: var(--fenix-navy);
   background: var(--fenix-slate-100, #f1f5f9);
 }
+
+/* ── Bilan d'entretien joueur (STORY-15) ───────────────────── */
+.bilan-entretien-header {
+  background: #0A2463;
+  border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bilan-entretien-header-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.bilan-entretien-header-date {
+  font-size: 11px;
+  font-weight: 500;
+  color: #C8A84B;
+}
+.bilan-entretien-section {
+  padding: 12px 16px 4px;
+}
+.bilan-entretien-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0A2463;
+  margin: 0 0 8px 0;
+}
+.bilan-entretien-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+.bilan-entretien-table-th-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  padding: 4px 6px;
+  border-bottom: 1px solid #E2E8F0;
+  text-align: left;
+  width: 50%;
+}
+.bilan-entretien-table-th-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  padding: 4px 6px;
+  border-bottom: 1px solid #E2E8F0;
+  text-align: center;
+  width: 25%;
+}
+.bilan-entretien-table-label {
+  padding: 7px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0F172A;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+.bilan-entretien-table-pill {
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+.bilan-entretien-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.bilan-entretien-table tbody tr:nth-child(even) td {
+  background: #F8FAFC;
+}
+.bilan-level-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  min-width: 64px;
+  white-space: nowrap;
+}
+.bilan-axes-prioritaires-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  margin: 4px 0 2px 0;
+}
+.bilan-axes-prioritaires {
+  font-size: 13px;
+  color: #334155;
+  font-style: italic;
+  margin: 0 0 10px 0;
+}
+.bilan-objectifs-section {
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  padding: 12px 16px;
+}
