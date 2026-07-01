@@ -793,30 +793,30 @@ async function exportCoachPPT() {
         5:{bg:'#5B21B6',ring:'#C4B5FD',txt:'#5B21B6',lbl:'Référence'},
       };
       const dot = n => n > 0
-        ? `<div style="width:24px;height:24px;border-radius:50%;background:${N_CLR[n].bg};box-shadow:0 0 0 2px ${N_CLR[n].ring};flex-shrink:0"></div>`
-        : `<div style="width:24px;height:24px;border-radius:50%;background:#F1F5F9;box-shadow:0 0 0 2px #E2E8F0;flex-shrink:0"></div>`;
+        ? `<div style="width:30px;height:30px;border-radius:50%;background:${N_CLR[n].bg};box-shadow:0 0 0 3px ${N_CLR[n].ring};flex-shrink:0"></div>`
+        : `<div style="width:30px;height:30px;border-radius:50%;background:#F1F5F9;box-shadow:0 0 0 3px #E2E8F0;flex-shrink:0"></div>`;
       const lbl = n => n > 0
-        ? `<span style="font-size:8px;font-weight:700;color:${N_CLR[n].txt};text-align:center;line-height:1">${N_CLR[n].lbl}</span>`
-        : `<span style="font-size:8px;color:#94A3B8;line-height:1">—</span>`;
+        ? `<span style="font-size:10px;font-weight:700;color:${N_CLR[n].txt};text-align:center;line-height:1.1">${N_CLR[n].lbl}</span>`
+        : `<span style="font-size:10px;color:#94A3B8;line-height:1">—</span>`;
       const scol = (who, n) => `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:54px;flex-shrink:0">
-          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">${who}</span>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:66px;flex-shrink:0">
+          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">${who}</span>
           ${dot(n)}${lbl(n)}
         </div>`;
       const ecart = (nj, ns) => {
-        if (!nj || !ns) return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:40px;flex-shrink:0">
-          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
-          <div style="width:24px;height:24px;border-radius:12px;background:#F1F5F9;display:flex;align-items:center;justify-content:center">
-            <span style="font-size:9px;color:#94A3B8">—</span>
+        if (!nj || !ns) return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;flex-shrink:0">
+          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
+          <div style="width:30px;height:30px;border-radius:15px;background:#F1F5F9;display:flex;align-items:center;justify-content:center">
+            <span style="font-size:12px;color:#94A3B8">—</span>
           </div>
         </div>`;
         const d = nj - ns;
         const bg = d > 0 ? '#DCFCE7' : d < 0 ? '#FEE2E2' : '#F1F5F9';
         const col = d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:40px;flex-shrink:0">
-          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
-          <div style="width:24px;height:24px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center">
-            <span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? '+' : ''}${d}</span>
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;flex-shrink:0">
+          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
+          <div style="width:30px;height:30px;border-radius:15px;background:${bg};display:flex;align-items:center;justify-content:center">
+            <span style="font-size:13px;font-weight:700;color:${col}">${d > 0 ? '+' : ''}${d}</span>
           </div>
         </div>`;
       };
@@ -827,30 +827,29 @@ async function exportCoachPPT() {
         const rows = axe.criteres.map(c => {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
-          return `<div style="flex:1;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E2E8F0;padding:3px 0;min-height:0">
-            <div style="flex:1;min-width:0;overflow:hidden">
-              <div style="font-size:11px;font-weight:700;color:#0A2463;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.label)}</div>
-              <div style="font-size:9px;color:#64748B;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${escHtml(c.texte)}</div>
+          return `<div style="flex:1;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E2E8F0;padding:4px 0;min-height:0">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:#0A2463;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.label)}</div>
             </div>
             ${scol('Joueur', nj)}${scol('Staff', ns)}${ecart(nj, ns)}
           </div>`;
         }).join('');
-        return `<div style="flex:1;background:#FFFFFF;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.12);display:flex;flex-direction:column;overflow:hidden;min-height:0">
-          <div style="background:#0A2463;color:#FFFFFF;padding:6px 10px;font-size:12px;font-weight:700;font-family:Calibri,Arial,sans-serif;flex-shrink:0;letter-spacing:.03em">${escHtml(axe.label)}</div>
-          <div style="flex:1;display:flex;flex-direction:column;padding:6px 10px;overflow:hidden">
+        return `<div style="flex:1;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.12);display:flex;flex-direction:column;overflow:hidden;min-height:0">
+          <div style="background:#0A2463;color:#FFFFFF;padding:8px 14px;font-size:14px;font-weight:700;font-family:Calibri,Arial,sans-serif;flex-shrink:0;letter-spacing:.04em">${escHtml(axe.label)}</div>
+          <div style="flex:1;display:flex;flex-direction:column;padding:8px 14px;overflow:hidden">
             ${rows}
           </div>
         </div>`;
       };
 
-      const CW = 1880, CH = 940;
+      const CW = 1960, CH = 975;
       const div = createOffscreen(CW);
       div.innerHTML = `
-        <div style="width:${CW}px;height:${CH}px;display:flex;gap:10px;padding:10px;background:#F8FAFC;box-sizing:border-box">
-          <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="width:${CW}px;height:${CH}px;display:flex;gap:12px;padding:12px;background:#F8FAFC;box-sizing:border-box">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
             ${card(axeEntries[0])}${card(axeEntries[2])}
           </div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:0">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
             ${card(axeEntries[1])}${card(axeEntries[3])}
           </div>
         </div>`;
@@ -860,7 +859,7 @@ async function exportCoachPPT() {
       slide.background = { color: BG };
       addHeader(slide, slidePrefix, subHdr);
       if (b64) {
-        slide.addImage({ data: b64, x: 0.3, y: 0.8, w: 9.4, h: 4.72 });
+        slide.addImage({ data: b64, x: 0.1, y: 0.74, w: 9.8, h: 4.875 });
       } else {
         slide.addText('Détail non disponible.', { x: 0.5, y: 2.5, fontSize: 12,
           color: '94A3B8', fontFace: 'Calibri', italic: true });
