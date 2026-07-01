@@ -283,7 +283,7 @@ let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
 let _cBilanAtt = null, _cBilanDef = null, _cBarAtt = null, _cBarDef = null;
 let _cAllSessions = [], _cViewMode = 'staff', _cAttId = null, _cDefId = null;
 let _cSelectedSessions = new Set(), _cShowBar = false;
-let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false;
+let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false, _cPdfCr = null;
 const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _C_SESSION_COLORS = [
   { bg:'rgba(139,92,246,0.12)', border:'rgba(139,92,246,0.7)' },
@@ -790,6 +790,46 @@ async function exportCoachPPT() {
     // ── SLIDE 4 : Détail Défense (1 slide, si non GB) ────────────────────
     if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
 
+    // ── SLIDE CR : Compte rendu d'entretien ──────────────────────────────
+    if (_cPdfCr) {
+      const cr = _cPdfCr;
+      const esc = s => escHtml(s || '').replace(/\n/g, '<br>');
+      const att   = esc(cr.axes_att);
+      const def   = esc(cr.axes_def);
+      const ct    = esc(cr.objectifs_ct);
+      const mt    = esc(cr.objectifs_mt);
+      const notes = esc(cr.notes);
+      const txt14 = 'font-size:14px;color:#1E293B;line-height:1.7';
+      const sublbl = (col, t) => `<div style="font-size:12px;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px">${t}</div>`;
+      const sechdr = (bg, fg, t) => `<div style="background:${bg};color:${fg};padding:6px 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">${t}</div>`;
+      const block = (lbl, content) => content ? `<div style="margin-bottom:14px">${lbl}<div style="${txt14}">${content}</div></div>` : '';
+
+      const crDiv = createOffscreen(900);
+      crDiv.innerHTML = `<div style="width:900px;background:#FFFFFF;padding:16px 20px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif">
+        <div style="display:flex;gap:24px">
+          <div style="flex:1">
+            ${sechdr('#0A2463', '#FFFFFF', 'Axes prioritaires')}
+            ${block(sublbl('#0A2463', _cPdfIsGb ? '🧤 Gardien' : '⚡ Attaque'), att)}
+            ${!_cPdfIsGb ? block(sublbl('#0A2463', '🛡 Défense'), def) : ''}
+          </div>
+          <div style="flex:1">
+            ${sechdr('#0A2463', '#FFFFFF', 'Objectifs')}
+            ${block(sublbl('#C8A84B', 'Court terme'), ct)}
+            ${block(sublbl('#C8A84B', 'Moyen terme'), mt)}
+          </div>
+        </div>
+        ${notes ? `<div style="margin-top:16px;border-top:2px solid #E2E8F0;padding-top:12px">
+          ${sechdr('#1E293B', '#F1F5F9', "Notes d'entretien")}
+          <div style="${txt14}">${notes}</div></div>` : ''}
+      </div>`;
+
+      const crB64 = await captureDiv(crDiv, 900);
+      const sCr = prs.addSlide();
+      sCr.background = { color: WHITE };
+      addHeader(sCr, '📋 COMPTE RENDU', subHdr);
+      addCapture(sCr, crB64, 0.1, CONTENT_Y, 9.8, 5.625 - CONTENT_Y - 0.05, 'Compte rendu non disponible.');
+    }
+
     const safe = (`${_cPdfNom}_${_cPdfSession}`).replace(/[^a-zA-Z0-9_-]/g, '_');
     await prs.writeFile({ fileName: `FENIX_${safe}.pptx` });
     showToast('PPT exporté ✓');
@@ -950,7 +990,7 @@ async function showCoachRadar(sessionId, playerId) {
   const attLbl = PROFIL_LABELS[_cAttId] || _cAttId || '—';
   const defLbl = PROFIL_LABELS[_cDefId] || _cDefId || '—';
   const curSes = (sessionsRes.data || []).find(s => s.id === sessionId);
-  _cPdfNom = nom; _cPdfSession = curSes?.label || ''; _cPdfIsGb = isGb;
+  _cPdfNom = nom; _cPdfSession = curSes?.label || ''; _cPdfIsGb = isGb; _cPdfCr = cr;
 
   // ── Card 1 : session actuelle Joueur vs Staff ────────────────────────────
   function buildSessionRadar(canvasId, profilId) {
