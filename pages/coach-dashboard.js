@@ -800,12 +800,12 @@ async function exportCoachPPT() {
                        Math.abs(after - mid) <= Math.abs(before - mid) ? after : before;
         return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
       };
-      // 2 radars côte à côte par slide (canvas carré 900×900)
-      const SLIDES_N = Math.ceil(axeEntries.length / 2);
+      // 4 radars par slide en grille 2×2 — canvas carré 900×900, composite 1860×1980
+      const SLIDES_N = Math.ceil(axeEntries.length / 4);
       for (let si = 0; si < SLIDES_N; si++) {
-        const pair = axeEntries.slice(si * 2, si * 2 + 2);
-        const pairImgs = [];
-        for (const [, axe] of pair) {
+        const group = axeEntries.slice(si * 4, si * 4 + 4);
+        const groupImgs = [];
+        for (const [, axe] of group) {
           const cv = document.createElement('canvas');
           cv.width = 900; cv.height = 900;
           cv.style.cssText = 'position:absolute;top:0;left:-9999px';
@@ -822,27 +822,27 @@ async function exportCoachPPT() {
             options:{ responsive:false, animation:false,
               plugins:{ legend:{ display:false } },
               scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
-                pointLabels:{ font:{ size:24, family:'Calibri,Arial' } } } }
+                pointLabels:{ font:{ size:42, family:'Calibri,Arial' } } } }
             }
           });
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-          pairImgs.push({ label: axe.label, img: cv.toDataURL('image/png') });
+          groupImgs.push({ label: axe.label, img: cv.toDataURL('image/png') });
           ch.destroy(); cv.remove();
         }
-        // Composite 1920×980 (ratio 1.96:1 ≈ slide 1.92:1), 2 radars côte à côte
-        const slideDiv = createOffscreen(1920);
-        slideDiv.innerHTML = `<div style="width:1920px;height:980px;background:#F8FAFC;padding:20px;box-sizing:border-box;display:flex;flex-direction:row;gap:24px;align-items:stretch">
-          ${pairImgs.map(({ label, img }) => `
-            <div style="flex:1;background:#FFFFFF;border-radius:10px;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center">
-              <div style="font-size:20px;font-weight:700;color:#0A2463;font-family:Calibri,Arial;text-align:center;margin-bottom:8px;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(label)}</div>
-              <img src="${img}" style="width:860px;height:860px;object-fit:contain;display:block">
+        // Composite 1860×1980 (quasi-carré 0.94:1) — flex-wrap → grille 2×2 naturelle
+        const slideDiv = createOffscreen(1860);
+        slideDiv.innerHTML = `<div style="width:1860px;background:#F8FAFC;padding:20px;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:20px">
+          ${groupImgs.map(({ label, img }) => `
+            <div style="width:900px;background:#FFFFFF;border-radius:10px;padding:0 0 12px 0;display:flex;flex-direction:column;align-items:center;box-sizing:border-box">
+              <div style="height:60px;line-height:60px;font-size:28px;font-weight:700;color:#0A2463;font-family:Calibri,Arial;text-align:center;width:100%;padding:0 8px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</div>
+              <img src="${img}" style="width:900px;height:900px;object-fit:contain;display:block">
             </div>`).join('')}
-        </div>
-        <div style="width:1920px;text-align:center;padding:6px 0;font-size:16px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:24px">
-          <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:6px;vertical-align:middle"></span>Joueur</span>
-          <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:6px;vertical-align:middle"></span>Staff</span>
+          <div style="width:100%;text-align:center;padding:6px 0;font-size:18px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:24px">
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:6px;vertical-align:middle"></span>Joueur</span>
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:6px;vertical-align:middle"></span>Staff</span>
+          </div>
         </div>`;
-        const rB64 = await captureDiv(slideDiv, 1920);
+        const rB64 = await captureDiv(slideDiv, 1860);
         const sRad = prs.addSlide();
         sRad.background = { color: BG };
         const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
