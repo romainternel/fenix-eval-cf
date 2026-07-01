@@ -791,7 +791,6 @@ async function exportCoachPPT() {
     if (_cAttId && CRITERIA[_cAttId]) {
       const profAtt = CRITERIA[_cAttId];
       const axeEntries = Object.entries(profAtt.axes);
-      // Labels sur 2 lignes si long (Chart.js accepte array = multiline)
       const wrapLabel = lbl => {
         if (lbl.length <= 14) return lbl;
         const mid = Math.floor(lbl.length / 2);
@@ -801,14 +800,14 @@ async function exportCoachPPT() {
                        Math.abs(after - mid) <= Math.abs(before - mid) ? after : before;
         return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
       };
-      // 2 radars par slide, empilés verticalement
+      // 2 radars côte à côte par slide (canvas carré 900×900)
       const SLIDES_N = Math.ceil(axeEntries.length / 2);
       for (let si = 0; si < SLIDES_N; si++) {
         const pair = axeEntries.slice(si * 2, si * 2 + 2);
         const pairImgs = [];
         for (const [, axe] of pair) {
           const cv = document.createElement('canvas');
-          cv.width = 1800; cv.height = 700;
+          cv.width = 900; cv.height = 900;
           cv.style.cssText = 'position:absolute;top:0;left:-9999px';
           document.body.appendChild(cv);
           const labels = axe.criteres.map(c => wrapLabel(c.label));
@@ -823,24 +822,25 @@ async function exportCoachPPT() {
             options:{ responsive:false, animation:false,
               plugins:{ legend:{ display:false } },
               scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
-                pointLabels:{ font:{ size:16, family:'Calibri,Arial' } } } }
+                pointLabels:{ font:{ size:24, family:'Calibri,Arial' } } } }
             }
           });
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
           pairImgs.push({ label: axe.label, img: cv.toDataURL('image/png') });
           ch.destroy(); cv.remove();
         }
+        // Composite 1920×980 (ratio 1.96:1 ≈ slide 1.92:1), 2 radars côte à côte
         const slideDiv = createOffscreen(1920);
-        slideDiv.innerHTML = `<div style="width:1920px;background:#F8FAFC;padding:16px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+        slideDiv.innerHTML = `<div style="width:1920px;height:980px;background:#F8FAFC;padding:20px;box-sizing:border-box;display:flex;flex-direction:row;gap:24px;align-items:stretch">
           ${pairImgs.map(({ label, img }) => `
-            <div style="background:#FFFFFF;border-radius:8px;padding:12px 20px;display:flex;align-items:center;gap:20px">
-              <div style="font-size:18px;font-weight:700;color:#0A2463;font-family:Calibri,Arial;min-width:180px;text-align:left">${escHtml(label)}</div>
-              <img src="${img}" style="width:1650px;height:320px;object-fit:contain">
+            <div style="flex:1;background:#FFFFFF;border-radius:10px;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center">
+              <div style="font-size:20px;font-weight:700;color:#0A2463;font-family:Calibri,Arial;text-align:center;margin-bottom:8px;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(label)}</div>
+              <img src="${img}" style="width:860px;height:860px;object-fit:contain;display:block">
             </div>`).join('')}
-          <div style="text-align:center;font-size:14px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:20px;padding:4px 0">
-            <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:6px;vertical-align:middle"></span>Joueur</span>
-            <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:6px;vertical-align:middle"></span>Staff</span>
-          </div>
+        </div>
+        <div style="width:1920px;text-align:center;padding:6px 0;font-size:16px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:24px">
+          <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:6px;vertical-align:middle"></span>Joueur</span>
+          <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:6px;vertical-align:middle"></span>Staff</span>
         </div>`;
         const rB64 = await captureDiv(slideDiv, 1920);
         const sRad = prs.addSlide();
