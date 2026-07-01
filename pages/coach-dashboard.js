@@ -679,11 +679,11 @@ async function exportCoachPPT() {
     const subHdr = `${_cPdfNom}  ·  ${_cPdfSession}`;
 
     function addHeader(slide, title, subtitle) {
-      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.12, fill:{ color:GOLD } });
-      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:1.2,  fill:{ color:NAVY } });
-      slide.addText(title,    { x:0.35, y:0.15, w:9.3, fontSize:20, bold:true,  color:WHITE, fontFace:'Calibri' });
-      slide.addText(subtitle, { x:0.35, y:0.75, w:9.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri' });
-      if (logoB64) slide.addImage({ data:logoB64, x:9.0, y:5.0, w:0.75, h:0.45 });
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.06, fill:{ color:GOLD } });
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.72, fill:{ color:NAVY } });
+      slide.addText(title,    { x:0.3, y:0.07, w:8.6, fontSize:16, bold:true,  color:WHITE, fontFace:'Calibri' });
+      slide.addText(subtitle, { x:0.3, y:0.45, w:8.6, fontSize:9,  bold:false, color:GOLD,  fontFace:'Calibri' });
+      if (logoB64) slide.addImage({ data:logoB64, x:9.2, y:5.18, w:0.6, h:0.36 });
     }
 
     async function captureEl(id, bg) {
@@ -763,7 +763,7 @@ async function exportCoachPPT() {
     const s1 = prs.addSlide();
     s1.background = { color: BG };
     addHeader(s1, 'FENIX Eval CF', subHdr);
-    addCapture(s1, radarB64, 0.3, 1.35, 9.4, 3.9, 'Radars non disponibles.');
+    addCapture(s1, radarB64, 0.3, 0.8, 9.4, 4.72, 'Radars non disponibles.');
 
     // ── SLIDE 2 : Résumé Att + Def côte à côte ───────────────────────────
     const s2 = prs.addSlide();
@@ -772,24 +772,60 @@ async function exportCoachPPT() {
     const b64Att = await captureEl('pptCaptureAtt', '#FFFFFF');
     const b64Def = await captureEl('pptCaptureDef', '#FFFFFF');
     if (_cPdfIsGb || !b64Def) {
-      addCapture(s2, b64Att, 2.5, 1.35, 5.0, 3.9, 'Tableau non disponible.');
+      addCapture(s2, b64Att, 2.5, 0.8, 5.0, 4.72, 'Tableau non disponible.');
     } else {
-      addCapture(s2, b64Att, 0.2, 1.35, 4.6, 3.9, 'Tableau Att non disponible.');
-      addCapture(s2, b64Def, 5.0, 1.35, 4.6, 3.9, 'Tableau Def non disponible.');
+      addCapture(s2, b64Att, 0.2, 0.8, 4.6, 4.72, 'Tableau Att non disponible.');
+      addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
     }
 
-    // ── Helper : 1 slide par axe (pleine largeur) ────────────────────────
+    // ── Helper : 1 slide par axe, 2 colonnes, pleine largeur ────────────
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       for (const [axeId, axe] of Object.entries(profil.axes)) {
+        const half = Math.ceil(axe.criteres.length / 2);
+        function rowHTML(c) {
+          const nj = _coachEvalMap[c.id]?.note_joueur || 0;
+          const ns = _coachEvalMap[c.id]?.note_staff  || 0;
+          return `<div class="cc-row">
+            <div class="cc-info">
+              <div class="cc-label">${escHtml(c.label)}</div>
+              <div class="cc-texte">${escHtml(c.texte)}</div>
+            </div>
+            <div class="cc-scores">
+              <div class="cc-score-col"><span class="cc-who">Joueur</span>
+                <div class="cc-pastille ${nj ? 'n'+nj : 'empty'}"></div>
+                <span class="cc-score-name" style="color:${nj ? 'var(--n'+nj+'-text)' : 'var(--gray-400)'}">
+                  ${nj ? _CC_LABELS[nj] : '—'}</span></div>
+              <div class="cc-score-col"><span class="cc-who">Staff</span>
+                <div class="cc-pastille ${ns ? 'n'+ns : 'empty'}"></div>
+                <span class="cc-score-name" style="color:${ns ? 'var(--n'+ns+'-text)' : 'var(--gray-400)'}">
+                  ${ns ? _CC_LABELS[ns] : '—'}</span></div>
+              <div class="cc-score-col"><span class="cc-who">Écart</span>
+                <div style="height:32px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
+                <span class="cc-score-name" style="color:var(--gray-400)"> </span></div>
+            </div>
+          </div>`;
+        }
         const div = createOffscreen(950);
-        div.innerHTML = buildAxisDetailHTML(profilId, axeId);
+        div.innerHTML = `<div style="display:flex;padding:8px;background:#FFFFFF">
+          <div style="flex:1;padding-right:10px;border-right:2px solid #E2E8F0">
+            ${axe.criteres.slice(0, half).map(rowHTML).join('')}
+          </div>
+          <div style="flex:1;padding-left:10px">
+            ${axe.criteres.slice(half).map(rowHTML).join('')}
+          </div>
+        </div>`;
         const b64 = await captureDiv(div, 950);
         const slide = prs.addSlide();
         slide.background = { color: BG };
         addHeader(slide, `${slidePrefix} — ${axe.label}`, subHdr);
-        addCapture(slide, b64, 0.3, 1.35, 9.4, 4.1, axe.label + ' non disponible.');
+        if (b64) {
+          slide.addImage({ data: b64, x:0.3, y:0.8, w:9.4, h:4.72 });
+        } else {
+          slide.addText(axe.label + ' non disponible.', { x:0.5, y:2.5, fontSize:12,
+            color:'94A3B8', fontFace:'Calibri', italic:true });
+        }
       }
     }
 
@@ -811,8 +847,8 @@ async function exportCoachPPT() {
     } else {
       const crB64 = await captureEl('pptCaptureCR', '#F8FAFC');
       if (crB64) {
-        s5.addImage({ data:crB64, x:0.3, y:1.35, w:9.4, h:4.1,
-          sizing:{ type:'contain', w:9.4, h:4.1 } });
+        s5.addImage({ data:crB64, x:0.3, y:0.8, w:9.4, h:4.72,
+          sizing:{ type:'contain', w:9.4, h:4.72 } });
       } else {
         s5.addText('Compte-rendu non disponible.', { x:0.5, y:2, fontSize:12,
           color:'94A3B8', fontFace:'Calibri', italic:true });
