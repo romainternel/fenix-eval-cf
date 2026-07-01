@@ -991,6 +991,221 @@ async function exportCoachPPT() {
   }
 }
 
+async function exportProgressionPPT() {
+  if (!window.PptxGenJS)   { showToast('Librairie PPT non chargée'); return; }
+  if (!window.html2canvas) { showToast('Librairie de capture non chargée'); return; }
+  const selected = _cAllSessions.filter(s => _cSelectedSessions.has(s.id));
+  if (selected.length < 2) { showToast('Sélectionne au moins 2 sessions pour la progression'); return; }
+
+  const btn = gid('btnExportProgPpt');
+  if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
+  showToast('Génération PPT Progression…');
+
+  try {
+    const prs = new PptxGenJS();
+    prs.layout = 'LAYOUT_16x9';
+    const NAVY = '0A2463', GOLD = 'C8A84B', WHITE = 'FFFFFF', BG = 'F8FAFC';
+    const subHdr = `${_cPdfNom} — Progression`;
+
+    let logoB64 = null;
+    try {
+      const logoImg = new Image();
+      await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; logoImg.src = 'assets/logo-fenix.png'; });
+      const lc = document.createElement('canvas'); lc.width = 200; lc.height = 200;
+      const lctx = lc.getContext('2d');
+      lctx.beginPath(); lctx.arc(100, 100, 100, 0, Math.PI * 2); lctx.clip();
+      const ls = 200 / Math.min(logoImg.width, logoImg.height);
+      lctx.drawImage(logoImg, (200 - logoImg.width * ls) / 2, (200 - logoImg.height * ls) / 2, logoImg.width * ls, logoImg.height * ls);
+      logoB64 = lc.toDataURL('image/png');
+    } catch (_) {}
+
+    const CONTENT_Y = 0.50;
+    const BOX_H = 5.625 - CONTENT_Y - 0.005;
+
+    function addProgHeader(slide, title) {
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.04, fill:{ color:GOLD } });
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.48, fill:{ color:NAVY } });
+      slide.addText([
+        { text: title,     options: { bold:true,  color:WHITE, fontSize:14 } },
+        { text: '   ·   ', options: { bold:false, color:GOLD,  fontSize:12 } },
+        { text: subHdr,    options: { bold:false, color:GOLD,  fontSize:11 } }
+      ], { x:0.15, y:0, w:8.9, h:0.48, valign:'middle', align:'center', fontFace:'Calibri' });
+      if (logoB64) slide.addImage({ data:logoB64, x:9.47, y:0.03, w:0.42, h:0.42 });
+    }
+
+    function createProgOffscreen(width) {
+      const div = document.createElement('div');
+      div.style.cssText = `position:absolute;top:0;left:-${width + 200}px;width:${width}px;background:#FFFFFF`;
+      document.body.appendChild(div);
+      return div;
+    }
+
+    async function captureProgDiv(div, width, height) {
+      await Promise.all([...div.querySelectorAll('img')].map(img =>
+        img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+      ));
+      await new Promise(r => requestAnimationFrame(r));
+      let b64 = null;
+      try {
+        const cv = await window.html2canvas(div, {
+          scale: 2, useCORS: true, backgroundColor: '#F8FAFC', logging: false,
+          windowWidth: width, windowHeight: height || div.scrollHeight,
+        });
+        b64 = cv.toDataURL('image/png');
+      } catch (_) {}
+      document.body.removeChild(div);
+      return b64;
+    }
+
+    const PCLR = {
+      1:{bg:'#FEE2E2',txt:'#991B1B'},
+      2:{bg:'#FEF3C7',txt:'#92400E'},
+      3:{bg:'#D1FAE5',txt:'#065F46'},
+      4:{bg:'#DBEAFE',txt:'#1E40AF'},
+      5:{bg:'#EDE9FE',txt:'#5B21B6'},
+    };
+
+    function pAxeAvg(axe, evalMap, viewKey) {
+      const ns = axe.criteres.map(c => evalMap[c.id]?.[viewKey] || 0).filter(n => n > 0);
+      return ns.length ? +(ns.reduce((a, b) => a + b, 0) / ns.length).toFixed(2) : null;
+    }
+
+    function pLvl(avg) {
+      return avg !== null && avg !== undefined ? Math.min(5, Math.max(1, Math.round(avg))) : null;
+    }
+
+    function pDot(n, border, size) {
+      if (!n) return `<span style="color:#CBD5E1;font-size:${size - 4}px;line-height:${size}px">—</span>`;
+      return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${PCLR[n].bg};border:2px solid ${border};color:${PCLR[n].txt};font-size:${size - 8}px;font-weight:800;text-align:center;line-height:${size - 4}px">${n}</span>`;
+    }
+
+    async function addProgressionSlide(profilId, slideLabel) {
+      const profil = CRITERIA[profilId];
+      if (!profil) return;
+      const axeEntries = Object.entries(profil.axes);
+      const totalCrit = axeEntries.reduce((sum, [, ax]) => sum + ax.criteres.length, 0);
+      const nSess = selected.length;
+
+      const CW = 1960;
+      const CH = Math.round(CW * BOX_H / 9.8);
+      const PAD = 12;
+      const CONTAINER = CH - PAD * 2;
+      const THEAD_H = 54;
+      const AXE_ROW = 34;
+      const budget = CONTAINER - THEAD_H - axeEntries.length * AXE_ROW - 20;
+      const CRIT_ROW = Math.max(16, Math.min(24, Math.floor((budget - totalCrit) / totalCrit)));
+
+      const labelPct = 36;
+      const sessPct  = +((100 - labelPct - 18) / nSess).toFixed(2);
+      const trendPct = 9;
+      const deltaPct = +(100 - labelPct - sessPct * nSess - trendPct).toFixed(2);
+
+      const colgroup = `<colgroup>
+        <col style="width:${labelPct}%">
+        ${selected.map(() => `<col style="width:${sessPct}%">`).join('')}
+        <col style="width:${trendPct}%">
+        <col style="width:${deltaPct}%">
+      </colgroup>`;
+
+      const thCtr = `padding:0 6px;text-align:center;font-size:11px;font-weight:700;color:#E2E8F0;letter-spacing:.06em;height:40px;border-bottom:2px solid #334155;vertical-align:middle`;
+      const sessHeaders = selected.map(s =>
+        `<th style="${thCtr}">${escHtml(sessionShortLabel(s.idx, s.date))}</th>`
+      ).join('');
+
+      let tbody = '';
+      for (const [, axe] of axeEntries) {
+        const jAvgs = selected.map(s => pAxeAvg(axe, s.evalMap, 'note_joueur'));
+        const sAvgs = selected.map(s => pAxeAvg(axe, s.evalMap, 'note_staff'));
+        const firstS = sAvgs.find(v => v !== null);
+        const lastS  = [...sAvgs].reverse().find(v => v !== null);
+        const deltaS = firstS != null && lastS != null ? +(lastS - firstS).toFixed(1) : null;
+        const dir    = deltaS == null ? 'flat' : deltaS > 0.05 ? 'up' : deltaS < -0.05 ? 'down' : 'flat';
+        const arrow  = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+        const arrowCol = dir === 'up' ? '#22C55E' : dir === 'down' ? '#EF4444' : '#94A3B8';
+        const dStr   = deltaS != null ? (deltaS > 0 ? `+${deltaS}` : String(deltaS)) : '—';
+        const dCol   = deltaS == null ? '#94A3B8' : deltaS > 0 ? '#15803D' : deltaS < 0 ? '#DC2626' : '#64748B';
+
+        const axeTdBase = `padding:0 4px;text-align:center;height:${AXE_ROW}px;vertical-align:middle`;
+        const sessCells = selected.map((_, i) => {
+          const jd = pDot(pLvl(jAvgs[i]), '#3B82F6', 20);
+          const sd = pDot(pLvl(sAvgs[i]), '#EA580C', 20);
+          return `<td style="${axeTdBase}"><div style="display:flex;gap:4px;justify-content:center;align-items:center">${jd}${sd}</div></td>`;
+        }).join('');
+
+        tbody += `<tr style="background:#0A2463">
+          <td style="padding:0 18px;color:#FFFFFF;font-size:13px;font-weight:700;letter-spacing:.04em;height:${AXE_ROW}px;vertical-align:middle;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
+          ${sessCells}
+          <td style="${axeTdBase};color:${arrowCol};font-size:17px;font-weight:700">${arrow}</td>
+          <td style="${axeTdBase};color:${dCol};font-size:12px;font-weight:700">${dStr}</td>
+        </tr>`;
+
+        axe.criteres.forEach((c, ci) => {
+          const rowBg = ci % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+          const ctdBase = `padding:0 4px;text-align:center;height:${CRIT_ROW}px;vertical-align:middle`;
+          const critCells = selected.map(s => {
+            const jN = s.evalMap[c.id]?.note_joueur || 0;
+            const sN = s.evalMap[c.id]?.note_staff  || 0;
+            const jd = pDot(jN || null, '#3B82F6', 14);
+            const sd = pDot(sN || null, '#EA580C', 14);
+            return `<td style="${ctdBase}"><div style="display:flex;gap:2px;justify-content:center;align-items:center">${jd}${sd}</div></td>`;
+          }).join('');
+
+          tbody += `<tr style="background:${rowBg};border-bottom:1px solid #E2E8F0">
+            <td style="padding:0 18px 0 28px;font-size:11px;font-weight:500;color:#334155;height:${CRIT_ROW}px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.label)}</td>
+            ${critCells}
+            <td style="${ctdBase}"></td><td style="${ctdBase}"></td>
+          </tr>`;
+        });
+      }
+
+      const div = createProgOffscreen(CW);
+      div.innerHTML = `
+        <div style="width:${CW}px;height:${CH}px;background:#F8FAFC;padding:${PAD}px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+            ${colgroup}
+            <thead>
+              <tr style="background:#1E293B">
+                <th style="padding:0 18px;text-align:left;font-size:12px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:40px;border-bottom:2px solid #334155;vertical-align:middle">Axe / Critère</th>
+                ${sessHeaders}
+                <th style="${thCtr}">Tend.</th>
+                <th style="${thCtr}">Δ</th>
+              </tr>
+            </thead>
+            <tbody>${tbody}</tbody>
+          </table>
+          <div style="margin-top:6px;font-size:9px;color:#94A3B8;text-align:right;padding-right:4px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #3B82F6;background:#DBEAFE;vertical-align:middle"></span> Joueur &nbsp;
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #EA580C;background:#FEF3C7;vertical-align:middle"></span> Staff &nbsp;·&nbsp;
+            Tend. &amp; Δ basés sur l'évaluation Staff (1ère → dernière session sélectionnée)
+          </div>
+        </div>`;
+
+      const b64 = await captureProgDiv(div, CW, CH);
+      const slide = prs.addSlide();
+      slide.background = { color: BG };
+      addProgHeader(slide, slideLabel);
+      if (b64) {
+        slide.addImage({ data: b64, x: 0.1, y: CONTENT_Y, w: 9.8, h: BOX_H });
+      } else {
+        slide.addText('Progression non disponible.', { x:0.5, y:2.5, fontSize:12, color:'94A3B8', fontFace:'Calibri', italic:true });
+      }
+    }
+
+    if (_cAttId) await addProgressionSlide(_cAttId, _cPdfIsGb ? '🧤 PROGRESSION GARDIEN' : '⚡ PROGRESSION ATTAQUE');
+    if (!_cPdfIsGb && _cDefId) await addProgressionSlide(_cDefId, '🛡 PROGRESSION DÉFENSE');
+
+    const safeProg = (_cPdfNom || 'Joueur').replace(/[^a-zA-ZÀ-ÿ0-9]/g, '_');
+    await prs.writeFile({ fileName: `FENIX_Prog_${safeProg}.pptx` });
+    showToast('PPT Progression téléchargé ✓');
+
+  } catch (err) {
+    console.error('exportProgressionPPT', err);
+    showToast('Erreur PPT Progression : ' + (err.message || 'inconnue'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📈 PPT Prog.'; }
+  }
+}
+
 function cRecapTableHTML(profilId, evalMap, title) {
   const profil = CRITERIA[profilId];
   if (!profil) return '';
@@ -1237,6 +1452,7 @@ async function showCoachRadar(sessionId, playerId) {
       <button class="btn btn-secondary btn-sm" onclick="showSessionDetail('${sessionId}')">← Retour</button>
       <span style="font-weight:700">${nom}</span>
       <button class="btn btn-ghost btn-sm" id="btnExportPpt" onclick="exportCoachPPT()">📊 PPT</button>
+      <button class="btn btn-ghost btn-sm" id="btnExportProgPpt" onclick="exportProgressionPPT()">📈 PPT Prog.</button>
     </div>
     <div class="card">
       <div class="card-body">
