@@ -787,7 +787,7 @@ async function exportCoachPPT() {
     // ── SLIDE 3 : Détail Attaque (1 slide, grille 2×2) ───────────────────
     if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
 
-    // ── SLIDE 3b : Radars par axe — Attaque uniquement (test) ────────────
+    // ── SLIDE 3b : Radars par axe — Attaque, placement individuel ────────
     if (_cAttId && CRITERIA[_cAttId]) {
       const profAtt = CRITERIA[_cAttId];
       const axeEntries = Object.entries(profAtt.axes);
@@ -800,54 +800,76 @@ async function exportCoachPPT() {
                        Math.abs(after - mid) <= Math.abs(before - mid) ? after : before;
         return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
       };
-      // 4 radars par slide en grille 2×2 — canvas carré 900×900, composite 1860×1980
+
+      // Zone contenu : 9.8" × 5.075" (après header 0.5")
+      // Grille 2×2 : chaque radar carré, centré sur la hauteur dispo
+      const RW = 2.3, RH = 2.3; // radar carré 2.3"×2.3"
+      const TH = 0.28;           // hauteur titre axe
+      const CGAP = 0.2, RGAP = 0.12; // gap col / row
+      const TOTAL_W = 2 * RW + CGAP; // 4.8"
+      const x1 = 0.1 + (9.8 - TOTAL_W) / 2;
+      const x2 = x1 + RW + CGAP;
+      const y1t = CONTENT_Y + 0.08;
+      const y1r = y1t + TH;
+      const y2t = y1r + RH + RGAP;
+      const y2r = y2t + TH;
+
       const SLIDES_N = Math.ceil(axeEntries.length / 4);
       for (let si = 0; si < SLIDES_N; si++) {
         const group = axeEntries.slice(si * 4, si * 4 + 4);
-        const groupImgs = [];
-        for (const [, axe] of group) {
+        const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
+        const sRad = prs.addSlide();
+        sRad.background = { color: BG };
+        addHeader(sRad, `⚡ ${PROFIL_LABELS[_cAttId] || _cAttId} — RADARS PAR AXE${slideIdx}`, subHdr);
+
+        for (let i = 0; i < group.length; i++) {
+          const [, axe] = group[i];
+          const col = i % 2, row = Math.floor(i / 2);
+          const xPos = col === 0 ? x1 : x2;
+          const yTitle = row === 0 ? y1t : y2t;
+          const yRadar = row === 0 ? y1r : y2r;
+
+          // Titre axe via PptxGenJS natif
+          sRad.addText(axe.label, {
+            x:xPos, y:yTitle, w:RW, h:TH,
+            fontSize:11, bold:true, color:NAVY, fontFace:'Calibri',
+            align:'center', valign:'bottom'
+          });
+
+          // Canvas 1200×1200, layout.padding:200 → labels dans la zone de padding, anneau centré
           const cv = document.createElement('canvas');
-          cv.width = 900; cv.height = 900;
+          cv.width = 1200; cv.height = 1200;
           cv.style.cssText = 'position:absolute;top:0;left:-9999px';
           document.body.appendChild(cv);
-          const labels = axe.criteres.map(c => wrapLabel(c.label));
-          const dataJ  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
-          const dataS  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
+          const dataJ = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
+          const dataS = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
           const ch = new window.Chart(cv, {
             type:'radar',
-            data:{ labels, datasets:[
-              { label:'Joueur', data:dataJ, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', borderWidth:3, pointRadius:5 },
-              { label:'Staff',  data:dataS, backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  borderWidth:3, pointRadius:5 }
+            data:{ labels: axe.criteres.map(c => wrapLabel(c.label)), datasets:[
+              { data:dataJ, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', borderWidth:4, pointRadius:6 },
+              { data:dataS, backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  borderWidth:4, pointRadius:6 }
             ]},
             options:{ responsive:false, animation:false,
+              layout:{ padding:200 },
               plugins:{ legend:{ display:false } },
               scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
-                pointLabels:{ font:{ size:42, family:'Calibri,Arial' } } } }
+                pointLabels:{ font:{ size:36, family:'Calibri,Arial' } } } }
             }
           });
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-          groupImgs.push({ label: axe.label, img: cv.toDataURL('image/png') });
+          const img = cv.toDataURL('image/png');
           ch.destroy(); cv.remove();
+
+          // Placement individuel carré sur la slide
+          sRad.addImage({ data:img, x:xPos, y:yRadar, w:RW, h:RH });
         }
-        // Composite 1860×1980 (quasi-carré 0.94:1) — flex-wrap → grille 2×2 naturelle
-        const slideDiv = createOffscreen(1860);
-        slideDiv.innerHTML = `<div style="width:1860px;background:#F8FAFC;padding:20px;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:20px">
-          ${groupImgs.map(({ label, img }) => `
-            <div style="width:900px;background:#FFFFFF;border-radius:10px;padding:0 0 12px 0;display:flex;flex-direction:column;align-items:center;box-sizing:border-box">
-              <div style="height:60px;line-height:60px;font-size:28px;font-weight:700;color:#0A2463;font-family:Calibri,Arial;text-align:center;width:100%;padding:0 8px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</div>
-              <img src="${img}" style="width:900px;height:900px;object-fit:contain;display:block">
-            </div>`).join('')}
-          <div style="width:100%;text-align:center;padding:6px 0;font-size:18px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:24px">
-            <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:6px;vertical-align:middle"></span>Joueur</span>
-            <span><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:6px;vertical-align:middle"></span>Staff</span>
-          </div>
-        </div>`;
-        const rB64 = await captureDiv(slideDiv, 1860);
-        const sRad = prs.addSlide();
-        sRad.background = { color: BG };
-        const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
-        addHeader(sRad, `⚡ ${PROFIL_LABELS[_cAttId] || _cAttId} — RADARS PAR AXE${slideIdx}`, subHdr);
-        addCapture(sRad, rB64, 0.1, CONTENT_Y, 9.8, 5.625 - CONTENT_Y - 0.05, 'Radars non disponibles.');
+
+        // Légende
+        const legendY = y2r + RH + 0.05;
+        sRad.addText([
+          { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
+          { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
+        ], { x:0.1, y:legendY, w:9.8, h:0.2, align:'center', fontSize:9, fontFace:'Calibri' });
       }
     }
 
