@@ -787,6 +787,53 @@ async function exportCoachPPT() {
     // ── SLIDE 3 : Détail Attaque (1 slide, grille 2×2) ───────────────────
     if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
 
+    // ── SLIDE 3b : Radars par axe — Attaque uniquement (test) ────────────
+    if (_cAttId && CRITERIA[_cAttId]) {
+      const profAtt = CRITERIA[_cAttId];
+      const axeImgs = [];
+      for (const [, axe] of Object.entries(profAtt.axes)) {
+        const cv = document.createElement('canvas');
+        cv.width = 380; cv.height = 280;
+        cv.style.cssText = 'position:absolute;top:0;left:-9999px';
+        document.body.appendChild(cv);
+        const labels = axe.criteres.map(c => c.label.length > 18 ? c.label.slice(0,16)+'…' : c.label);
+        const dataJ  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
+        const dataS  = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
+        const ch = new window.Chart(cv, {
+          type:'radar',
+          data:{ labels, datasets:[
+            { label:'Joueur', data:dataJ, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', borderWidth:2, pointRadius:4 },
+            { label:'Staff',  data:dataS, backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  borderWidth:2, pointRadius:4 }
+          ]},
+          options:{ responsive:false, animation:false,
+            plugins:{ legend:{ display:false } },
+            scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
+              pointLabels:{ font:{ size:9, family:'Calibri,Arial' } } } }
+          }
+        });
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        axeImgs.push({ label: axe.label, img: cv.toDataURL('image/png') });
+        ch.destroy(); cv.remove();
+      }
+      const gridDiv = createOffscreen(960);
+      gridDiv.innerHTML = `<div style="width:960px;background:#F8FAFC;padding:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+        ${axeImgs.map(({ label, img }) => `
+          <div style="background:#FFFFFF;border-radius:8px;padding:8px 12px;text-align:center;width:440px">
+            <div style="font-size:13px;font-weight:700;color:#0A2463;margin-bottom:4px;font-family:Calibri,Arial">${escHtml(label)}</div>
+            <img src="${img}" style="width:380px;height:280px">
+          </div>`).join('')}
+        <div style="width:100%;text-align:center;padding:4px 0 2px;font-size:11px;font-family:Calibri,Arial;color:#475569;display:flex;justify-content:center;gap:16px">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8);margin-right:4px"></span>Joueur</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8);margin-right:4px"></span>Staff</span>
+        </div>
+      </div>`;
+      const rGridB64 = await captureDiv(gridDiv, 960);
+      const sRad = prs.addSlide();
+      sRad.background = { color: BG };
+      addHeader(sRad, `⚡ ${PROFIL_LABELS[_cAttId] || _cAttId} — RADARS PAR AXE`, subHdr);
+      addCapture(sRad, rGridB64, 0.1, CONTENT_Y, 9.8, 5.625 - CONTENT_Y - 0.05, 'Radars non disponibles.');
+    }
+
     // ── SLIDE 4 : Détail Défense (1 slide, si non GB) ────────────────────
     if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
 
