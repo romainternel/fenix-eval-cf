@@ -778,35 +778,26 @@ async function exportCoachPPT() {
       addCapture(s2, b64Def, 5.0, 1.35, 4.6, 3.9, 'Tableau Def non disponible.');
     }
 
-    // ── Helper capture axes 2×2 ───────────────────────────────────────────
-    async function addAxesSlide(profilId, slideTitle) {
+    // ── Helper : 1 slide par axe (pleine largeur) ────────────────────────
+    async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
-      const axeIds = Object.keys(profil.axes);
-      const positions = [
-        { x:0.2, y:1.35 }, { x:5.0, y:1.35 },
-        { x:0.2, y:3.35 }, { x:5.0, y:3.35 },
-      ];
-      const slide = prs.addSlide();
-      slide.background = { color: BG };
-      addHeader(slide, slideTitle, subHdr);
-      for (let i = 0; i < axeIds.length && i < 4; i++) {
-        const div = createOffscreen(600);
-        div.innerHTML = buildAxisDetailHTML(profilId, axeIds[i]);
-        const b64 = await captureDiv(div, 600);
-        if (b64 && positions[i]) {
-          slide.addImage({ data: b64,
-            x: positions[i].x, y: positions[i].y, w: 4.6, h: 1.9,
-            sizing: { type:'contain', w:4.6, h:1.9 } });
-        }
+      for (const [axeId, axe] of Object.entries(profil.axes)) {
+        const div = createOffscreen(950);
+        div.innerHTML = buildAxisDetailHTML(profilId, axeId);
+        const b64 = await captureDiv(div, 950);
+        const slide = prs.addSlide();
+        slide.background = { color: BG };
+        addHeader(slide, `${slidePrefix} — ${axe.label}`, subHdr);
+        addCapture(slide, b64, 0.3, 1.35, 9.4, 4.1, axe.label + ' non disponible.');
       }
     }
 
-    // ── SLIDE 3 : Axes Attaque ────────────────────────────────────────────
-    if (_cAttId) await addAxesSlide(_cAttId, _cPdfIsGb ? '🧤 DÉTAIL GARDIEN' : '⚡ DÉTAIL ATTAQUE');
+    // ── SLIDES 3+ : Axes Attaque (1 slide par axe) ───────────────────────
+    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
 
-    // ── SLIDE 4 : Axes Défense (si non GB) ───────────────────────────────
-    if (!_cPdfIsGb && _cDefId) await addAxesSlide(_cDefId, '🛡 DÉTAIL DÉFENSE');
+    // ── SLIDES suivantes : Axes Défense (si non GB) ───────────────────────
+    if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
 
     // ── SLIDE 5 : CR entretien ────────────────────────────────────────────
     const s5 = prs.addSlide();
