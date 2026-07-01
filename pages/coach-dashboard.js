@@ -713,7 +713,7 @@ async function exportCoachPPT() {
       if (logoCircleB64) slide.addImage({ data:logoCircleB64, x:9.47, y:0.03, w:0.42, h:0.42 });
     }
 
-    const CONTENT_Y = 0.55; // y contenu (header 0.48" + gap 0.07")
+    const CONTENT_Y = 0.50; // y contenu (header 0.48" + gap 0.02")
 
     async function captureEl(id, bg) {
       const el = gid(id);
@@ -729,7 +729,7 @@ async function exportCoachPPT() {
 
     function createOffscreen(width) {
       const div = document.createElement('div');
-      div.style.cssText = `position:fixed;top:-9999px;left:0;width:${width}px;background:#FFFFFF;z-index:-1`;
+      div.style.cssText = `position:absolute;top:0;left:-${width + 200}px;width:${width}px;background:#FFFFFF`;
       document.body.appendChild(div);
       return div;
     }
@@ -808,15 +808,28 @@ async function exportCoachPPT() {
         const d    = (avgJ && avgS) ? +(parseFloat(avgJ) - parseFloat(avgS)).toFixed(1) : null;
         const dBg  = d === null ? '#F1F5F9' : d > 0 ? '#D1FAE5' : d < 0 ? '#FEE2E2' : '#F1F5F9';
         const dCol = d === null ? '#94A3B8' : d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
-        const pill = (val, bg, col) => val !== null
-          ? `<span style="display:inline-block;min-width:54px;padding:4px 12px;border-radius:24px;background:${bg};color:${col};font-size:20px;font-weight:800;text-align:center">${val}</span>`
+        const LVL = {
+          1:{bg:'#FEE2E2',col:'#991B1B',lbl:'Fragile'},
+          2:{bg:'#FEF3C7',col:'#92400E',lbl:'En travail'},
+          3:{bg:'#D1FAE5',col:'#065F46',lbl:'Acquis'},
+          4:{bg:'#DBEAFE',col:'#1E40AF',lbl:'Maîtrisé'},
+          5:{bg:'#EDE9FE',col:'#5B21B6',lbl:'Référence'},
+        };
+        const levelPill = avg => {
+          if (avg === null) return `<span style="color:#94A3B8;font-size:18px">—</span>`;
+          const n = Math.min(5, Math.max(1, Math.round(parseFloat(avg))));
+          const c = LVL[n];
+          return `<span style="display:inline-block;min-width:86px;padding:4px 10px;border-radius:24px;background:${c.bg};color:${c.col};font-size:13px;font-weight:800;text-align:center">${c.lbl}</span>`;
+        };
+        const dPill = (val, bg, col) => val !== null
+          ? `<span style="display:inline-block;min-width:44px;padding:4px 10px;border-radius:24px;background:${bg};color:${col};font-size:17px;font-weight:800;text-align:center">${val}</span>`
           : `<span style="color:#94A3B8;font-size:18px">—</span>`;
         const dStr = d !== null ? (d > 0 ? '+' + d : String(d)) : null;
         return `<tr style="border-bottom:1px solid #E2E8F0;height:${rowHr}px">
           <td style="padding:6px 18px;font-size:17px;font-weight:700;color:#0F172A;vertical-align:middle">${escHtml(axe.label)}</td>
-          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(avgJ,'#DBEAFE','#1E40AF')}</td>
-          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(avgS,'#FEF3C7','#92400E')}</td>
-          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(dStr, dBg, dCol)}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${levelPill(avgJ)}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${levelPill(avgS)}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${dPill(dStr, dBg, dCol)}</td>
         </tr>`;
       }).join('');
       return `<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column">
@@ -863,50 +876,51 @@ async function exportCoachPPT() {
         5:{bg:'#EDE9FE',txt:'#5B21B6',brd:'#C4B5FD',lbl:'Référence'},
       };
       const pill = n => n > 0
-        ? `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:${N_CLR[n].bg};color:${N_CLR[n].txt};font-size:13px;font-weight:700;border:1px solid ${N_CLR[n].brd}">${N_CLR[n].lbl}</span>`
-        : `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:#F1F5F9;color:#94A3B8;font-size:13px;font-weight:600;border:1px solid #E2E8F0">—</span>`;
+        ? `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${N_CLR[n].bg};color:${N_CLR[n].txt};font-size:13px;font-weight:700;border:1px solid ${N_CLR[n].brd}">${N_CLR[n].lbl}</span>`
+        : `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:#F1F5F9;color:#94A3B8;font-size:13px;font-weight:600;border:1px solid #E2E8F0">—</span>`;
       const ecartPill = (nj, ns) => {
         if (!nj || !ns) return `<span style="color:#94A3B8;font-size:13px">—</span>`;
         const d = nj - ns;
         const bg  = d > 0 ? '#D1FAE5' : d < 0 ? '#FEE2E2' : '#F1F5F9';
         const col = d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
         const brd = d > 0 ? '#6EE7B7' : d < 0 ? '#FECACA' : '#E2E8F0';
-        return `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:${bg};color:${col};font-size:13px;font-weight:700;border:1px solid ${brd}">${d > 0 ? '+' : ''}${d}</span>`;
+        return `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${bg};color:${col};font-size:13px;font-weight:700;border:1px solid ${brd}">${d > 0 ? '+' : ''}${d}</span>`;
       };
 
       const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
-      // CW/CH calculé depuis la boîte PPT réelle (CONTENT_Y à 5.615") → ratio exact
+      // CW/CH depuis la boîte PPT réelle, ratio exact
       const CW = 1960;
-      const BOX_H = 5.625 - CONTENT_Y - 0.01; // ≈ 5.065"
-      const CH  = Math.round(CW * BOX_H / 9.8); // ≈ 1013px
-      const PAD = 12, HDR_H = 40, AXE_H = 32;
-      const STATIC_H = HDR_H + axeEntries.length * AXE_H; // sans padding
+      const BOX_H = 5.625 - CONTENT_Y - 0.005; // ≈ 5.12"
+      const CH  = Math.round(CW * BOX_H / 9.8); // ≈ 1024px
+      const PAD = 12, HDR_H = 40, AXE_H = 26;
+      // STATIC_H compte la hauteur réelle : thead (HDR_H+pad7×2=54px) + axes (AXE_H+pad3×2=32px chacun)
+      const STATIC_H = (HDR_H + 14) + axeEntries.length * (AXE_H + 6);
       const CONTAINER = CH - PAD * 2;
-      // Hauteur réelle d'une cellule : contenu (label+desc+margin+padding) + 1px border
-      const CELL_DESC   = 37; // 17(label)+1(mt)+12(desc)+6(pad)+1(border)
-      const CELL_NODESC = 24; // 17(label)+6(pad)+1(border)
+      // td sans padding vertical → hauteur td = height: attribut ; + 1px border-bottom
+      const CELL_DESC   = 37; // 36(height:36, pad:0)+1(border)
+      const CELL_NODESC = 23; // 22(height:22, pad:0, pill→22px)+1(border)
       const showDesc = (STATIC_H + totalCriteres * CELL_DESC + 20) <= CONTAINER;
-      const rowH    = showDesc ? 36 : 22; // rowH = contenu sans border
+      const rowH    = showDesc ? 36 : 22; // height: td, sans padding vertical
       const fzLabel = showDesc ? 13 : 12;
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
         const axe = CRITERIA[profilId].axes[axeId];
         tbody += `<tr style="background:#0A2463">
-          <td colspan="4" style="padding:5px 18px;color:#FFFFFF;font-size:14px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
+          <td colspan="4" style="padding:3px 18px;color:#FFFFFF;font-size:14px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
         </tr>`;
         axe.criteres.forEach((c, i) => {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
           const rowBg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
           tbody += `<tr style="background:${rowBg};border-bottom:1px solid #E2E8F0">
-            <td style="padding:3px 18px;height:${rowH}px;vertical-align:middle">
+            <td style="padding:0 18px;height:${rowH}px;vertical-align:middle">
               <div style="font-size:${fzLabel}px;font-weight:600;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3">${escHtml(c.label)}</div>
               ${showDesc ? `<div style="font-size:10px;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin-top:1px">${escHtml(c.texte)}</div>` : ''}
             </td>
-            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(nj)}</td>
-            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(ns)}</td>
-            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${ecartPill(nj, ns)}</td>
+            <td style="padding:0 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(nj)}</td>
+            <td style="padding:0 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(ns)}</td>
+            <td style="padding:0 12px;text-align:center;height:${rowH}px;vertical-align:middle">${ecartPill(nj, ns)}</td>
           </tr>`;
         });
       }
