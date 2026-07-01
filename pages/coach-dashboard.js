@@ -778,25 +778,81 @@ async function exportCoachPPT() {
       addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
     }
 
-    // ── Helper : 1 slide par profil, grille 2×2 via buildAxisDetailHTML ──
+    // ── Helper : 1 slide par profil, 2 colonnes × 2 axes inline ─────────
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       const axeEntries = Object.entries(profil.axes).slice(0, 4);
       if (!axeEntries.length) return;
 
-      const CW = 950, CH = 475;
-      const PAD = 8, GAP = 8;
-      const cellW = Math.floor((CW - PAD * 2 - GAP) / 2);
-      const cellH = Math.floor((CH - PAD * 2 - GAP) / 2);
+      const N_CLR = {
+        1:{bg:'#991B1B',ring:'#FBBFBF',txt:'#991B1B',lbl:'Fragile'},
+        2:{bg:'#92400E',ring:'#FCD34D',txt:'#92400E',lbl:'En travail'},
+        3:{bg:'#065F46',ring:'#6EE7B7',txt:'#065F46',lbl:'Acquis'},
+        4:{bg:'#1E40AF',ring:'#93C5FD',txt:'#1E40AF',lbl:'Maîtrisé'},
+        5:{bg:'#5B21B6',ring:'#C4B5FD',txt:'#5B21B6',lbl:'Référence'},
+      };
+      const dot = n => n > 0
+        ? `<div style="width:24px;height:24px;border-radius:50%;background:${N_CLR[n].bg};box-shadow:0 0 0 2px ${N_CLR[n].ring};flex-shrink:0"></div>`
+        : `<div style="width:24px;height:24px;border-radius:50%;background:#F1F5F9;box-shadow:0 0 0 2px #E2E8F0;flex-shrink:0"></div>`;
+      const lbl = n => n > 0
+        ? `<span style="font-size:8px;font-weight:700;color:${N_CLR[n].txt};text-align:center;line-height:1">${N_CLR[n].lbl}</span>`
+        : `<span style="font-size:8px;color:#94A3B8;line-height:1">—</span>`;
+      const scol = (who, n) => `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:54px;flex-shrink:0">
+          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">${who}</span>
+          ${dot(n)}${lbl(n)}
+        </div>`;
+      const ecart = (nj, ns) => {
+        if (!nj || !ns) return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:40px;flex-shrink:0">
+          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
+          <div style="width:24px;height:24px;border-radius:12px;background:#F1F5F9;display:flex;align-items:center;justify-content:center">
+            <span style="font-size:9px;color:#94A3B8">—</span>
+          </div>
+        </div>`;
+        const d = nj - ns;
+        const bg = d > 0 ? '#DCFCE7' : d < 0 ? '#FEE2E2' : '#F1F5F9';
+        const col = d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:40px;flex-shrink:0">
+          <span style="font-size:8px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
+          <div style="width:24px;height:24px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center">
+            <span style="font-size:10px;font-weight:700;color:${col}">${d > 0 ? '+' : ''}${d}</span>
+          </div>
+        </div>`;
+      };
+      const card = entry => {
+        if (!entry) return '<div style="flex:1;min-height:0"></div>';
+        const [axeId] = entry;
+        const axe = CRITERIA[profilId].axes[axeId];
+        const rows = axe.criteres.map(c => {
+          const nj = _coachEvalMap[c.id]?.note_joueur || 0;
+          const ns = _coachEvalMap[c.id]?.note_staff  || 0;
+          return `<div style="flex:1;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E2E8F0;padding:3px 0;min-height:0">
+            <div style="flex:1;min-width:0;overflow:hidden">
+              <div style="font-size:11px;font-weight:700;color:#0A2463;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.label)}</div>
+              <div style="font-size:9px;color:#64748B;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${escHtml(c.texte)}</div>
+            </div>
+            ${scol('Joueur', nj)}${scol('Staff', ns)}${ecart(nj, ns)}
+          </div>`;
+        }).join('');
+        return `<div style="flex:1;background:#FFFFFF;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.12);display:flex;flex-direction:column;overflow:hidden;min-height:0">
+          <div style="background:#0A2463;color:#FFFFFF;padding:6px 10px;font-size:12px;font-weight:700;font-family:Calibri,Arial,sans-serif;flex-shrink:0;letter-spacing:.03em">${escHtml(axe.label)}</div>
+          <div style="flex:1;display:flex;flex-direction:column;padding:6px 10px;overflow:hidden">
+            ${rows}
+          </div>
+        </div>`;
+      };
 
+      const CW = 1880, CH = 940;
       const div = createOffscreen(CW);
       div.innerHTML = `
-        <div style="display:flex;flex-wrap:wrap;width:${CW}px;height:${CH}px;padding:${PAD}px;gap:${GAP}px;background:#F8FAFC;box-sizing:border-box;align-content:flex-start">
-          ${axeEntries.map(([axeId]) => `
-            <div style="width:${cellW}px;height:${cellH}px;overflow:hidden;background:#FFFFFF;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
-              ${buildAxisDetailHTML(profilId, axeId)}
-            </div>`).join('')}
+        <div style="width:${CW}px;height:${CH}px;display:flex;gap:10px;padding:10px;background:#F8FAFC;box-sizing:border-box">
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:0">
+            ${card(axeEntries[0])}${card(axeEntries[2])}
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:0">
+            ${card(axeEntries[1])}${card(axeEntries[3])}
+          </div>
         </div>`;
 
       const b64 = await captureDiv(div, CW, CH);
