@@ -681,9 +681,9 @@ async function exportCoachPPT() {
     function addHeader(slide, title, subtitle) {
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.06, fill:{ color:GOLD } });
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.72, fill:{ color:NAVY } });
-      slide.addText(title,    { x:0.3, y:0.07, w:8.3, fontSize:16, bold:true,  color:WHITE, fontFace:'Calibri' });
-      slide.addText(subtitle, { x:0.3, y:0.45, w:8.3, fontSize:9,  bold:false, color:GOLD,  fontFace:'Calibri' });
-      if (logoB64) slide.addImage({ data:logoB64, x:9.05, y:0.1, w:0.72, h:0.52 });
+      slide.addText(title,    { x:0.3, y:0.06, w:8.3, fontSize:18, bold:true,  color:WHITE, fontFace:'Calibri' });
+      slide.addText(subtitle, { x:0.3, y:0.43, w:8.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri' });
+      if (logoB64) slide.addImage({ data:logoB64, x:9.05, y:0.09, w:0.72, h:0.54 });
     }
 
     async function captureEl(id, bg) {
@@ -765,24 +765,65 @@ async function exportCoachPPT() {
     addHeader(s1, 'FENIX Eval CF', subHdr);
     addCapture(s1, radarB64, 0.3, 0.8, 9.4, 4.72, 'Radars non disponibles.');
 
-    // ── SLIDE 2 : Résumé Att + Def côte à côte ───────────────────────────
+    // ── SLIDE 2 : Résumé axes (off-screen 940×472 = ratio 2:1) ──────────
+    const buildRecapBlock = (profilId, title) => {
+      const profil = CRITERIA[profilId];
+      if (!profil) return '';
+      const axEntries = Object.entries(profil.axes);
+      const rowHr = Math.max(46, Math.floor((472 - 44 - 34 - 24) / axEntries.length));
+      const rows = axEntries.map(([, axe]) => {
+        const jNs = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0).filter(n => n > 0);
+        const sNs = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0).filter(n => n > 0);
+        const avgJ = jNs.length ? (jNs.reduce((a,b)=>a+b,0)/jNs.length).toFixed(1) : null;
+        const avgS = sNs.length ? (sNs.reduce((a,b)=>a+b,0)/sNs.length).toFixed(1) : null;
+        const d    = (avgJ && avgS) ? +(parseFloat(avgJ) - parseFloat(avgS)).toFixed(1) : null;
+        const dBg  = d === null ? '#F1F5F9' : d > 0 ? '#D1FAE5' : d < 0 ? '#FEE2E2' : '#F1F5F9';
+        const dCol = d === null ? '#94A3B8' : d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
+        const pill = (val, bg, col) => val !== null
+          ? `<span style="display:inline-block;min-width:54px;padding:4px 12px;border-radius:24px;background:${bg};color:${col};font-size:20px;font-weight:800;text-align:center">${val}</span>`
+          : `<span style="color:#94A3B8;font-size:18px">—</span>`;
+        const dStr = d !== null ? (d > 0 ? '+' + d : String(d)) : null;
+        return `<tr style="border-bottom:1px solid #E2E8F0;height:${rowHr}px">
+          <td style="padding:6px 18px;font-size:17px;font-weight:700;color:#0F172A;vertical-align:middle">${escHtml(axe.label)}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(avgJ,'#DBEAFE','#1E40AF')}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(avgS,'#FEF3C7','#92400E')}</td>
+          <td style="padding:6px 10px;text-align:center;vertical-align:middle">${pill(dStr, dBg, dCol)}</td>
+        </tr>`;
+      }).join('');
+      return `<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column">
+        <div style="background:#0A2463;color:#FFFFFF;padding:8px 18px;font-size:17px;font-weight:700;font-family:Calibri,Arial,sans-serif;flex-shrink:0;letter-spacing:.04em">${title}</div>
+        <div style="background:#1E293B;display:flex;flex-shrink:0">
+          <div style="flex:1;padding:5px 18px;font-size:11px;font-weight:700;color:#CBD5E1;text-transform:uppercase;letter-spacing:.07em">Axe thématique</div>
+          <div style="width:96px;padding:5px;text-align:center;font-size:11px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em">Joueur</div>
+          <div style="width:96px;padding:5px;text-align:center;font-size:11px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em">Staff</div>
+          <div style="width:96px;padding:5px;text-align:center;font-size:11px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em">Écart</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex:1">
+          <colgroup><col style="width:auto"><col style="width:96px"><col style="width:96px"><col style="width:96px"></colgroup>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    };
+    const s2Div = createOffscreen(940);
+    s2Div.innerHTML = `<div style="width:940px;height:472px;display:flex;gap:12px;padding:12px;background:#F8FAFC;box-sizing:border-box;overflow:hidden">
+      ${_cAttId ? buildRecapBlock(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE') : ''}
+      ${(!_cPdfIsGb && _cDefId) ? buildRecapBlock(_cDefId, '🛡 DÉFENSE') : ''}
+    </div>`;
+    const s2B64 = await captureDiv(s2Div, 940, 472);
     const s2 = prs.addSlide();
     s2.background = { color: BG };
     addHeader(s2, _cPdfIsGb ? '🧤 RÉSUMÉ GARDIEN' : '📊 RÉSUMÉ', subHdr);
-    const b64Att = await captureEl('pptCaptureAtt', '#FFFFFF');
-    const b64Def = await captureEl('pptCaptureDef', '#FFFFFF');
-    if (_cPdfIsGb || !b64Def) {
-      addCapture(s2, b64Att, 2.5, 0.8, 5.0, 4.72, 'Tableau non disponible.');
+    if (s2B64) {
+      s2.addImage({ data: s2B64, x: 0.3, y: 0.8, w: 9.4, h: 4.72 });
     } else {
-      addCapture(s2, b64Att, 0.2, 0.8, 4.6, 4.72, 'Tableau Att non disponible.');
-      addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
+      s2.addText('Résumé non disponible.', { x: 0.5, y: 2.5, fontSize: 12, color: '94A3B8', fontFace: 'Calibri', italic: true });
     }
 
-    // ── Helper : 1 slide par profil, tableau full-page (Critère|J|S|Écart) ──
+    // ── Helper : 1 slide par profil, tableau full-page (Critère+desc|J|S|Écart) ──
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
-      const axeEntries = Object.entries(profil.axes).slice(0, 4);
+      const axeEntries = Object.entries(profil.axes);
       if (!axeEntries.length) return;
 
       const N_CLR = {
@@ -793,53 +834,57 @@ async function exportCoachPPT() {
         5:{bg:'#EDE9FE',txt:'#5B21B6',brd:'#C4B5FD',lbl:'Référence'},
       };
       const pill = n => n > 0
-        ? `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:${N_CLR[n].bg};color:${N_CLR[n].txt};font-size:14px;font-weight:700;border:1px solid ${N_CLR[n].brd}">${N_CLR[n].lbl}</span>`
-        : `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:#F1F5F9;color:#94A3B8;font-size:14px;font-weight:600;border:1px solid #E2E8F0">—</span>`;
+        ? `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:${N_CLR[n].bg};color:${N_CLR[n].txt};font-size:13px;font-weight:700;border:1px solid ${N_CLR[n].brd}">${N_CLR[n].lbl}</span>`
+        : `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:#F1F5F9;color:#94A3B8;font-size:13px;font-weight:600;border:1px solid #E2E8F0">—</span>`;
       const ecartPill = (nj, ns) => {
-        if (!nj || !ns) return `<span style="color:#94A3B8;font-size:14px">—</span>`;
+        if (!nj || !ns) return `<span style="color:#94A3B8;font-size:13px">—</span>`;
         const d = nj - ns;
         const bg  = d > 0 ? '#D1FAE5' : d < 0 ? '#FEE2E2' : '#F1F5F9';
         const col = d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
         const brd = d > 0 ? '#6EE7B7' : d < 0 ? '#FECACA' : '#E2E8F0';
-        return `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:${bg};color:${col};font-size:14px;font-weight:700;border:1px solid ${brd}">${d > 0 ? '+' : ''}${d}</span>`;
+        return `<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:${bg};color:${col};font-size:13px;font-weight:700;border:1px solid ${brd}">${d > 0 ? '+' : ''}${d}</span>`;
       };
 
       const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
-      const CW = 1960, CH = 975, PAD = 12, HDR_H = 42, AXE_H = 36;
-      const rowH = Math.max(30, Math.floor((CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H) / totalCriteres));
-      const fz   = rowH >= 44 ? 16 : rowH >= 36 ? 14 : 12;
+      const CW = 1960, CH = 975, PAD = 12, HDR_H = 40, AXE_H = 32;
+      const availH = CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H;
+      const rowH   = Math.max(26, Math.floor(availH / totalCriteres));
+      const showDesc = rowH >= 34;
+      const fzLabel = rowH >= 44 ? 14 : rowH >= 34 ? 13 : 12;
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
         const axe = CRITERIA[profilId].axes[axeId];
         tbody += `<tr style="background:#0A2463">
-          <td colspan="4" style="padding:6px 18px;color:#FFFFFF;font-size:15px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
+          <td colspan="4" style="padding:5px 18px;color:#FFFFFF;font-size:14px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
         </tr>`;
-        const even = { background:'#FFFFFF' }, odd = { background:'#F8FAFC' };
         axe.criteres.forEach((c, i) => {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
-          const bg = i % 2 === 0 ? even.background : odd.background;
-          tbody += `<tr style="background:${bg};border-bottom:1px solid #E2E8F0">
-            <td style="padding:4px 18px;font-size:${fz}px;font-weight:600;color:#0F172A;height:${rowH}px;vertical-align:middle">${escHtml(c.label)}</td>
-            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(nj)}</td>
-            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(ns)}</td>
-            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${ecartPill(nj, ns)}</td>
+          const rowBg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+          tbody += `<tr style="background:${rowBg};border-bottom:1px solid #E2E8F0">
+            <td style="padding:3px 18px;height:${rowH}px;vertical-align:middle">
+              <div style="font-size:${fzLabel}px;font-weight:600;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3">${escHtml(c.label)}</div>
+              ${showDesc ? `<div style="font-size:10px;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin-top:1px">${escHtml(c.texte)}</div>` : ''}
+            </td>
+            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(nj)}</td>
+            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(ns)}</td>
+            <td style="padding:3px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${ecartPill(nj, ns)}</td>
           </tr>`;
         });
       }
 
       const div = createOffscreen(CW);
       div.innerHTML = `
-        <div style="width:${CW}px;height:${CH}px;background:#F8FAFC;padding:${PAD}px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif">
+        <div style="width:${CW}px;height:${CH}px;background:#F8FAFC;padding:${PAD}px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif;overflow:hidden">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed">
-            <colgroup><col style="width:40%"><col style="width:20%"><col style="width:20%"><col style="width:20%"></colgroup>
+            <colgroup><col style="width:42%"><col style="width:19%"><col style="width:19%"><col style="width:20%"></colgroup>
             <thead>
               <tr style="background:#1E293B">
-                <th style="padding:8px 18px;text-align:left;font-size:14px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
-                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
-                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
-                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
+                <th style="padding:7px 18px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
+                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
+                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
+                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
               </tr>
             </thead>
             <tbody>${tbody}</tbody>
