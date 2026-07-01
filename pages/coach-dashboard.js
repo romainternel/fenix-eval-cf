@@ -664,7 +664,7 @@ async function exportCoachPPT() {
   try {
     let logoB64 = null;
     try {
-      const r = await fetch('assets/logo-transparent.jpeg');
+      const r = await fetch('assets/logo-fenix.png');
       const blob = await r.blob();
       logoB64 = await new Promise(res => {
         const reader = new FileReader();
@@ -683,7 +683,7 @@ async function exportCoachPPT() {
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:1.2,  fill:{ color:NAVY } });
       slide.addText(title,    { x:0.35, y:0.15, w:9.3, fontSize:20, bold:true,  color:WHITE, fontFace:'Calibri' });
       slide.addText(subtitle, { x:0.35, y:0.75, w:9.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri' });
-      if (logoB64) slide.addImage({ data:logoB64, x:9.0, y:5.1, w:0.7, h:0.4 });
+      if (logoB64) slide.addImage({ data:logoB64, x:9.0, y:5.0, w:0.75, h:0.45 });
     }
 
     async function captureEl(id, bg) {
@@ -698,56 +698,134 @@ async function exportCoachPPT() {
       } catch (_) { return null; }
     }
 
-    function addCapture(slide, b64, fallback) {
+    function createOffscreen(width) {
+      const div = document.createElement('div');
+      div.style.cssText = `position:fixed;top:-9999px;left:0;width:${width}px;background:#FFFFFF;z-index:-1`;
+      document.body.appendChild(div);
+      return div;
+    }
+
+    async function captureDiv(div, width) {
+      await Promise.all([...div.querySelectorAll('img')].map(img =>
+        img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+      ));
+      await new Promise(r => requestAnimationFrame(r));
+      let b64 = null;
+      try {
+        const cv = await window.html2canvas(div, {
+          scale: 2, useCORS: true, backgroundColor: '#FFFFFF', logging: false,
+          windowWidth: width, windowHeight: div.scrollHeight,
+        });
+        b64 = cv.toDataURL('image/png');
+      } catch (_) {}
+      div.remove();
+      return b64;
+    }
+
+    function addCapture(slide, b64, x, y, w, h, fallback) {
       if (b64) {
-        slide.addImage({ data:b64, x:0.3, y:1.35, w:9.4, h:4.1,
-          sizing: { type:'contain', w:9.4, h:4.1 } });
-      } else {
-        slide.addText(fallback, { x:0.5, y:2, fontSize:12,
+        slide.addImage({ data: b64, x, y, w, h, sizing: { type:'contain', w, h } });
+      } else if (fallback) {
+        slide.addText(fallback, { x: x + 0.2, y: y + 0.5, fontSize:11,
           color:'94A3B8', fontFace:'Calibri', italic:true });
       }
     }
 
-    const s1 = prs.addSlide();
-    s1.background = { color: NAVY };
-    s1.addShape(prs.ShapeType.rect, { x:0, y:0, w:10,   h:0.15,  fill:{ color:GOLD } });
-    s1.addShape(prs.ShapeType.rect, { x:0, y:0, w:0.15, h:5.625, fill:{ color:GOLD } });
-    s1.addText('FENIX Eval CF', { x:0.4, y:0.3,  w:8, fontSize:28, bold:true,  color:WHITE, fontFace:'Calibri' });
-    s1.addText(subHdr,          { x:0.4, y:0.85, w:8, fontSize:14, bold:false, color:GOLD,  fontFace:'Calibri' });
+    // ── SLIDE 1 : Radars fond blanc ───────────────────────────────────────
     const defCanvas = gid('radarDef');
-    if (!_cPdfIsGb && defCanvas) {
-      s1.addImage({ data: attCanvas.toDataURL('image/png'), x:0.4, y:1.3, w:4.2, h:3.8 });
-      s1.addImage({ data: defCanvas.toDataURL('image/png'), x:5.4, y:1.3, w:4.2, h:3.8 });
-    } else {
-      s1.addImage({ data: attCanvas.toDataURL('image/png'), x:2.9, y:1.3, w:4.2, h:3.8 });
-    }
-    s1.addText('● Joueur', { x:0.4, y:5.1, fontSize:9, color:'3B82F6', fontFace:'Calibri' });
-    s1.addText('● Staff',  { x:1.5, y:5.1, fontSize:9, color:'F97316', fontFace:'Calibri' });
-    if (logoB64) s1.addImage({ data:logoB64, x:8.8, y:4.9, w:0.9, h:0.5 });
-    s1.addShape(prs.ShapeType.rect, { x:0, y:5.3, w:10, h:0.325, fill:{ color:NAVY } });
+    const attTitle  = `${_cPdfIsGb ? '🧤' : '⚡'} ${PROFIL_LABELS[_cAttId] || _cAttId}`;
+    const defTitle  = defCanvas ? `🛡 ${PROFIL_LABELS[_cDefId] || _cDefId}` : '';
+    const attImg    = attCanvas.toDataURL('image/png');
+    const defImg    = (defCanvas && !_cPdfIsGb) ? defCanvas.toDataURL('image/png') : null;
 
+    const radarDiv = createOffscreen(900);
+    radarDiv.innerHTML = `
+      <div style="display:flex;gap:16px;justify-content:center;padding:16px">
+        <div style="flex:1;text-align:center">
+          <p style="font-size:13px;font-weight:700;color:#1E293B;margin:0 0 8px">${attTitle}</p>
+          <img src="${attImg}" style="width:100%;max-width:380px">
+        </div>
+        ${defImg ? `<div style="flex:1;text-align:center">
+          <p style="font-size:13px;font-weight:700;color:#1E293B;margin:0 0 8px">${defTitle}</p>
+          <img src="${defImg}" style="width:100%;max-width:380px">
+        </div>` : ''}
+      </div>
+      <div style="display:flex;gap:16px;padding:0 16px 16px;font-size:11px;color:#475569">
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Joueur
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff
+        </div>
+      </div>`;
+    const radarB64 = await captureDiv(radarDiv, 900);
+
+    const s1 = prs.addSlide();
+    s1.background = { color: BG };
+    addHeader(s1, 'FENIX Eval CF', subHdr);
+    addCapture(s1, radarB64, 0.3, 1.35, 9.4, 3.9, 'Radars non disponibles.');
+
+    // ── SLIDE 2 : Résumé Att + Def côte à côte ───────────────────────────
     const s2 = prs.addSlide();
     s2.background = { color: BG };
-    addHeader(s2, _cPdfIsGb ? '🧤 GARDIEN DE BUT' : '⚡ ATTAQUE', subHdr);
-    addCapture(s2, await captureEl('pptCaptureAtt', '#FFFFFF'), 'Tableau non disponible.');
-
-    if (!_cPdfIsGb && _cDefId) {
-      const s3 = prs.addSlide();
-      s3.background = { color: BG };
-      addHeader(s3, '🛡 DÉFENSE', subHdr);
-      addCapture(s3, await captureEl('pptCaptureDef', '#FFFFFF'), 'Tableau non disponible.');
+    addHeader(s2, _cPdfIsGb ? '🧤 RÉSUMÉ GARDIEN' : '📊 RÉSUMÉ', subHdr);
+    const b64Att = await captureEl('pptCaptureAtt', '#FFFFFF');
+    const b64Def = await captureEl('pptCaptureDef', '#FFFFFF');
+    if (_cPdfIsGb || !b64Def) {
+      addCapture(s2, b64Att, 2.5, 1.35, 5.0, 3.9, 'Tableau non disponible.');
+    } else {
+      addCapture(s2, b64Att, 0.2, 1.35, 4.6, 3.9, 'Tableau Att non disponible.');
+      addCapture(s2, b64Def, 5.0, 1.35, 4.6, 3.9, 'Tableau Def non disponible.');
     }
 
-    const s4 = prs.addSlide();
-    s4.background = { color: BG };
-    addHeader(s4, '📋 COMPTE-RENDU D\'ENTRETIEN', subHdr);
+    // ── Helper capture axes 2×2 ───────────────────────────────────────────
+    async function addAxesSlide(profilId, slideTitle) {
+      const profil = CRITERIA[profilId];
+      if (!profil) return;
+      const axeIds = Object.keys(profil.axes);
+      const positions = [
+        { x:0.2, y:1.35 }, { x:5.0, y:1.35 },
+        { x:0.2, y:3.35 }, { x:5.0, y:3.35 },
+      ];
+      const slide = prs.addSlide();
+      slide.background = { color: BG };
+      addHeader(slide, slideTitle, subHdr);
+      for (let i = 0; i < axeIds.length && i < 4; i++) {
+        const div = createOffscreen(600);
+        div.innerHTML = buildAxisDetailHTML(profilId, axeIds[i]);
+        const b64 = await captureDiv(div, 600);
+        if (b64 && positions[i]) {
+          slide.addImage({ data: b64,
+            x: positions[i].x, y: positions[i].y, w: 4.6, h: 1.9,
+            sizing: { type:'contain', w:4.6, h:1.9 } });
+        }
+      }
+    }
+
+    // ── SLIDE 3 : Axes Attaque ────────────────────────────────────────────
+    if (_cAttId) await addAxesSlide(_cAttId, _cPdfIsGb ? '🧤 DÉTAIL GARDIEN' : '⚡ DÉTAIL ATTAQUE');
+
+    // ── SLIDE 4 : Axes Défense (si non GB) ───────────────────────────────
+    if (!_cPdfIsGb && _cDefId) await addAxesSlide(_cDefId, '🛡 DÉTAIL DÉFENSE');
+
+    // ── SLIDE 5 : CR entretien ────────────────────────────────────────────
+    const s5 = prs.addSlide();
+    s5.background = { color: BG };
+    addHeader(s5, '📋 COMPTE-RENDU D\'ENTRETIEN', subHdr);
     const crVide = !['crAxesAtt','crAxesDef','crCT','crMT','crNotes']
       .some(id => gid(id)?.value?.trim());
     if (crVide) {
-      s4.addText('Aucun compte-rendu saisi.', { x:0.5, y:2, fontSize:12,
+      s5.addText('Aucun compte-rendu saisi.', { x:0.5, y:2, fontSize:12,
         color:'94A3B8', fontFace:'Calibri', italic:true });
     } else {
-      addCapture(s4, await captureEl('pptCaptureCR', '#F8FAFC'), 'Compte-rendu non disponible.');
+      const crB64 = await captureEl('pptCaptureCR', '#F8FAFC');
+      if (crB64) {
+        s5.addImage({ data:crB64, x:0.3, y:1.35, w:9.4, h:4.1,
+          sizing:{ type:'contain', w:9.4, h:4.1 } });
+      } else {
+        s5.addText('Compte-rendu non disponible.', { x:0.5, y:2, fontSize:12,
+          color:'94A3B8', fontFace:'Calibri', italic:true });
+      }
     }
 
     const safe = (`${_cPdfNom}_${_cPdfSession}`).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -801,16 +879,9 @@ function _axesBtns(profilId) {
   ).join('');
 }
 
-function showAxisDetail(profilId, axeId) {
+function buildAxisDetailHTML(profilId, axeId) {
   const axe = CRITERIA[profilId]?.axes[axeId];
-  if (!axe) return;
-
-  document.querySelectorAll('.recap-row').forEach(r => r.classList.remove('active'));
-  document.querySelectorAll('.recap-theme-btn').forEach(b => b.classList.remove('active'));
-  const activeRow = document.querySelector(`.recap-row[data-recap="${profilId}-${axeId}"]`);
-  activeRow?.classList.add('active');
-  activeRow?.querySelector('.recap-theme-btn')?.classList.add('active');
-
+  if (!axe) return '';
   const rows = axe.criteres.map(c => {
     const nj = _coachEvalMap[c.id]?.note_joueur || 0;
     const ns = _coachEvalMap[c.id]?.note_staff  || 0;
@@ -843,17 +914,24 @@ function showAxisDetail(profilId, axeId) {
         </div>
       </div>`;
   }).join('');
+  return `
+    <div class="card-body" style="padding:12px">
+      <p class="section-title" style="margin-bottom:8px;font-size:12px">${escHtml(axe.label)}</p>
+      ${rows}
+    </div>`;
+}
 
+function showAxisDetail(profilId, axeId) {
+  const axe = CRITERIA[profilId]?.axes[axeId];
+  if (!axe) return;
+  document.querySelectorAll('.recap-row').forEach(r => r.classList.remove('active'));
+  document.querySelectorAll('.recap-theme-btn').forEach(b => b.classList.remove('active'));
+  const activeRow = document.querySelector(`.recap-row[data-recap="${profilId}-${axeId}"]`);
+  activeRow?.classList.add('active');
+  activeRow?.querySelector('.recap-theme-btn')?.classList.add('active');
   const detailEl = gid('axisDetail');
   detailEl.style.display = 'block';
-  detailEl.innerHTML = `
-    <div class="card" style="margin-top:12px">
-      <div class="card-body">
-        <p class="section-title" style="margin-bottom:10px">${escHtml(axe.label)}</p>
-        ${noteLegendHTML()}
-        ${rows}
-      </div>
-    </div>`;
+  detailEl.innerHTML = `<div class="card" style="margin-top:12px">${buildAxisDetailHTML(profilId, axeId)}</div>`;
   detailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 

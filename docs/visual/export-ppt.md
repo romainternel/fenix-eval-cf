@@ -1,232 +1,166 @@
-# Visual Crafter — Refonte export PPT par capture d'écran
+# Visual Crafter — Refonte export PPT v2
 
-> Agent : Visual Crafter | Date : 2026-06-30 (refonte STORY-12)
-
----
-
-## Contexte
-
-Le contenu visuel des slides vient directement de l'app (captures html2canvas) — pas de nouveau token à concevoir pour le contenu. Mon travail porte sur les options html2canvas pour la fidélité visuelle, le rendu des en-têtes, et le sizing des images dans les slides.
+> Agent : Visual Crafter | Date : 2026-07-01
 
 ---
 
-## 1. Options html2canvas recommandées
-
-```javascript
-const captureOpts = {
-  scale: 2,                    // 2x rétina — évite le flou dans PowerPoint
-  useCORS: true,               // pour les images dans le DOM
-  backgroundColor: '#FFFFFF',  // résout les CSS var() non résolues
-  logging: false,
-  windowWidth: el.scrollWidth,
-  windowHeight: el.scrollHeight,
-};
-```
-
-> Pour la section entretien (fond légèrement gris) : `backgroundColor: '#F8FAFC'`
-
----
-
-## 2. En-têtes slides (PptxGenJS — conservés de STORY-12)
+## 1. En-têtes slides (PptxGenJS — inchangés)
 
 | Élément | Valeur |
 |---------|--------|
-| Bande top | Gold `#C8A84B`, h:0.12" |
+| Bande gold top | `#C8A84B`, h:0.12" |
 | Fond header | Navy `#0A2463`, h:1.2" |
 | Titre | Calibri 20pt bold, `#FFFFFF`, x:0.35 y:0.15 |
 | Sous-titre | Calibri 10pt, `#C8A84B`, x:0.35 y:0.75 |
-| Logo | x:9.0, y:5.1, w:0.7, h:0.4 |
 
 ---
 
-## 3. Placement images capturées dans les slides
+## 2. Logo
 
-### Slides 2, 3, 4 (contenu sous l'en-tête 1.2")
+**`logo-fenix.png`** — chaque slide, coin bas-droit, fetché en base64 comme logo-transparent :
+```
+x:9.0, y:5.0, w:0.75, h:0.45
+```
+Fond opaque → pas de problème de blending sur fond blanc ou navy.
+
+---
+
+## 3. Slide 1 — Conteneur radar reconstruit
+
+Le conteneur off-screen injecté en JS doit avoir le style suivant pour reproduire fidèlement la vue app :
 
 ```javascript
-slide.addImage({
-  data: imgB64,
-  x: 0.3, y: 1.35, w: 9.4, h: 4.1,
-  sizing: { type: 'contain', w: 9.4, h: 4.1 }
-});
+const container = document.createElement('div');
+container.style.cssText = `
+  position: fixed; top: -9999px; left: 0;
+  width: 900px; background: #FFFFFF; padding: 16px;
+  font-family: 'Inter', sans-serif;
+`;
 ```
 
-`sizing: contain` = le tableau tient dans la zone quelle que soit sa hauteur, sans déformer.
-
-### Slide 1 (radars — canvas natif, inchangé)
-
+Structure interne :
+```html
+<div style="display:flex; gap:16px; justify-content:center">
+  <!-- si non GB : deux colonnes -->
+  <div style="flex:1; text-align:center">
+    <p style="font-size:13px; font-weight:700; color:#1E293B; margin-bottom:8px">⚡ DC</p>
+    <img src="[attCanvas.toDataURL()]" style="width:100%; max-width:380px">
+  </div>
+  <div style="flex:1; text-align:center">
+    <p style="font-size:13px; font-weight:700; color:#1E293B; margin-bottom:8px">🛡 N°2</p>
+    <img src="[defCanvas.toDataURL()]" style="width:100%; max-width:380px">
+  </div>
+</div>
+<div style="display:flex; gap:16px; margin-top:12px; font-size:11px">
+  <div style="display:flex; align-items:center; gap:4px">
+    <div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div> Joueur
+  </div>
+  <div style="display:flex; align-items:center; gap:4px">
+    <div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div> Staff
+  </div>
+</div>
 ```
-Radar Att : x:0.4, y:1.3, w:4.2, h:3.8
-Radar Def : x:5.4, y:1.3, w:4.2, h:3.8
-Cas GB    : x:2.9, y:1.3, w:4.2, h:3.8
+
+Options html2canvas pour cette capture :
+```javascript
+{ scale: 2, useCORS: true, backgroundColor: '#FFFFFF', logging: false,
+  windowWidth: 900, windowHeight: container.scrollHeight }
+```
+
+Placement dans la slide :
+```javascript
+slide.addImage({ data: b64, x:0.3, y:1.35, w:9.4, h:3.9,
+  sizing: { type:'contain', w:9.4, h:3.9 } });
 ```
 
 ---
 
-## 4. Contraste en-têtes
+## 4. Slide 2 — Résumé côte à côte
 
-| Texte | Fond | Ratio | WCAG |
-|-------|------|-------|------|
-| Blanc `#FFFFFF` / Navy `#0A2463` | — | 10.7:1 | ✅ AAA |
-| Gold `#C8A84B` / Navy `#0A2463` | — | 4.9:1 | ✅ AA |
+Deux captures positionnées via PptxGenJS :
+
+```javascript
+// Att (gauche)
+slide.addImage({ data: b64Att, x:0.2, y:1.35, w:4.6, h:3.9,
+  sizing: { type:'contain', w:4.6, h:3.9 } });
+// Def (droite)
+slide.addImage({ data: b64Def, x:5.0, y:1.35, w:4.6, h:3.9,
+  sizing: { type:'contain', w:4.6, h:3.9 } });
+// Si GB : centré
+slide.addImage({ data: b64Att, x:2.5, y:1.35, w:5.0, h:3.9,
+  sizing: { type:'contain', w:5.0, h:3.9 } });
+```
 
 ---
 
-## 5. Poids estimé du fichier .pptx
+## 5. Slides 3/4 — Grille 2×2 cartes axes
+
+Chaque carte = 1 capture html2canvas du contenu d'un axe.
+
+Conteneur off-screen par axe :
+```javascript
+const axeContainer = document.createElement('div');
+axeContainer.style.cssText = `
+  position: fixed; top: -9999px; left: 0;
+  width: 600px; background: #FFFFFF; padding: 12px;
+  font-family: 'Inter', sans-serif; border-radius: 8px;
+`;
+axeContainer.innerHTML = buildAxisDetailHTML(profilId, axeId);
+document.body.appendChild(axeContainer);
+```
+
+Options html2canvas :
+```javascript
+{ scale: 2, useCORS: true, backgroundColor: '#FFFFFF', logging: false,
+  windowWidth: 600, windowHeight: axeContainer.scrollHeight }
+```
+
+Positionnement 2×2 dans PptxGenJS (slide 10"×5.625") :
+```
+Cellule [0] : x:0.2,  y:1.35, w:4.6, h:1.9
+Cellule [1] : x:5.0,  y:1.35, w:4.6, h:1.9
+Cellule [2] : x:0.2,  y:3.35, w:4.6, h:1.9
+Cellule [3] : x:5.0,  y:3.35, w:4.6, h:1.9
+```
+
+```javascript
+const positions = [
+  { x:0.2, y:1.35 }, { x:5.0, y:1.35 },
+  { x:0.2, y:3.35 }, { x:5.0, y:3.35 },
+];
+// Pour chaque axe i :
+slide.addImage({ data: captures[i], x: positions[i].x, y: positions[i].y,
+  w:4.6, h:1.9, sizing: { type:'contain', w:4.6, h:1.9 } });
+```
+
+---
+
+## 6. Options html2canvas générales (rappel)
+
+```javascript
+const captureEl = async (id, bg = '#FFFFFF') => {
+  const el = gid(id);
+  if (!el) return null;
+  try {
+    const cv = await window.html2canvas(el, {
+      scale: 2, useCORS: true, backgroundColor: bg, logging: false,
+      windowWidth: el.scrollWidth, windowHeight: el.scrollHeight,
+    });
+    return cv.toDataURL('image/png');
+  } catch (_) { return null; }
+};
+```
+
+---
+
+## 7. Poids estimé
 
 | Slide | Contenu | ~Ko |
 |-------|---------|-----|
-| S1 | 2 radars PNG @2x | ~300 |
-| S2 | Tableau Att html2canvas @2x | ~250 |
-| S3 | Tableau Def html2canvas @2x | ~250 |
-| S4 | Section CR html2canvas @2x | ~100 |
+| S1 | Radar reconstruit @2x | ~200 |
+| S2 | 2 tableaux récap @2x | ~300 |
+| S3 | 4 cartes axes Att @2x | ~600 |
+| S4 | 4 cartes axes Def @2x | ~600 |
+| S5 | CR entretien @2x | ~100 |
 
-**Total estimé : 700 Ko – 1.2 Mo** — acceptable pour PowerPoint.
-> Source : docs/design/export-ppt.md
-
----
-
-## Contexte
-
-Ce document spec les valeurs exactes à passer à PptxGenJS (couleurs hex, polices, positions en pouces). La slide est 16:9 = 10" × 5.625" (unité PptxGenJS par défaut).
-
----
-
-## 1. Palette de tokens PptxGenJS
-
-| Token | Hex | Usage |
-|-------|-----|-------|
-| `navy` | `0A2463` | Fond slide 1, en-têtes slides 2/3/4, bandes |
-| `gold` | `C8A84B` | Accent titres, bande supérieure slide 1 |
-| `white` | `FFFFFF` | Textes sur fond navy |
-| `bg-slide` | `F8FAFC` | Fond corps slides 2/3/4 |
-| `n1` | `EF4444` | Note 1 — Fragile |
-| `n2` | `F97316` | Note 2 — En travail |
-| `n3` | `EAB308` | Note 3 — Acquis |
-| `n4` | `84CC16` | Note 4 — Maîtrisé |
-| `n5` | `22C55E` | Note 5 — Référence |
-| `empty` | `E2E8F0` | Note vide |
-| `text-dark` | `1E293B` | Corps texte sur fond clair |
-| `text-muted` | `64748B` | Labels secondaires |
-
----
-
-## 2. Typographie PptxGenJS
-
-PptxGenJS n'accepte pas Google Fonts en CDN. Utiliser les polices système disponibles :
-
-| Niveau | Police | Taille | Gras | Couleur |
-|--------|--------|--------|------|---------|
-| Titre principal (slide 1) | `Calibri` | 28pt | true | `FFFFFF` |
-| Sous-titre joueur/session | `Calibri` | 14pt | false | `C8A84B` |
-| En-tête slide (slides 2-4) | `Calibri` | 20pt | true | `FFFFFF` |
-| Sous-titre slide | `Calibri` | 10pt | false | `C8A84B` |
-| En-tête axe (tableau) | `Calibri` | 10pt | true | `0A2463` |
-| Libellé critère | `Calibri` | 9pt | false | `1E293B` |
-| Note dans cellule | `Calibri` | 10pt | true | voir ci-dessous |
-| CR label section | `Calibri` | 10pt | true | `0A2463` |
-| CR texte | `Calibri` | 9pt | false | `1E293B` |
-
-**Couleur du texte dans les cellules de note :**
-- n1, n2 → `FFFFFF` (blanc, fond foncé)
-- n3 → `1E293B` (jaune clair → texte sombre)
-- n4, n5 → `1E293B` (vert → texte sombre)
-- vide → `94A3B8`
-
----
-
-## 3. Layout Slide 1 — positions exactes (unité : pouces)
-
-```
-Slide : 10" × 5.625"
-
-Bande gold top :      x=0, y=0,    w=10,   h=0.15
-Bande gold left :     x=0, y=0,    w=0.15, h=5.625
-Fond navy :           background fill = 0A2463
-
-Titre "FENIX Eval CF":  x=0.4, y=0.3,  fontSize=28, bold, color=FFFFFF
-Sous-titre joueur·session: x=0.4, y=0.85, fontSize=14, color=C8A84B
-
-Radar Att (image) :   x=0.4,  y=1.3,  w=4.2, h=3.8
-Radar Def (image) :   x=5.4,  y=1.3,  w=4.2, h=3.8
-(si GB seul : x=2.9, y=1.3, w=4.2, h=3.8)
-
-Légende "● Joueur" :  x=0.4, y=5.1,  fontSize=9, color=3B82F6
-Légende "● Staff" :   x=1.5, y=5.1,  fontSize=9, color=F97316
-
-Logo (image) :        x=8.8, y=4.9,  w=0.9, h=0.5 (coin bas-droit)
-
-Bande navy bas :      x=0, y=5.3, w=10, h=0.325
-```
-
----
-
-## 4. Layout Slides 2/3 — positions
-
-```
-En-tête fond navy :   x=0, y=0, w=10, h=1.2
-Bande gold top :      x=0, y=0, w=10, h=0.12
-Titre slide :         x=0.35, y=0.2,  fontSize=20, bold, color=FFFFFF
-Sous-titre :          x=0.35, y=0.78, fontSize=10, color=C8A84B
-
-Corps fond clair :    x=0, y=1.2, w=10, h=4.425, fill=F8FAFC
-
-Tableau :             x=0.3, y=1.35, w=9.4
-  Colonnes : Critère (6.5"), Joueur (1.45"), Staff (1.45")
-  Hauteur lignes : 0.28"
-  En-tête axe : fill=E8EEF8, bold, color=0A2463, fontSize=9
-  Ligne critère : fill selon note, fontSize=9
-
-Logo bas-droit :      x=9.0, y=5.1, w=0.7, h=0.4
-```
-
----
-
-## 5. Layout Slide 4 — positions
-
-```
-En-tête fond navy :   x=0, y=0, w=10, h=1.2 (identique slides 2/3)
-
-Corps : 2 colonnes de boîtes
-  Colonne gauche :  x=0.3,  y=1.35, w=4.65
-  Colonne droite :  x=5.05, y=1.35, w=4.65
-  Espacement inter-boîte vertical : 0.15"
-
-Boîte section :
-  Fond : FFFFFF, border : D0D7E5, radius : 0.08"
-  Label : fontSize=9, bold, color=0A2463, padding-left=0.1"
-  Texte : fontSize=9, color=1E293B, wrap
-
-CR entretien (section longue) :
-  x=0.3, y=(dynamique après boîtes), w=9.4
-  Fond : F0F4FF, border-left gold 0.06"
-
-Logo bas-droit :      x=9.0, y=5.1, w=0.7, h=0.4
-```
-
----
-
-## 6. États du bouton dans l'UI web
-
-| État | Style |
-|------|-------|
-| Idle | `.btn.btn-ghost.btn-sm` standard |
-| Génération | `disabled=true`, texte "Génération…", opacity 0.6 |
-| Erreur | Toast rouge via `showToast()` |
-
----
-
-## 7. Nouvelles classes CSS web
-
-Aucune — le bouton PPT réutilise `.btn.btn-ghost.btn-sm` existant.
-
----
-
-## 8. Checklist contraste
-
-| Texte | Fond | Ratio estimé | WCAG |
-|-------|------|-------------|------|
-| Blanc sur navy | `0A2463` | 12:1 | ✅ AAA |
-| Gold sur navy | `C8A84B` / `0A2463` | 6.8:1 | ✅ AA |
-| Noir sur jaune n3 | `1E293B` / `EAB308` | 8.2:1 | ✅ AAA |
-| Blanc sur rouge n1 | `FFFFFF` / `EF4444` | 4.6:1 | ✅ AA |
+**Total estimé : 1.5 – 2 Mo** — acceptable.
