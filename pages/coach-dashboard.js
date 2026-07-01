@@ -778,7 +778,7 @@ async function exportCoachPPT() {
       addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
     }
 
-    // ── Helper : 1 slide par profil, 2 colonnes × 2 axes inline ─────────
+    // ── Helper : 1 slide par profil, tableau full-page (Critère|J|S|Écart) ──
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
@@ -786,72 +786,64 @@ async function exportCoachPPT() {
       if (!axeEntries.length) return;
 
       const N_CLR = {
-        1:{bg:'#991B1B',ring:'#FBBFBF',txt:'#991B1B',lbl:'Fragile'},
-        2:{bg:'#92400E',ring:'#FCD34D',txt:'#92400E',lbl:'En travail'},
-        3:{bg:'#065F46',ring:'#6EE7B7',txt:'#065F46',lbl:'Acquis'},
-        4:{bg:'#1E40AF',ring:'#93C5FD',txt:'#1E40AF',lbl:'Maîtrisé'},
-        5:{bg:'#5B21B6',ring:'#C4B5FD',txt:'#5B21B6',lbl:'Référence'},
+        1:{bg:'#FEE2E2',txt:'#991B1B',brd:'#FECACA',lbl:'Fragile'},
+        2:{bg:'#FEF3C7',txt:'#92400E',brd:'#FCD34D',lbl:'En travail'},
+        3:{bg:'#D1FAE5',txt:'#065F46',brd:'#6EE7B7',lbl:'Acquis'},
+        4:{bg:'#DBEAFE',txt:'#1E40AF',brd:'#93C5FD',lbl:'Maîtrisé'},
+        5:{bg:'#EDE9FE',txt:'#5B21B6',brd:'#C4B5FD',lbl:'Référence'},
       };
-      const dot = n => n > 0
-        ? `<div style="width:30px;height:30px;border-radius:50%;background:${N_CLR[n].bg};box-shadow:0 0 0 3px ${N_CLR[n].ring};flex-shrink:0"></div>`
-        : `<div style="width:30px;height:30px;border-radius:50%;background:#F1F5F9;box-shadow:0 0 0 3px #E2E8F0;flex-shrink:0"></div>`;
-      const lbl = n => n > 0
-        ? `<span style="font-size:10px;font-weight:700;color:${N_CLR[n].txt};text-align:center;line-height:1.1">${N_CLR[n].lbl}</span>`
-        : `<span style="font-size:10px;color:#94A3B8;line-height:1">—</span>`;
-      const scol = (who, n) => `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:66px;flex-shrink:0">
-          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">${who}</span>
-          ${dot(n)}${lbl(n)}
-        </div>`;
-      const ecart = (nj, ns) => {
-        if (!nj || !ns) return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;flex-shrink:0">
-          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
-          <div style="width:30px;height:30px;border-radius:15px;background:#F1F5F9;display:flex;align-items:center;justify-content:center">
-            <span style="font-size:12px;color:#94A3B8">—</span>
-          </div>
-        </div>`;
+      const pill = n => n > 0
+        ? `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:${N_CLR[n].bg};color:${N_CLR[n].txt};font-size:14px;font-weight:700;border:1px solid ${N_CLR[n].brd}">${N_CLR[n].lbl}</span>`
+        : `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:#F1F5F9;color:#94A3B8;font-size:14px;font-weight:600;border:1px solid #E2E8F0">—</span>`;
+      const ecartPill = (nj, ns) => {
+        if (!nj || !ns) return `<span style="color:#94A3B8;font-size:14px">—</span>`;
         const d = nj - ns;
-        const bg = d > 0 ? '#DCFCE7' : d < 0 ? '#FEE2E2' : '#F1F5F9';
+        const bg  = d > 0 ? '#D1FAE5' : d < 0 ? '#FEE2E2' : '#F1F5F9';
         const col = d > 0 ? '#15803D' : d < 0 ? '#DC2626' : '#64748B';
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;flex-shrink:0">
-          <span style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em;line-height:1">Écart</span>
-          <div style="width:30px;height:30px;border-radius:15px;background:${bg};display:flex;align-items:center;justify-content:center">
-            <span style="font-size:13px;font-weight:700;color:${col}">${d > 0 ? '+' : ''}${d}</span>
-          </div>
-        </div>`;
-      };
-      const card = entry => {
-        if (!entry) return '<div style="flex:1;min-height:0"></div>';
-        const [axeId] = entry;
-        const axe = CRITERIA[profilId].axes[axeId];
-        const rows = axe.criteres.map(c => {
-          const nj = _coachEvalMap[c.id]?.note_joueur || 0;
-          const ns = _coachEvalMap[c.id]?.note_staff  || 0;
-          return `<div style="flex:1;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E2E8F0;padding:4px 0;min-height:0">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#0A2463;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.label)}</div>
-            </div>
-            ${scol('Joueur', nj)}${scol('Staff', ns)}${ecart(nj, ns)}
-          </div>`;
-        }).join('');
-        return `<div style="flex:1;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.12);display:flex;flex-direction:column;overflow:hidden;min-height:0">
-          <div style="background:#0A2463;color:#FFFFFF;padding:8px 14px;font-size:14px;font-weight:700;font-family:Calibri,Arial,sans-serif;flex-shrink:0;letter-spacing:.04em">${escHtml(axe.label)}</div>
-          <div style="flex:1;display:flex;flex-direction:column;padding:8px 14px;overflow:hidden">
-            ${rows}
-          </div>
-        </div>`;
+        const brd = d > 0 ? '#6EE7B7' : d < 0 ? '#FECACA' : '#E2E8F0';
+        return `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:${bg};color:${col};font-size:14px;font-weight:700;border:1px solid ${brd}">${d > 0 ? '+' : ''}${d}</span>`;
       };
 
-      const CW = 1960, CH = 975;
+      const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
+      const CW = 1960, CH = 975, PAD = 12, HDR_H = 42, AXE_H = 36;
+      const rowH = Math.max(30, Math.floor((CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H) / totalCriteres));
+      const fz   = rowH >= 44 ? 16 : rowH >= 36 ? 14 : 12;
+
+      let tbody = '';
+      for (const [axeId] of axeEntries) {
+        const axe = CRITERIA[profilId].axes[axeId];
+        tbody += `<tr style="background:#0A2463">
+          <td colspan="4" style="padding:6px 18px;color:#FFFFFF;font-size:15px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
+        </tr>`;
+        const even = { background:'#FFFFFF' }, odd = { background:'#F8FAFC' };
+        axe.criteres.forEach((c, i) => {
+          const nj = _coachEvalMap[c.id]?.note_joueur || 0;
+          const ns = _coachEvalMap[c.id]?.note_staff  || 0;
+          const bg = i % 2 === 0 ? even.background : odd.background;
+          tbody += `<tr style="background:${bg};border-bottom:1px solid #E2E8F0">
+            <td style="padding:4px 18px;font-size:${fz}px;font-weight:600;color:#0F172A;height:${rowH}px;vertical-align:middle">${escHtml(c.label)}</td>
+            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(nj)}</td>
+            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${pill(ns)}</td>
+            <td style="padding:4px 12px;text-align:center;height:${rowH}px;vertical-align:middle">${ecartPill(nj, ns)}</td>
+          </tr>`;
+        });
+      }
+
       const div = createOffscreen(CW);
       div.innerHTML = `
-        <div style="width:${CW}px;height:${CH}px;display:flex;gap:12px;padding:12px;background:#F8FAFC;box-sizing:border-box">
-          <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
-            ${card(axeEntries[0])}${card(axeEntries[2])}
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
-            ${card(axeEntries[1])}${card(axeEntries[3])}
-          </div>
+        <div style="width:${CW}px;height:${CH}px;background:#F8FAFC;padding:${PAD}px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+            <colgroup><col style="width:40%"><col style="width:20%"><col style="width:20%"><col style="width:20%"></colgroup>
+            <thead>
+              <tr style="background:#1E293B">
+                <th style="padding:8px 18px;text-align:left;font-size:14px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
+                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
+                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
+                <th style="padding:8px;text-align:center;font-size:14px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
+              </tr>
+            </thead>
+            <tbody>${tbody}</tbody>
+          </table>
         </div>`;
 
       const b64 = await captureDiv(div, CW, CH);
