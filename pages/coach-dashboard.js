@@ -705,7 +705,7 @@ async function exportCoachPPT() {
       return div;
     }
 
-    async function captureDiv(div, width) {
+    async function captureDiv(div, width, height) {
       await Promise.all([...div.querySelectorAll('img')].map(img =>
         img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
       ));
@@ -713,8 +713,8 @@ async function exportCoachPPT() {
       let b64 = null;
       try {
         const cv = await window.html2canvas(div, {
-          scale: 2, useCORS: true, backgroundColor: '#FFFFFF', logging: false,
-          windowWidth: width, windowHeight: div.scrollHeight,
+          scale: 2, useCORS: true, backgroundColor: '#F8FAFC', logging: false,
+          windowWidth: width, windowHeight: height || div.scrollHeight,
         });
         b64 = cv.toDataURL('image/png');
       } catch (_) {}
@@ -778,45 +778,71 @@ async function exportCoachPPT() {
       addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
     }
 
-    // ── Helper : 1 slide par axe, 2 colonnes, pleine largeur ────────────
+    // ── Couleurs pastilles PPT (valeurs absolues, sans CSS vars) ────────
+    const N_STYLES = {
+      1: { bg:'#991B1B', ring:'#FBBFBF', txt:'#991B1B' },
+      2: { bg:'#92400E', ring:'#FCD34D', txt:'#92400E' },
+      3: { bg:'#065F46', ring:'#6EE7B7', txt:'#065F46' },
+      4: { bg:'#1E40AF', ring:'#93C5FD', txt:'#1E40AF' },
+      5: { bg:'#5B21B6', ring:'#C4B5FD', txt:'#5B21B6' },
+    };
+    function pastilleInline(n) {
+      const c = n ? N_STYLES[n] : null;
+      const bg  = c ? c.bg  : '#F1F5F9';
+      const ring = c ? c.ring : '#E2E8F0';
+      return `<div style="width:28px;height:28px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring};flex-shrink:0"></div>`;
+    }
+    function scoreNameInline(n) {
+      const c = n ? N_STYLES[n] : null;
+      const color = c ? c.txt : '#94A3B8';
+      return `<span style="font-size:9px;font-weight:600;color:${color};text-align:center;line-height:1.2">${n ? _CC_LABELS[n] : '—'}</span>`;
+    }
+
+    // ── Helper : 1 slide par axe, 2 colonnes, ratio 2:1 ─────────────────
+    const CAPTURE_W = 1880, CAPTURE_H = 940;
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       for (const [axeId, axe] of Object.entries(profil.axes)) {
         const half = Math.ceil(axe.criteres.length / 2);
-        function rowHTML(c) {
+        function rowHTML(c, isLast) {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
-          return `<div class="cc-row">
-            <div class="cc-info">
-              <div class="cc-label">${escHtml(c.label)}</div>
-              <div class="cc-texte">${escHtml(c.texte)}</div>
+          const border = isLast ? 'none' : '1px solid #E2E8F0';
+          return `<div style="flex:1;display:flex;align-items:center;gap:12px;border-bottom:${border};padding:8px 0;min-width:0">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:#0A2463;margin-bottom:3px;line-height:1.2">${escHtml(c.label)}</div>
+              <div style="font-size:10px;color:#64748B;line-height:1.35">${escHtml(c.texte)}</div>
             </div>
-            <div class="cc-scores">
-              <div class="cc-score-col"><span class="cc-who">Joueur</span>
-                <div class="cc-pastille ${nj ? 'n'+nj : 'empty'}"></div>
-                <span class="cc-score-name" style="color:${nj ? 'var(--n'+nj+'-text)' : 'var(--gray-400)'}">
-                  ${nj ? _CC_LABELS[nj] : '—'}</span></div>
-              <div class="cc-score-col"><span class="cc-who">Staff</span>
-                <div class="cc-pastille ${ns ? 'n'+ns : 'empty'}"></div>
-                <span class="cc-score-name" style="color:${ns ? 'var(--n'+ns+'-text)' : 'var(--gray-400)'}">
-                  ${ns ? _CC_LABELS[ns] : '—'}</span></div>
-              <div class="cc-score-col"><span class="cc-who">Écart</span>
-                <div style="height:32px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
-                <span class="cc-score-name" style="color:var(--gray-400)"> </span></div>
+            <div style="flex:0 0 210px;display:flex;gap:12px">
+              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
+                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Joueur</span>
+                ${pastilleInline(nj)}${scoreNameInline(nj)}
+              </div>
+              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
+                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Staff</span>
+                ${pastilleInline(ns)}${scoreNameInline(ns)}
+              </div>
+              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
+                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Écart</span>
+                <div style="height:28px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
+                <span style="font-size:9px;color:transparent"> </span>
+              </div>
             </div>
           </div>`;
         }
-        const div = createOffscreen(950);
-        div.innerHTML = `<div style="display:flex;padding:8px;background:#FFFFFF">
-          <div style="flex:1;padding-right:10px;border-right:2px solid #E2E8F0">
-            ${axe.criteres.slice(0, half).map(rowHTML).join('')}
+        const colL = axe.criteres.slice(0, half);
+        const colR = axe.criteres.slice(half);
+        const div = createOffscreen(CAPTURE_W);
+        div.innerHTML = `<div style="display:flex;height:${CAPTURE_H}px;padding:16px;box-sizing:border-box;overflow:hidden;background:#F8FAFC">
+          <div style="flex:1;display:flex;flex-direction:column;padding-right:12px;border-right:2px solid #CBD5E1">
+            ${colL.map((c, i) => rowHTML(c, i === colL.length - 1)).join('')}
           </div>
-          <div style="flex:1;padding-left:10px">
-            ${axe.criteres.slice(half).map(rowHTML).join('')}
+          <div style="flex:1;display:flex;flex-direction:column;padding-left:12px">
+            ${colR.map((c, i) => rowHTML(c, i === colR.length - 1)).join('')}
           </div>
         </div>`;
-        const b64 = await captureDiv(div, 950);
+        const b64 = await captureDiv(div, CAPTURE_W, CAPTURE_H);
         const slide = prs.addSlide();
         slide.background = { color: BG };
         addHeader(slide, `${slidePrefix} — ${axe.label}`, subHdr);
