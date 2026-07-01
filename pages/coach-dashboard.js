@@ -778,88 +778,43 @@ async function exportCoachPPT() {
       addCapture(s2, b64Def, 5.0, 0.8, 4.6, 4.72, 'Tableau Def non disponible.');
     }
 
-    // ── Couleurs pastilles PPT (valeurs absolues, sans CSS vars) ────────
-    const N_STYLES = {
-      1: { bg:'#991B1B', ring:'#FBBFBF', txt:'#991B1B' },
-      2: { bg:'#92400E', ring:'#FCD34D', txt:'#92400E' },
-      3: { bg:'#065F46', ring:'#6EE7B7', txt:'#065F46' },
-      4: { bg:'#1E40AF', ring:'#93C5FD', txt:'#1E40AF' },
-      5: { bg:'#5B21B6', ring:'#C4B5FD', txt:'#5B21B6' },
-    };
-    function pastilleInline(n) {
-      const c = n ? N_STYLES[n] : null;
-      const bg  = c ? c.bg  : '#F1F5F9';
-      const ring = c ? c.ring : '#E2E8F0';
-      return `<div style="width:28px;height:28px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring};flex-shrink:0"></div>`;
-    }
-    function scoreNameInline(n) {
-      const c = n ? N_STYLES[n] : null;
-      const color = c ? c.txt : '#94A3B8';
-      return `<span style="font-size:9px;font-weight:600;color:${color};text-align:center;line-height:1.2">${n ? _CC_LABELS[n] : '—'}</span>`;
-    }
-
-    // ── Helper : 1 slide par axe, 2 colonnes, ratio 2:1 ─────────────────
-    // CAPTURE_W / CAPTURE_H = 2:1 = ratio de la boîte PPT 9.4" × 4.72"
-    const CAPTURE_W = 950, CAPTURE_H = 475;
+    // ── Helper : 1 slide par profil, grille 2×2 via buildAxisDetailHTML ──
     async function addAxisSlides(profilId, slidePrefix) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
-      for (const [axeId, axe] of Object.entries(profil.axes)) {
-        const half = Math.ceil(axe.criteres.length / 2);
-        const rowHTML = (c, isLast) => {
-          const nj = _coachEvalMap[c.id]?.note_joueur || 0;
-          const ns = _coachEvalMap[c.id]?.note_staff  || 0;
-          const border = isLast ? 'none' : '1px solid #E2E8F0';
-          return `<div style="flex:1;display:flex;align-items:center;gap:12px;border-bottom:${border};padding:8px 0;min-width:0">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#0A2463;margin-bottom:3px;line-height:1.2">${escHtml(c.label)}</div>
-              <div style="font-size:10px;color:#64748B;line-height:1.35">${escHtml(c.texte)}</div>
-            </div>
-            <div style="flex:0 0 210px;display:flex;gap:12px">
-              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
-                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Joueur</span>
-                ${pastilleInline(nj)}${scoreNameInline(nj)}
-              </div>
-              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
-                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Staff</span>
-                ${pastilleInline(ns)}${scoreNameInline(ns)}
-              </div>
-              <div style="width:62px;display:flex;flex-direction:column;align-items:center;gap:3px">
-                <span style="font-size:9px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.03em">Écart</span>
-                <div style="height:28px;display:flex;align-items:center;justify-content:center">${deltaHTML(nj, ns)}</div>
-                <span style="font-size:9px;color:transparent"> </span>
-              </div>
-            </div>
-          </div>`;
-        };
-        const colL = axe.criteres.slice(0, half);
-        const colR = axe.criteres.slice(half);
-        const div = createOffscreen(CAPTURE_W);
-        div.innerHTML = `<div style="display:flex;height:${CAPTURE_H}px;padding:16px;box-sizing:border-box;overflow:hidden;background:#F8FAFC">
-          <div style="flex:1;display:flex;flex-direction:column;padding-right:12px;border-right:2px solid #CBD5E1">
-            ${colL.map((c, i) => rowHTML(c, i === colL.length - 1)).join('')}
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;padding-left:12px">
-            ${colR.map((c, i) => rowHTML(c, i === colR.length - 1)).join('')}
-          </div>
+      const axeEntries = Object.entries(profil.axes).slice(0, 4);
+      if (!axeEntries.length) return;
+
+      const CW = 950, CH = 475;
+      const PAD = 8, GAP = 8;
+      const cellW = Math.floor((CW - PAD * 2 - GAP) / 2);
+      const cellH = Math.floor((CH - PAD * 2 - GAP) / 2);
+
+      const div = createOffscreen(CW);
+      div.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;width:${CW}px;height:${CH}px;padding:${PAD}px;gap:${GAP}px;background:#F8FAFC;box-sizing:border-box;align-content:flex-start">
+          ${axeEntries.map(([axeId]) => `
+            <div style="width:${cellW}px;height:${cellH}px;overflow:hidden;background:#FFFFFF;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+              ${buildAxisDetailHTML(profilId, axeId)}
+            </div>`).join('')}
         </div>`;
-        const b64 = await captureDiv(div, CAPTURE_W, CAPTURE_H);
-        const slide = prs.addSlide();
-        slide.background = { color: BG };
-        addHeader(slide, `${slidePrefix} — ${axe.label}`, subHdr);
-        if (b64) {
-          slide.addImage({ data: b64, x:0.3, y:0.8, w:9.4, h:4.72 });
-        } else {
-          slide.addText(axe.label + ' non disponible.', { x:0.5, y:2.5, fontSize:12,
-            color:'94A3B8', fontFace:'Calibri', italic:true });
-        }
+
+      const b64 = await captureDiv(div, CW, CH);
+      const slide = prs.addSlide();
+      slide.background = { color: BG };
+      addHeader(slide, slidePrefix, subHdr);
+      if (b64) {
+        slide.addImage({ data: b64, x: 0.3, y: 0.8, w: 9.4, h: 4.72 });
+      } else {
+        slide.addText('Détail non disponible.', { x: 0.5, y: 2.5, fontSize: 12,
+          color: '94A3B8', fontFace: 'Calibri', italic: true });
       }
     }
 
-    // ── SLIDES 3+ : Axes Attaque (1 slide par axe) ───────────────────────
+    // ── SLIDE 3 : Détail Attaque (1 slide, grille 2×2) ───────────────────
     if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
 
-    // ── SLIDES suivantes : Axes Défense (si non GB) ───────────────────────
+    // ── SLIDE 4 : Détail Défense (1 slide, si non GB) ────────────────────
     if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
 
     // ── SLIDE 5 : CR entretien ────────────────────────────────────────────
