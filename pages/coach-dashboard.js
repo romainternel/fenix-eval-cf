@@ -673,18 +673,47 @@ async function exportCoachPPT() {
       });
     } catch (_) {}
 
+    // Logo rogné en cercle via canvas off-screen
+    const logoCircleB64 = await (async () => {
+      if (!logoB64) return null;
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const SIZE = 200;
+          const cv = document.createElement('canvas');
+          cv.width = SIZE; cv.height = SIZE;
+          const ctx = cv.getContext('2d');
+          ctx.beginPath();
+          ctx.arc(SIZE/2, SIZE/2, SIZE/2, 0, Math.PI * 2);
+          ctx.clip();
+          const scale = SIZE / Math.min(img.width, img.height);
+          ctx.drawImage(img, (SIZE - img.width*scale)/2, (SIZE - img.height*scale)/2,
+            img.width*scale, img.height*scale);
+          resolve(cv.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(logoB64);
+        img.src = logoB64;
+      });
+    })();
+
     const prs = new window.PptxGenJS();
     prs.layout = 'LAYOUT_16x9';
     const NAVY = '0A2463', GOLD = 'C8A84B', WHITE = 'FFFFFF', BG = 'F8FAFC';
     const subHdr = `${_cPdfNom}  ·  ${_cPdfSession}`;
 
+    // Header : gold 0.04" + navy 0.48" (−1/3), titre·sous-titre côte à côte, logo cercle
     function addHeader(slide, title, subtitle) {
-      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.06, fill:{ color:GOLD } });
-      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.72, fill:{ color:NAVY } });
-      slide.addText(title,    { x:0.3, y:0.06, w:8.3, fontSize:18, bold:true,  color:WHITE, fontFace:'Calibri', align:'center' });
-      slide.addText(subtitle, { x:0.3, y:0.43, w:8.3, fontSize:10, bold:false, color:GOLD,  fontFace:'Calibri', align:'center' });
-      if (logoB64) slide.addImage({ data:logoB64, x:9.05, y:0.09, w:0.72, h:0.54 });
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.04, fill:{ color:GOLD } });
+      slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.48, fill:{ color:NAVY } });
+      slide.addText([
+        { text: title,     options: { bold:true,  color:WHITE, fontSize:15 } },
+        { text: '   ·   ', options: { bold:false, color:GOLD,  fontSize:13 } },
+        { text: subtitle,  options: { bold:false, color:GOLD,  fontSize:11 } }
+      ], { x:0.15, y:0, w:8.9, h:0.48, valign:'middle', align:'center', fontFace:'Calibri' });
+      if (logoCircleB64) slide.addImage({ data:logoCircleB64, x:9.47, y:0.03, w:0.42, h:0.42 });
     }
+
+    const CONTENT_Y = 0.55; // y contenu (header 0.48" + gap 0.07")
 
     async function captureEl(id, bg) {
       const el = gid(id);
@@ -763,7 +792,7 @@ async function exportCoachPPT() {
     const s1 = prs.addSlide();
     s1.background = { color: BG };
     addHeader(s1, 'FENIX Eval CF', subHdr);
-    addCapture(s1, radarB64, 0.3, 0.8, 9.4, 4.72, 'Radars non disponibles.');
+    addCapture(s1, radarB64, 0.3, CONTENT_Y, 9.4, 4.72, 'Radars non disponibles.');
 
     // ── SLIDE 2 : Résumé axes (off-screen 940×472 = ratio 2:1) ──────────
     const buildRecapBlock = (profilId, title) => {
@@ -814,7 +843,7 @@ async function exportCoachPPT() {
     s2.background = { color: BG };
     addHeader(s2, _cPdfIsGb ? '🧤 RÉSUMÉ GARDIEN' : '📊 RÉSUMÉ', subHdr);
     if (s2B64) {
-      s2.addImage({ data: s2B64, x: 0.3, y: 0.8, w: 9.4, h: 4.72 });
+      s2.addImage({ data: s2B64, x: 0.3, y: CONTENT_Y, w: 9.4, h: 4.72 });
     } else {
       s2.addText('Résumé non disponible.', { x: 0.5, y: 2.5, fontSize: 12, color: '94A3B8', fontFace: 'Calibri', italic: true });
     }
@@ -846,11 +875,19 @@ async function exportCoachPPT() {
       };
 
       const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
-      const CW = 1960, CH = 975, PAD = 12, HDR_H = 40, AXE_H = 32;
-      const availH = CH - PAD * 2 - HDR_H - axeEntries.length * AXE_H - 40;
-      const rowH   = Math.max(24, Math.floor(availH / totalCriteres));
-      const showDesc = rowH >= 34;
-      const fzLabel = rowH >= 44 ? 14 : rowH >= 34 ? 13 : 12;
+      // CW/CH calculé depuis la boîte PPT réelle (CONTENT_Y à 5.615") → ratio exact
+      const CW = 1960;
+      const BOX_H = 5.625 - CONTENT_Y - 0.01; // ≈ 5.065"
+      const CH  = Math.round(CW * BOX_H / 9.8); // ≈ 1013px
+      const PAD = 12, HDR_H = 40, AXE_H = 32;
+      const STATIC_H = HDR_H + axeEntries.length * AXE_H; // sans padding
+      const CONTAINER = CH - PAD * 2;
+      // Hauteur réelle d'une cellule : contenu (label+desc+margin+padding) + 1px border
+      const CELL_DESC   = 37; // 17(label)+1(mt)+12(desc)+6(pad)+1(border)
+      const CELL_NODESC = 24; // 17(label)+6(pad)+1(border)
+      const showDesc = (STATIC_H + totalCriteres * CELL_DESC + 20) <= CONTAINER;
+      const rowH    = showDesc ? 36 : 22; // rowH = contenu sans border
+      const fzLabel = showDesc ? 13 : 12;
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
@@ -896,7 +933,7 @@ async function exportCoachPPT() {
       slide.background = { color: BG };
       addHeader(slide, slidePrefix, subHdr);
       if (b64) {
-        slide.addImage({ data: b64, x: 0.1, y: 0.74, w: 9.8, h: 4.875 });
+        slide.addImage({ data: b64, x: 0.1, y: CONTENT_Y, w: 9.8, h: BOX_H });
       } else {
         slide.addText('Détail non disponible.', { x: 0.5, y: 2.5, fontSize: 12,
           color: '94A3B8', fontFace: 'Calibri', italic: true });
@@ -921,7 +958,7 @@ async function exportCoachPPT() {
     } else {
       const crB64 = await captureEl('pptCaptureCR', '#F8FAFC');
       if (crB64) {
-        s5.addImage({ data:crB64, x:0.3, y:0.8, w:9.4, h:4.72,
+        s5.addImage({ data:crB64, x:0.3, y:CONTENT_Y, w:9.4, h:4.72,
           sizing:{ type:'contain', w:9.4, h:4.72 } });
       } else {
         s5.addText('Compte-rendu non disponible.', { x:0.5, y:2, fontSize:12,
