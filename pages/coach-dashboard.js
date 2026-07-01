@@ -681,9 +681,9 @@ async function exportCoachPPT() {
     function addHeader(slide, title, subtitle) {
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.06, fill:{ color:GOLD } });
       slide.addShape(prs.ShapeType.rect, { x:0, y:0, w:10, h:0.72, fill:{ color:NAVY } });
-      slide.addText(title,    { x:0.3, y:0.07, w:8.6, fontSize:16, bold:true,  color:WHITE, fontFace:'Calibri' });
-      slide.addText(subtitle, { x:0.3, y:0.45, w:8.6, fontSize:9,  bold:false, color:GOLD,  fontFace:'Calibri' });
-      if (logoB64) slide.addImage({ data:logoB64, x:9.2, y:5.18, w:0.6, h:0.36 });
+      slide.addText(title,    { x:0.3, y:0.07, w:8.3, fontSize:16, bold:true,  color:WHITE, fontFace:'Calibri' });
+      slide.addText(subtitle, { x:0.3, y:0.45, w:8.3, fontSize:9,  bold:false, color:GOLD,  fontFace:'Calibri' });
+      if (logoB64) slide.addImage({ data:logoB64, x:9.05, y:0.1, w:0.72, h:0.52 });
     }
 
     async function captureEl(id, bg) {
