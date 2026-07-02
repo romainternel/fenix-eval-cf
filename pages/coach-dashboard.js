@@ -787,10 +787,12 @@ async function exportCoachPPT() {
     // ── SLIDE 3 : Détail Attaque (1 slide, grille 2×2) ───────────────────
     if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
 
-    // ── SLIDE 3b : Radars par axe — Attaque, placement individuel ────────
+    // ── SLIDE 3b : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
     if (_cAttId && CRITERIA[_cAttId]) {
-      const profAtt = CRITERIA[_cAttId];
-      const axeEntries = Object.entries(profAtt.axes);
+      const attAxes = Object.entries(CRITERIA[_cAttId].axes);
+      const hasDefRadars = !_cPdfIsGb && _cDefId && CRITERIA[_cDefId];
+      const defAxes = hasDefRadars ? Object.entries(CRITERIA[_cDefId].axes) : [];
+
       const wrapLabel = lbl => {
         if (lbl.length <= 14) return lbl;
         const mid = Math.floor(lbl.length / 2);
@@ -801,75 +803,125 @@ async function exportCoachPPT() {
         return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
       };
 
-      // Zone contenu : 9.8" × 5.075" (après header 0.5")
-      // Grille 2×2 : chaque radar carré, centré sur la hauteur dispo
-      const RW = 2.3, RH = 2.3; // radar carré 2.3"×2.3"
-      const TH = 0.28;           // hauteur titre axe
-      const CGAP = 0.2, RGAP = 0.12; // gap col / row
-      const TOTAL_W = 2 * RW + CGAP; // 4.8"
-      const x1 = 0.1 + (9.8 - TOTAL_W) / 2;
-      const x2 = x1 + RW + CGAP;
-      const y1t = CONTENT_Y + 0.08;
-      const y1r = y1t + TH;
-      const y2t = y1r + RH + RGAP;
-      const y2r = y2t + TH;
+      const drawRadar = async (slide, axe, xPos, yTitle, yRadar, RW, RH, TH) => {
+        slide.addText(axe.label, {
+          x:xPos, y:yTitle, w:RW, h:TH,
+          fontSize:10, bold:true, color:NAVY, fontFace:'Calibri',
+          align:'center', valign:'bottom'
+        });
+        const cv = document.createElement('canvas');
+        cv.width = 1200; cv.height = 1200;
+        cv.style.cssText = 'position:absolute;top:0;left:-9999px';
+        document.body.appendChild(cv);
+        const dataJ = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
+        const dataS = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
+        const ch = new window.Chart(cv, {
+          type:'radar',
+          data:{ labels: axe.criteres.map(c => wrapLabel(c.label)), datasets:[
+            { data:dataJ, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', borderWidth:4, pointRadius:6 },
+            { data:dataS, backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  borderWidth:4, pointRadius:6 }
+          ]},
+          options:{ responsive:false, animation:false,
+            layout:{ padding:200 },
+            plugins:{ legend:{ display:false } },
+            scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
+              pointLabels:{ font:{ size:36, family:'Calibri,Arial' } } } }
+          }
+        });
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const img = cv.toDataURL('image/png');
+        ch.destroy(); cv.remove();
+        slide.addImage({ data:img, x:xPos, y:yRadar, w:RW, h:RH });
+      };
 
-      const SLIDES_N = Math.ceil(axeEntries.length / 4);
-      for (let si = 0; si < SLIDES_N; si++) {
-        const group = axeEntries.slice(si * 4, si * 4 + 4);
-        const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
-        const sRad = prs.addSlide();
-        sRad.background = { color: BG };
-        addHeader(sRad, `⚡ ${PROFIL_LABELS[_cAttId] || _cAttId} — RADARS PAR AXE${slideIdx}`, subHdr);
-
-        for (let i = 0; i < group.length; i++) {
-          const [, axe] = group[i];
-          const col = i % 2, row = Math.floor(i / 2);
-          const xPos = col === 0 ? x1 : x2;
-          const yTitle = row === 0 ? y1t : y2t;
-          const yRadar = row === 0 ? y1r : y2r;
-
-          // Titre axe via PptxGenJS natif
-          sRad.addText(axe.label, {
-            x:xPos, y:yTitle, w:RW, h:TH,
-            fontSize:11, bold:true, color:NAVY, fontFace:'Calibri',
-            align:'center', valign:'bottom'
-          });
-
-          // Canvas 1200×1200, layout.padding:200 → labels dans la zone de padding, anneau centré
-          const cv = document.createElement('canvas');
-          cv.width = 1200; cv.height = 1200;
-          cv.style.cssText = 'position:absolute;top:0;left:-9999px';
-          document.body.appendChild(cv);
-          const dataJ = axe.criteres.map(c => _coachEvalMap[c.id]?.note_joueur || 0);
-          const dataS = axe.criteres.map(c => _coachEvalMap[c.id]?.note_staff  || 0);
-          const ch = new window.Chart(cv, {
-            type:'radar',
-            data:{ labels: axe.criteres.map(c => wrapLabel(c.label)), datasets:[
-              { data:dataJ, backgroundColor:'rgba(59,130,246,0.15)', borderColor:'rgba(59,130,246,0.8)', borderWidth:4, pointRadius:6 },
-              { data:dataS, backgroundColor:'rgba(234,88,12,0.15)',  borderColor:'rgba(234,88,12,0.8)',  borderWidth:4, pointRadius:6 }
-            ]},
-            options:{ responsive:false, animation:false,
-              layout:{ padding:200 },
-              plugins:{ legend:{ display:false } },
-              scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, display:false },
-                pointLabels:{ font:{ size:36, family:'Calibri,Arial' } } } }
-            }
-          });
-          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-          const img = cv.toDataURL('image/png');
-          ch.destroy(); cv.remove();
-
-          // Placement individuel carré sur la slide
-          sRad.addImage({ data:img, x:xPos, y:yRadar, w:RW, h:RH });
-        }
-
-        // Légende
+      if (hasDefRadars) {
+        // ── Mode combiné : ATT (gauche) + DEF (droite), radars 2.0"×2.0" ──
+        const RW = 2.0, RH = 2.0, TH = 0.24, CGAP = 0.15, RGAP = 0.07, slH = 0.20;
+        const attX1 = 0.25, attX2 = attX1 + RW + CGAP;
+        const defX1 = 5.35, defX2 = defX1 + RW + CGAP;
+        const secW  = 2 * RW + CGAP; // 4.15"
+        const slY   = CONTENT_Y + 0.05;
+        const y1t   = slY + slH + 0.03;
+        const y1r   = y1t + TH;
+        const y2t   = y1r + RH + RGAP;
+        const y2r   = y2t + TH;
         const legendY = y2r + RH + 0.05;
-        sRad.addText([
-          { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
-          { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
-        ], { x:0.1, y:legendY, w:9.8, h:0.2, align:'center', fontSize:9, fontFace:'Calibri' });
+        const attLabel = PROFIL_LABELS[_cAttId] || _cAttId;
+        const defLabel = PROFIL_LABELS[_cDefId] || _cDefId;
+        const SLIDES_N = Math.max(Math.ceil(attAxes.length / 4), Math.ceil(defAxes.length / 4));
+
+        for (let si = 0; si < SLIDES_N; si++) {
+          const attGroup = attAxes.slice(si * 4, si * 4 + 4);
+          const defGroup = defAxes.slice(si * 4, si * 4 + 4);
+          const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
+          const sRad = prs.addSlide();
+          sRad.background = { color: BG };
+          addHeader(sRad, `⚡ ${attLabel}  /  🛡 ${defLabel} — RADARS PAR AXE${slideIdx}`, subHdr);
+
+          // Séparateur vertical central
+          sRad.addShape(prs.ShapeType.rect, {
+            x: 4.98, y: slY, w: 0.02, h: legendY - slY + 0.1,
+            fill: { color: 'E2E8F0' }, line: { color: 'E2E8F0' }
+          });
+
+          // Labels de section
+          sRad.addText(`⚡ ${attLabel}`, {
+            x:attX1, y:slY, w:secW, h:slH,
+            fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
+          });
+          sRad.addText(`🛡 ${defLabel}`, {
+            x:defX1, y:slY, w:secW, h:slH,
+            fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
+          });
+
+          // Radars ATT
+          for (let i = 0; i < attGroup.length; i++) {
+            const [, axe] = attGroup[i];
+            const col = i % 2, row = Math.floor(i / 2);
+            await drawRadar(sRad, axe, col === 0 ? attX1 : attX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+          }
+
+          // Radars DEF
+          for (let i = 0; i < defGroup.length; i++) {
+            const [, axe] = defGroup[i];
+            const col = i % 2, row = Math.floor(i / 2);
+            await drawRadar(sRad, axe, col === 0 ? defX1 : defX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+          }
+
+          // Légende
+          sRad.addText([
+            { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
+            { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
+          ], { x:0.1, y:legendY, w:9.8, h:0.2, align:'center', fontSize:9, fontFace:'Calibri' });
+        }
+      } else {
+        // ── Mode simple : ATT seul, 2×2 centré, radars 2.3"×2.3" ────────
+        const RW = 2.3, RH = 2.3, TH = 0.28, CGAP = 0.2, RGAP = 0.12;
+        const TOTAL_W = 2 * RW + CGAP;
+        const x1 = 0.1 + (9.8 - TOTAL_W) / 2, x2 = x1 + RW + CGAP;
+        const y1t = CONTENT_Y + 0.08, y1r = y1t + TH;
+        const y2t = y1r + RH + RGAP,  y2r = y2t + TH;
+        const legendY = y2r + RH + 0.05;
+        const SLIDES_N = Math.ceil(attAxes.length / 4);
+
+        for (let si = 0; si < SLIDES_N; si++) {
+          const group = attAxes.slice(si * 4, si * 4 + 4);
+          const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
+          const sRad = prs.addSlide();
+          sRad.background = { color: BG };
+          addHeader(sRad, `⚡ ${PROFIL_LABELS[_cAttId] || _cAttId} — RADARS PAR AXE${slideIdx}`, subHdr);
+
+          for (let i = 0; i < group.length; i++) {
+            const [, axe] = group[i];
+            const col = i % 2, row = Math.floor(i / 2);
+            await drawRadar(sRad, axe, col === 0 ? x1 : x2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+          }
+
+          sRad.addText([
+            { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
+            { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
+          ], { x:0.1, y:legendY, w:9.8, h:0.2, align:'center', fontSize:9, fontFace:'Calibri' });
+        }
       }
     }
 
