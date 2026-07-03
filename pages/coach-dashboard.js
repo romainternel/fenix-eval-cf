@@ -691,8 +691,8 @@ async function exportCoachPPT() {
     addHeader(s1, 'FENIX Eval CF', subHdr);
     addCapture(s1, radarB64, 0.3, CONTENT_Y, 9.4, 4.72, 'Radars non disponibles.');
 
-    // ── Helper : 1 slide par profil, tableau full-page (Critère+desc|J|S|Écart) ──
-    async function addAxisSlides(profilId, slidePrefix) {
+    // ── Helper : tableau + radar (split) ou tableau full-page ────────────
+    async function addAxisSlides(profilId, slidePrefix, radarImg = null) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       const axeEntries = Object.entries(profil.axes);
@@ -718,20 +718,27 @@ async function exportCoachPPT() {
       };
 
       const totalCriteres = axeEntries.reduce((s, [id]) => s + CRITERIA[profilId].axes[id].criteres.length, 0);
-      // CW/CH depuis la boîte PPT réelle, ratio exact
-      const CW = 1960;
-      const BOX_H = 5.625 - CONTENT_Y - 0.005; // ≈ 5.12"
-      const CH  = Math.round(CW * BOX_H / 9.8); // ≈ 1024px
-      const PAD = 12, HDR_H = 40, AXE_H = 26;
-      // STATIC_H compte la hauteur réelle : thead (HDR_H+pad7×2=54px) + axes (AXE_H+pad3×2=32px chacun)
-      const STATIC_H = (HDR_H + 14) + axeEntries.length * (AXE_H + 6);
+      const hasSplit = !!radarImg;
+      const BOX_H   = 5.625 - CONTENT_Y - 0.005;
+
+      // Layout : split (tableau gauche + radar droit) ou pleine largeur
+      const TABLE_W_IN = hasSplit ? 4.5 : 9.8;
+      const TITLE_H_IN = hasSplit ? 0.22 : 0;   // label profil au-dessus du tableau
+      const TABLE_H_IN = BOX_H - TITLE_H_IN;
+      const PAD = 12, AXE_H = 26, HDR_H = 40;
+
+      const CW = Math.round(TABLE_W_IN * 200); // 200 px/inch
+      const CH = Math.round(TABLE_H_IN * 200);
       const CONTAINER = CH - PAD * 2;
-      // td sans padding vertical → hauteur td = height: attribut ; + 1px border-bottom
-      const CELL_DESC   = 37; // 36(height:36, pad:0)+1(border)
-      const CELL_NODESC = 23; // 22(height:22, pad:0, pill→22px)+1(border)
-      const showDesc = (STATIC_H + totalCriteres * CELL_DESC + 20) <= CONTAINER;
-      const rowH    = showDesc ? 36 : 22; // height: td, sans padding vertical
-      const fzLabel = showDesc ? 13 : 12;
+
+      // Mode split : pas de thead, police 15px, rowH 24px
+      // Mode full  : thead, police auto (12/13), rowH auto (22/36)
+      const STATIC_H = hasSplit
+        ? axeEntries.length * (AXE_H + 6)
+        : (HDR_H + 14) + axeEntries.length * (AXE_H + 6);
+      const showDesc = !hasSplit && (STATIC_H + totalCriteres * 37 + 20) <= CONTAINER;
+      const rowH    = hasSplit ? 24 : (showDesc ? 36 : 22);
+      const fzLabel = hasSplit ? 15 : (showDesc ? 13 : 12);
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
@@ -744,7 +751,7 @@ async function exportCoachPPT() {
           const ns = _coachEvalMap[c.id]?.note_staff  || 0;
           const rowBg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
           tbody += `<tr style="background:${rowBg};border-bottom:1px solid #E2E8F0">
-            <td style="padding:0 18px;height:${rowH}px;vertical-align:middle">
+            <td style="padding:0 12px;height:${rowH}px;vertical-align:middle">
               <div style="font-size:${fzLabel}px;font-weight:600;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3">${escHtml(c.label)}</div>
               ${showDesc ? `<div style="font-size:10px;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin-top:1px">${escHtml(c.texte)}</div>` : ''}
             </td>
@@ -755,19 +762,22 @@ async function exportCoachPPT() {
         });
       }
 
+      const theadHtml = hasSplit ? '' : `
+        <thead>
+          <tr style="background:#1E293B">
+            <th style="padding:7px 18px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
+            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
+            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
+            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
+          </tr>
+        </thead>`;
+
       const div = createOffscreen(CW);
       div.innerHTML = `
         <div style="width:${CW}px;height:${CH}px;background:#F8FAFC;padding:${PAD}px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif;overflow:hidden">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed">
             <colgroup><col style="width:42%"><col style="width:19%"><col style="width:19%"><col style="width:20%"></colgroup>
-            <thead>
-              <tr style="background:#1E293B">
-                <th style="padding:7px 18px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
-                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
-                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
-                <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
-              </tr>
-            </thead>
+            ${theadHtml}
             <tbody>${tbody}</tbody>
           </table>
         </div>`;
@@ -775,12 +785,26 @@ async function exportCoachPPT() {
       const b64 = await captureDiv(div, CW, CH);
       const slide = prs.addSlide();
       slide.background = { color: BG };
-      addHeader(slide, slidePrefix, subHdr);
-      if (b64) {
-        slide.addImage({ data: b64, x: 0.1, y: CONTENT_Y, w: 9.8, h: BOX_H });
+
+      if (hasSplit) {
+        const RADAR_X = 0.1 + TABLE_W_IN + 0.1;
+        const RADAR_W = 9.9 - RADAR_X;
+        addHeader(slide, subHdr, '');
+        slide.addText(slidePrefix, {
+          x:0.1, y:CONTENT_Y, w:TABLE_W_IN, h:TITLE_H_IN,
+          fontSize:11, bold:true, color:GOLD, fontFace:'Calibri', align:'left', valign:'middle'
+        });
+        if (b64) slide.addImage({ data:b64, x:0.1, y:CONTENT_Y+TITLE_H_IN, w:TABLE_W_IN, h:TABLE_H_IN });
+        slide.addImage({ data:radarImg, x:RADAR_X, y:CONTENT_Y, w:RADAR_W, h:BOX_H,
+          sizing:{ type:'contain', w:RADAR_W, h:BOX_H } });
       } else {
-        slide.addText('Détail non disponible.', { x: 0.5, y: 2.5, fontSize: 12,
-          color: '94A3B8', fontFace: 'Calibri', italic: true });
+        addHeader(slide, slidePrefix, subHdr);
+        if (b64) {
+          slide.addImage({ data: b64, x: 0.1, y: CONTENT_Y, w: 9.8, h: BOX_H });
+        } else {
+          slide.addText('Détail non disponible.', { x: 0.5, y: 2.5, fontSize: 12,
+            color: '94A3B8', fontFace: 'Calibri', italic: true });
+        }
       }
     }
 
@@ -936,11 +960,11 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 3 : Détail Attaque ─────────────────────────────────────────
-    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
+    // ── SLIDE 3 : Détail Attaque (tableau + radar) ───────────────────────
+    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE', attImg);
 
-    // ── SLIDE 4 : Détail Défense ─────────────────────────────────────────
-    if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
+    // ── SLIDE 4 : Détail Défense (tableau + radar) ───────────────────────
+    if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE', defImg);
 
     // ── SLIDE CR : Compte rendu d'entretien ──────────────────────────────
     if (_cPdfCr) {
