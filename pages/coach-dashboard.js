@@ -784,10 +784,7 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 3 : Détail Attaque (1 slide, grille 2×2) ───────────────────
-    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
-
-    // ── SLIDE 3b : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
+    // ── SLIDE 2 : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
     if (_cAttId && CRITERIA[_cAttId]) {
       const attAxes = Object.entries(CRITERIA[_cAttId].axes);
       const hasDefRadars = !_cPdfIsGb && _cDefId && CRITERIA[_cDefId];
@@ -939,7 +936,10 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 4 : Détail Défense (1 slide, si non GB) ────────────────────
+    // ── SLIDE 3 : Détail Attaque ─────────────────────────────────────────
+    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE');
+
+    // ── SLIDE 4 : Détail Défense ─────────────────────────────────────────
     if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE');
 
     // ── SLIDE CR : Compte rendu d'entretien ──────────────────────────────
