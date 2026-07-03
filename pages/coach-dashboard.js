@@ -1048,44 +1048,46 @@ async function exportCoachPPT() {
       ]);
     }
 
-    // ── SLIDE 5 : Compte rendu d'entretien ──────────────────────────────
+    // ── SLIDE 5 : Compte rendu d'entretien (natif PPT) ──────────────────
     if (_cPdfCr) {
       const cr = _cPdfCr;
-      const esc = s => escHtml(s || '').replace(/\n/g, '<br>');
-      const att   = esc(cr.axes_att);
-      const def   = esc(cr.axes_def);
-      const ct    = esc(cr.objectifs_ct);
-      const mt    = esc(cr.objectifs_mt);
-      const notes = esc(cr.notes);
-      const txt14 = 'font-size:14px;color:#1E293B;line-height:1.7';
-      const sublbl = (col, t) => `<div style="font-size:12px;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px">${t}</div>`;
-      const sechdr = (bg, fg, t) => `<div style="background:${bg};color:${fg};padding:6px 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">${t}</div>`;
-      const block = (lbl, content) => content ? `<div style="margin-bottom:14px">${lbl}<div style="${txt14}">${content}</div></div>` : '';
-
-      const crDiv = createOffscreen(900);
-      crDiv.innerHTML = `<div style="width:900px;background:#FFFFFF;padding:16px 20px;box-sizing:border-box;font-family:Calibri,Arial,sans-serif">
-        <div style="display:flex;gap:24px">
-          <div style="flex:1">
-            ${sechdr('#0A2463', '#FFFFFF', 'Axes prioritaires')}
-            ${block(sublbl('#0A2463', _cPdfIsGb ? '🧤 Gardien' : '⚡ Attaque'), att)}
-            ${!_cPdfIsGb ? block(sublbl('#0A2463', '🛡 Défense'), def) : ''}
-          </div>
-          <div style="flex:1">
-            ${sechdr('#0A2463', '#FFFFFF', 'Objectifs')}
-            ${block(sublbl('#C8A84B', 'Court terme'), ct)}
-            ${block(sublbl('#C8A84B', 'Moyen terme'), mt)}
-          </div>
-        </div>
-        ${notes ? `<div style="margin-top:16px;border-top:2px solid #E2E8F0;padding-top:12px">
-          ${sechdr('#1E293B', '#F1F5F9', "Notes d'entretien")}
-          <div style="${txt14}">${notes}</div></div>` : ''}
-      </div>`;
-
-      const crB64 = await captureDiv(crDiv, 900);
       const sCr = prs.addSlide();
-      sCr.background = { color: WHITE };
-      addHeader(sCr, '📋 COMPTE RENDU', subHdr);
-      addCapture(sCr, crB64, 0.1, CONTENT_Y, 9.8, 5.625 - CONTENT_Y - 0.05, 'Compte rendu non disponible.');
+      sCr.background = { color: BG };
+      addHeader(sCr, "📋 COMPTE RENDU", subHdr);
+
+      // Bandeau section pleine largeur (même style que slide 4)
+      sCr.addShape(prs.ShapeType.rect, {
+        x:0.10, y:0.50, w:9.80, h:0.30,
+        fill:{ color:NAVY }, line:{ color:NAVY }
+      });
+      sCr.addText("COMPTE-RENDU D'ENTRETIEN", {
+        x:0.22, y:0.50, w:9.56, h:0.30,
+        fontSize:10, bold:true, color:WHITE, fontFace:'Calibri',
+        align:'left', valign:'middle'
+      });
+
+      // Sous-titre (même style que les blocs de slide 4)
+      const SUBTITLE_Y = 0.86, SUBTITLE_H = 0.22;
+      sCr.addShape(prs.ShapeType.rect, {
+        x:0.10, y:SUBTITLE_Y, w:9.80, h:SUBTITLE_H,
+        fill:{ color:'EEF2FF' }, line:{ color:'EEF2FF' }
+      });
+      sCr.addText("📝 Notes d'entretien", {
+        x:0.18, y:SUBTITLE_Y, w:9.62, h:SUBTITLE_H,
+        fontSize:10, bold:true, color:NAVY, fontFace:'Calibri',
+        align:'left', valign:'middle'
+      });
+
+      // Bloc texte unique centré pleine largeur
+      const notes = cr.notes || null;
+      const TEXT_Y = SUBTITLE_Y + SUBTITLE_H;
+      const TEXT_H = 5.60 - TEXT_Y - 0.05;
+      sCr.addText(notes || 'Non renseigné', {
+        x:0.10, y:TEXT_Y, w:9.80, h:TEXT_H,
+        fontSize:10.5, color: notes ? '1E293B' : '94A3B8',
+        fontFace:'Calibri', align:'left', valign:'top',
+        wrap:true, italic:!notes
+      });
     }
 
     const safe = (`${_cPdfNom}_${_cPdfSession}`).replace(/[^a-zA-Z0-9_-]/g, '_');
