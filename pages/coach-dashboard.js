@@ -657,10 +657,54 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── Capture radars globaux ATT + DEF ────────────────────────────────
-    const defCanvas = gid('radarDef');
-    const attImg    = attCanvas.toDataURL('image/png');
-    const defImg    = (defCanvas && !_cPdfIsGb) ? defCanvas.toDataURL('image/png') : null;
+    // ── Rendu haute résolution des radars globaux ATT + DEF ─────────────
+    const renderProfilRadar = async profilId => {
+      if (!CRITERIA[profilId]) return null;
+      const RES = 1500;
+      const cv  = document.createElement('canvas');
+      cv.width  = RES; cv.height = RES;
+      cv.style.cssText = 'position:absolute;top:0;left:-9999px';
+      document.body.appendChild(cv);
+      const wrapLbl = lbl => {
+        if (lbl.length <= 14) return lbl;
+        const mid = Math.floor(lbl.length / 2);
+        const after  = lbl.indexOf(' ', mid);
+        const before = lbl.lastIndexOf(' ', mid);
+        const split  = after === -1 ? before : before === -1 ? after :
+                       Math.abs(after - mid) <= Math.abs(before - mid) ? after : before;
+        return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
+      };
+      const axes  = Object.entries(CRITERIA[profilId].axes);
+      const avg   = (axe, key) => {
+        const ns = axe.criteres.map(c => _coachEvalMap[c.id]?.[key] || 0).filter(n => n > 0);
+        return ns.length ? +(ns.reduce((a, b) => a + b, 0) / ns.length).toFixed(1) : 0;
+      };
+      const ch = new window.Chart(cv, {
+        type: 'radar',
+        data: { labels: axes.map(([, a]) => wrapLbl(a.label)), datasets: [
+          { data: axes.map(([, a]) => avg(a, 'note_joueur')),
+            backgroundColor: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.85)',
+            borderWidth: 5, pointRadius: 7, pointBackgroundColor: 'rgba(59,130,246,0.85)' },
+          { data: axes.map(([, a]) => avg(a, 'note_staff')),
+            backgroundColor: 'rgba(234,88,12,0.18)',  borderColor: 'rgba(234,88,12,0.85)',
+            borderWidth: 5, pointRadius: 7, pointBackgroundColor: 'rgba(234,88,12,0.85)' }
+        ]},
+        options: { responsive: false, animation: false,
+          layout: { padding: 200 },
+          plugins: { legend: { display: false } },
+          scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, display: false },
+            pointLabels: { font: { size: 52, family: 'Calibri,Arial', weight: 'bold' },
+              color: '#0A2463' } } }
+        }
+      });
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const img = cv.toDataURL('image/png');
+      ch.destroy(); cv.remove();
+      return img;
+    };
+
+    const attImg = await renderProfilRadar(_cAttId);
+    const defImg = (!_cPdfIsGb && _cDefId) ? await renderProfilRadar(_cDefId) : null;
 
     // ── Helper : tableau + radar (split) ou tableau full-page ────────────
     async function addAxisSlides(profilId, slidePrefix, radarImg = null) {
@@ -696,26 +740,27 @@ async function exportCoachPPT() {
       const TABLE_W_IN = hasSplit ? 4.5 : 9.8;
       const TITLE_H_IN = hasSplit ? 0.22 : 0;   // label profil au-dessus du tableau
       const TABLE_H_IN = BOX_H - TITLE_H_IN;
-      const PAD = 12, AXE_H = 26, HDR_H = 40;
+      const PAD = 12, HDR_H = 40;
+      const AXE_H = hasSplit ? 30 : 26;         // bande titre axe (plus haute en split)
 
       const CW = Math.round(TABLE_W_IN * 200); // 200 px/inch
       const CH = Math.round(TABLE_H_IN * 200);
       const CONTAINER = CH - PAD * 2;
 
-      // Mode split : pas de thead, police 15px, rowH 24px
+      // Mode split : pas de thead, police 19px, rowH 28px
       // Mode full  : thead, police auto (12/13), rowH auto (22/36)
       const STATIC_H = hasSplit
         ? axeEntries.length * (AXE_H + 6)
         : (HDR_H + 14) + axeEntries.length * (AXE_H + 6);
       const showDesc = !hasSplit && (STATIC_H + totalCriteres * 37 + 20) <= CONTAINER;
-      const rowH    = hasSplit ? 24 : (showDesc ? 36 : 22);
-      const fzLabel = hasSplit ? 17 : (showDesc ? 13 : 12);
+      const rowH    = hasSplit ? 28 : (showDesc ? 36 : 22);
+      const fzLabel = hasSplit ? 19 : (showDesc ? 13 : 12);
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
         const axe = CRITERIA[profilId].axes[axeId];
         tbody += `<tr style="background:#0A2463">
-          <td colspan="4" style="padding:3px 18px;color:#FFFFFF;font-size:14px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
+          <td colspan="4" style="padding:3px 18px;color:#FFFFFF;font-size:${fzLabel}px;font-weight:700;letter-spacing:.05em;height:${AXE_H}px;font-family:Calibri,Arial,sans-serif">${escHtml(axe.label)}</td>
         </tr>`;
         axe.criteres.forEach((c, i) => {
           const nj = _coachEvalMap[c.id]?.note_joueur || 0;
@@ -763,7 +808,7 @@ async function exportCoachPPT() {
         addHeader(slide, subHdr, '');
         slide.addText(slidePrefix, {
           x:0.1, y:CONTENT_Y, w:TABLE_W_IN, h:TITLE_H_IN,
-          fontSize:13, bold:true, color:GOLD, fontFace:'Calibri', align:'left', valign:'middle'
+          fontSize:15, bold:true, color:GOLD, fontFace:'Calibri', align:'left', valign:'middle'
         });
         if (b64) slide.addImage({ data:b64, x:0.1, y:CONTENT_Y+TITLE_H_IN, w:TABLE_W_IN, h:TABLE_H_IN });
         slide.addImage({ data:radarImg, x:RADAR_X, y:CONTENT_Y, w:RADAR_W, h:BOX_H,
@@ -937,7 +982,44 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 4 : Compte rendu d'entretien ──────────────────────────────
+    // ── SLIDE 4 : Axes & Objectifs (natif PPT — layout en attente designer) ─
+    if (_cPdfCr) {
+      const cr4 = _cPdfCr;
+      const LABEL_OPTS = { bold:true, color:WHITE, fontFace:'Calibri', fontSize:11,
+        fill:{ color:NAVY }, align:'left', valign:'middle' };
+      const TEXT_OPTS  = { color:'1E293B', fontFace:'Calibri', fontSize:12,
+        wrap:true, valign:'top' };
+      const sAx = prs.addSlide();
+      sAx.background = { color: BG };
+      addHeader(sAx, '📋 AXES & OBJECTIFS', subHdr);
+      // Section ATT
+      if (cr4.axes_att) {
+        sAx.addText(`${_cPdfIsGb ? '🧤' : '⚡'} ATTAQUE`, { x:0.1, y:0.55, w:4.5, h:0.28, ...LABEL_OPTS });
+        sAx.addText(cr4.axes_att, { x:0.1, y:0.85, w:4.5, h:2.1, ...TEXT_OPTS });
+      }
+      // Section DEF
+      if (!_cPdfIsGb && cr4.axes_def) {
+        sAx.addText('🛡 DÉFENSE', { x:0.1, y:3.05, w:4.5, h:0.28, ...LABEL_OPTS });
+        sAx.addText(cr4.axes_def, { x:0.1, y:3.35, w:4.5, h:2.0, ...TEXT_OPTS });
+      }
+      // Séparateur vertical
+      sAx.addShape(prs.ShapeType.rect, { x:4.7, y:0.55, w:0.03, h:4.9,
+        fill:{ color:'CBD5E1' }, line:{ color:'CBD5E1' } });
+      // Section Objectifs CT
+      if (cr4.objectifs_ct) {
+        sAx.addText('⚡ COURT TERME', { x:4.8, y:0.55, w:5.0, h:0.28, ...LABEL_OPTS,
+          fill:{ color:'C8A84B' }, color:'0A2463' });
+        sAx.addText(cr4.objectifs_ct, { x:4.8, y:0.85, w:5.0, h:2.1, ...TEXT_OPTS });
+      }
+      // Section Objectifs MT
+      if (cr4.objectifs_mt) {
+        sAx.addText('📅 MOYEN TERME', { x:4.8, y:3.05, w:5.0, h:0.28, ...LABEL_OPTS,
+          fill:{ color:'C8A84B' }, color:'0A2463' });
+        sAx.addText(cr4.objectifs_mt, { x:4.8, y:3.35, w:5.0, h:2.0, ...TEXT_OPTS });
+      }
+    }
+
+    // ── SLIDE 5 : Compte rendu d'entretien ──────────────────────────────
     if (_cPdfCr) {
       const cr = _cPdfCr;
       const esc = s => escHtml(s || '').replace(/\n/g, '<br>');
