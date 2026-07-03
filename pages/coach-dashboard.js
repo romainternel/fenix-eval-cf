@@ -665,23 +665,19 @@ async function exportCoachPPT() {
       cv.width  = RES; cv.height = RES;
       cv.style.cssText = 'position:absolute;top:0;left:-9999px';
       document.body.appendChild(cv);
-      const wrapLbl = lbl => {
-        if (lbl.length <= 14) return lbl;
-        const mid = Math.floor(lbl.length / 2);
-        const after  = lbl.indexOf(' ', mid);
-        const before = lbl.lastIndexOf(' ', mid);
-        const split  = after === -1 ? before : before === -1 ? after :
-                       Math.abs(after - mid) <= Math.abs(before - mid) ? after : before;
-        return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
-      };
       const axes  = Object.entries(CRITERIA[profilId].axes);
       const avg   = (axe, key) => {
         const ns = axe.criteres.map(c => _coachEvalMap[c.id]?.[key] || 0).filter(n => n > 0);
         return ns.length ? +(ns.reduce((a, b) => a + b, 0) / ns.length).toFixed(1) : 0;
       };
+      // Labels toujours sur 1 ligne — pas de wrap — font adaptée à la longueur max
+      // pour garantir un radar identique quelle que soit la longueur des noms d'axes
+      const labels = axes.map(([, a]) => a.label);
+      const maxLen = Math.max(...labels.map(l => l.length));
+      const labelFontSize = maxLen > 18 ? 34 : maxLen > 12 ? 42 : 52;
       const ch = new window.Chart(cv, {
         type: 'radar',
-        data: { labels: axes.map(([, a]) => wrapLbl(a.label)), datasets: [
+        data: { labels, datasets: [
           { data: axes.map(([, a]) => avg(a, 'note_joueur')),
             backgroundColor: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.85)',
             borderWidth: 5, pointRadius: 7, pointBackgroundColor: 'rgba(59,130,246,0.85)' },
@@ -693,7 +689,7 @@ async function exportCoachPPT() {
           layout: { padding: 200 },
           plugins: { legend: { display: false } },
           scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, display: false },
-            pointLabels: { font: { size: 52, family: 'Calibri,Arial', weight: 'bold' },
+            pointLabels: { font: { size: labelFontSize, family: 'Calibri,Arial', weight: 'bold' },
               color: '#0A2463' } } }
         }
       });
