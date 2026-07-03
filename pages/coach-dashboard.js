@@ -982,41 +982,64 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 4 : Axes & Objectifs (natif PPT — layout en attente designer) ─
+    // ── SLIDE 4 : Axes & Objectifs (natif PPT, colLayout dynamique) ─────
     if (_cPdfCr) {
-      const cr4 = _cPdfCr;
-      const LABEL_OPTS = { bold:true, color:WHITE, fontFace:'Calibri', fontSize:11,
-        fill:{ color:NAVY }, align:'left', valign:'middle' };
-      const TEXT_OPTS  = { color:'1E293B', fontFace:'Calibri', fontSize:12,
-        wrap:true, valign:'top' };
-      const sAx = prs.addSlide();
+      const cr4  = _cPdfCr;
+      const sAx  = prs.addSlide();
       sAx.background = { color: BG };
       addHeader(sAx, '📋 AXES & OBJECTIFS', subHdr);
-      // Section ATT
-      if (cr4.axes_att) {
-        sAx.addText(`${_cPdfIsGb ? '🧤' : '⚡'} ATTAQUE`, { x:0.1, y:0.55, w:4.5, h:0.28, ...LABEL_OPTS });
-        sAx.addText(cr4.axes_att, { x:0.1, y:0.85, w:4.5, h:2.1, ...TEXT_OPTS });
-      }
-      // Section DEF
-      if (!_cPdfIsGb && cr4.axes_def) {
-        sAx.addText('🛡 DÉFENSE', { x:0.1, y:3.05, w:4.5, h:0.28, ...LABEL_OPTS });
-        sAx.addText(cr4.axes_def, { x:0.1, y:3.35, w:4.5, h:2.0, ...TEXT_OPTS });
-      }
-      // Séparateur vertical
-      sAx.addShape(prs.ShapeType.rect, { x:4.7, y:0.55, w:0.03, h:4.9,
-        fill:{ color:'CBD5E1' }, line:{ color:'CBD5E1' } });
-      // Section Objectifs CT
-      if (cr4.objectifs_ct) {
-        sAx.addText('⚡ COURT TERME', { x:4.8, y:0.55, w:5.0, h:0.28, ...LABEL_OPTS,
-          fill:{ color:'C8A84B' }, color:'0A2463' });
-        sAx.addText(cr4.objectifs_ct, { x:4.8, y:0.85, w:5.0, h:2.1, ...TEXT_OPTS });
-      }
-      // Section Objectifs MT
-      if (cr4.objectifs_mt) {
-        sAx.addText('📅 MOYEN TERME', { x:4.8, y:3.05, w:5.0, h:0.28, ...LABEL_OPTS,
-          fill:{ color:'C8A84B' }, color:'0A2463' });
-        sAx.addText(cr4.objectifs_mt, { x:4.8, y:3.35, w:5.0, h:2.0, ...TEXT_OPTS });
-      }
+
+      // Séparateur vertical central
+      sAx.addShape(prs.ShapeType.rect, {
+        x:4.95, y:0.56, w:0.01, h:4.98,
+        fill:{ color:'CBD5E1' }, line:{ color:'CBD5E1' }
+      });
+
+      // Bandeaux de section (fond navy + titre blanc)
+      const addSectionHdr = (x, w, title) => {
+        sAx.addShape(prs.ShapeType.rect, { x, y:0.50, w, h:0.30, fill:{ color:NAVY }, line:{ color:NAVY } });
+        sAx.addText(title, { x:x+0.10, y:0.50, w:w-0.10, h:0.30,
+          fontSize:10, bold:true, color:WHITE, fontFace:'Calibri', align:'left', valign:'middle' });
+      };
+      addSectionHdr(0.10, 4.75, 'AXES PRIORITAIRES');
+      addSectionHdr(5.15, 4.75, 'OBJECTIFS');
+
+      // Helper : blocs de texte variables dans une colonne
+      const addColBlocks = (colX, colW, blocks) => {
+        const SUBTITLE_H = 0.22, GAP = 0.18, START_Y = 0.86, END_Y = 5.60;
+        const n     = blocks.length;
+        const textH = ((END_Y - START_Y) - n * SUBTITLE_H - (n - 1) * GAP) / n;
+        let cur = START_Y;
+        for (const b of blocks) {
+          sAx.addText(b.label, {
+            x:colX, y:cur, w:colW, h:SUBTITLE_H,
+            fontSize:10, bold:true,
+            color: b.isGold ? GOLD : NAVY,
+            fontFace:'Calibri', align:'left', valign:'middle'
+          });
+          cur += SUBTITLE_H;
+          sAx.addText(b.text || 'Non renseigné', {
+            x:colX, y:cur, w:colW, h:textH,
+            fontSize:10, color: b.text ? '1E293B' : '94A3B8',
+            fontFace:'Calibri', align:'left', valign:'top',
+            wrap:true, italic:!b.text
+          });
+          cur += textH + GAP;
+        }
+      };
+
+      // Colonne gauche : axes prioritaires (ATT + DEF ou Gardien seul)
+      addColBlocks(0.10, 4.75, _cPdfIsGb
+        ? [{ label:'🧤 Gardien',  text:cr4.axes_att, isGold:false }]
+        : [{ label:'⚡ Attaque',  text:cr4.axes_att, isGold:false },
+           { label:'🛡 Défense',  text:cr4.axes_def, isGold:false }]
+      );
+
+      // Colonne droite : objectifs CT + MT
+      addColBlocks(5.15, 4.75, [
+        { label:'Court terme', text:cr4.objectifs_ct, isGold:true },
+        { label:'Moyen terme', text:cr4.objectifs_mt, isGold:true }
+      ]);
     }
 
     // ── SLIDE 5 : Compte rendu d'entretien ──────────────────────────────
