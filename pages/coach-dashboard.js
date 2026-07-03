@@ -835,21 +835,29 @@ async function exportCoachPPT() {
       };
 
       if (hasDefRadars) {
-        // ── Mode combiné : 1 axe ATT (gauche) + 1 axe DEF (droite) par slide ──
-        // RW = 7.54 cm ÷ 2.54 = 2.969" — centré sur la slide
-        const RW = 2.969, RH = 2.969, TH = 0.28, GAP = 0.6, slH = 0.22;
-        const TOTAL_W = 2 * RW + GAP;                   // 6.538"
-        const attX  = (10 - TOTAL_W) / 2;               // 1.731"
-        const defX  = attX + RW + GAP;                  // 5.30"
+        // ── Mode combiné : 2×2 ATT (gauche) + 2×2 DEF (droite), radars 7.54 cm ──
+        // Overflow latéral et bas assumé — l'utilisateur repositionne en PPT
+        const RW = 2.969, RH = 2.969, TH = 0.24, CGAP = 0.1, RGAP = 0.08, slH = 0.20;
+        // ATT : bord droit calé à 4.9" (avant séparateur central)
+        const attX2 = 4.9 - RW;       // 1.931" — colonne droite ATT
+        const attX1 = attX2 - CGAP - RW; // -1.138" — colonne gauche ATT (overflow gauche)
+        // DEF : bord gauche à 5.1" (après séparateur central)
+        const defX1 = 5.1;             // colonne gauche DEF
+        const defX2 = defX1 + RW + CGAP; // 8.169" — colonne droite DEF (overflow droite)
+        const secW  = 2 * RW + CGAP;   // 6.038" — largeur section (pour labels)
         const slY   = CONTENT_Y + 0.05;
-        const axY   = slY + slH + 0.03;
-        const radarY = axY + TH + 0.02;
-        const legendY = radarY + RH + 0.07;
+        const y1t   = slY + slH + 0.02;
+        const y1r   = y1t + TH;
+        const y2t   = y1r + RH + RGAP;  // row 2 (overflow bas probable)
+        const y2r   = y2t + TH;
+        const legendY = y2r + RH + 0.05;
         const attLabel = PROFIL_LABELS[_cAttId] || _cAttId;
         const defLabel = PROFIL_LABELS[_cDefId] || _cDefId;
-        const SLIDES_N = Math.max(attAxes.length, defAxes.length);
+        const SLIDES_N = Math.max(Math.ceil(attAxes.length / 4), Math.ceil(defAxes.length / 4));
 
         for (let si = 0; si < SLIDES_N; si++) {
+          const attGroup = attAxes.slice(si * 4, si * 4 + 4);
+          const defGroup = defAxes.slice(si * 4, si * 4 + 4);
           const slideIdx = SLIDES_N > 1 ? ` (${si + 1}/${SLIDES_N})` : '';
           const sRad = prs.addSlide();
           sRad.background = { color: BG };
@@ -857,35 +865,39 @@ async function exportCoachPPT() {
 
           // Séparateur vertical central
           sRad.addShape(prs.ShapeType.rect, {
-            x: 4.98, y: slY, w: 0.02, h: legendY - slY + 0.1,
+            x: 4.98, y: slY, w: 0.04, h: 4.8,
             fill: { color: 'E2E8F0' }, line: { color: 'E2E8F0' }
           });
 
-          // Labels de section (profil)
+          // Labels de section
           sRad.addText(`⚡ ${attLabel}`, {
-            x:attX, y:slY, w:RW, h:slH,
+            x: attX1, y: slY, w: secW, h: slH,
             fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
           });
           sRad.addText(`🛡 ${defLabel}`, {
-            x:defX, y:slY, w:RW, h:slH,
+            x: defX1, y: slY, w: secW, h: slH,
             fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
           });
 
-          // Radar ATT (axe si)
-          if (si < attAxes.length) {
-            await drawRadar(sRad, attAxes[si][1], attX, axY, radarY, RW, RH, TH);
+          // Radars ATT
+          for (let i = 0; i < attGroup.length; i++) {
+            const [, axe] = attGroup[i];
+            const col = i % 2, row = Math.floor(i / 2);
+            await drawRadar(sRad, axe, col === 0 ? attX1 : attX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
           }
 
-          // Radar DEF (axe si)
-          if (si < defAxes.length) {
-            await drawRadar(sRad, defAxes[si][1], defX, axY, radarY, RW, RH, TH);
+          // Radars DEF
+          for (let i = 0; i < defGroup.length; i++) {
+            const [, axe] = defGroup[i];
+            const col = i % 2, row = Math.floor(i / 2);
+            await drawRadar(sRad, axe, col === 0 ? defX1 : defX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
           }
 
           // Légende
           sRad.addText([
             { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
             { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
-          ], { x:0.1, y:legendY, w:9.8, h:0.2, align:'center', fontSize:9, fontFace:'Calibri' });
+          ], { x:0.1, y:5.40, w:9.8, h:0.18, align:'center', fontSize:9, fontFace:'Calibri' });
         }
       } else {
         // ── Mode simple : ATT seul, 2×2 centré, radars 2.3"×2.3" ────────
