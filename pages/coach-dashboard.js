@@ -989,16 +989,16 @@ async function exportCoachPPT() {
       sAx.background = { color: BG };
       addHeader(sAx, '📋 AXES & OBJECTIFS', subHdr);
 
-      // Séparateur vertical central
+      // Séparateur vertical central (slate-400, plus visible sur projecteur)
       sAx.addShape(prs.ShapeType.rect, {
-        x:4.95, y:0.56, w:0.01, h:4.98,
-        fill:{ color:'CBD5E1' }, line:{ color:'CBD5E1' }
+        x:4.95, y:0.56, w:0.02, h:4.98,
+        fill:{ color:'94A3B8' }, line:{ color:'94A3B8' }
       });
 
       // Bandeaux de section (fond navy + titre blanc)
       const addSectionHdr = (x, w, title) => {
         sAx.addShape(prs.ShapeType.rect, { x, y:0.50, w, h:0.30, fill:{ color:NAVY }, line:{ color:NAVY } });
-        sAx.addText(title, { x:x+0.10, y:0.50, w:w-0.10, h:0.30,
+        sAx.addText(title, { x:x+0.12, y:0.50, w:w-0.12, h:0.30,
           fontSize:10, bold:true, color:WHITE, fontFace:'Calibri', align:'left', valign:'middle' });
       };
       addSectionHdr(0.10, 4.75, 'AXES PRIORITAIRES');
@@ -1011,8 +1011,14 @@ async function exportCoachPPT() {
         const textH = ((END_Y - START_Y) - n * SUBTITLE_H - (n - 1) * GAP) / n;
         let cur = START_Y;
         for (const b of blocks) {
-          sAx.addText(b.label, {
+          // Fond léger sous-titre (EEF2FF axes, FFFBEB objectifs)
+          sAx.addShape(prs.ShapeType.rect, {
             x:colX, y:cur, w:colW, h:SUBTITLE_H,
+            fill:{ color: b.isGold ? 'FFFBEB' : 'EEF2FF' },
+            line:{ color: b.isGold ? 'FFFBEB' : 'EEF2FF' }
+          });
+          sAx.addText(b.label, {
+            x:colX+0.08, y:cur, w:colW-0.08, h:SUBTITLE_H,
             fontSize:10, bold:true,
             color: b.isGold ? GOLD : NAVY,
             fontFace:'Calibri', align:'left', valign:'middle'
@@ -1020,7 +1026,7 @@ async function exportCoachPPT() {
           cur += SUBTITLE_H;
           sAx.addText(b.text || 'Non renseigné', {
             x:colX, y:cur, w:colW, h:textH,
-            fontSize:10, color: b.text ? '1E293B' : '94A3B8',
+            fontSize:10.5, color: b.text ? '1E293B' : '94A3B8',
             fontFace:'Calibri', align:'left', valign:'top',
             wrap:true, italic:!b.text
           });
