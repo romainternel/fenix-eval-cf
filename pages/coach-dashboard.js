@@ -803,12 +803,7 @@ async function exportCoachPPT() {
         return split > 0 ? [lbl.slice(0, split), lbl.slice(split + 1)] : lbl;
       };
 
-      const drawRadar = async (slide, axe, xPos, yTitle, yRadar, RW, RH, TH) => {
-        slide.addText(axe.label, {
-          x:xPos, y:yTitle, w:RW, h:TH,
-          fontSize:10, bold:true, color:NAVY, fontFace:'Calibri',
-          align:'center', valign:'bottom'
-        });
+      const renderRadar = async (slide, axe, xRadar, yRadar, RW, RH) => {
         const cv = document.createElement('canvas');
         cv.width = 1200; cv.height = 1200;
         cv.style.cssText = 'position:absolute;top:0;left:-9999px';
@@ -831,26 +826,19 @@ async function exportCoachPPT() {
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         const img = cv.toDataURL('image/png');
         ch.destroy(); cv.remove();
-        slide.addImage({ data:img, x:xPos, y:yRadar, w:RW, h:RH });
+        slide.addImage({ data:img, x:xRadar, y:yRadar, w:RW, h:RH });
       };
 
       if (hasDefRadars) {
-        // ── Mode combiné : 2×2 ATT (gauche) + 2×2 DEF (droite), radars 7.54 cm ──
-        // Overflow latéral et bas assumé — l'utilisateur repositionne en PPT
-        const RW = 2.969, RH = 2.969, TH = 0.24, CGAP = 0.1, RGAP = 0.08, slH = 0.20;
-        // ATT : bord droit calé à 4.9" (avant séparateur central)
-        const attX2 = 4.9 - RW;       // 1.931" — colonne droite ATT
-        const attX1 = attX2 - CGAP - RW; // -1.138" — colonne gauche ATT (overflow gauche)
-        // DEF : bord gauche à 5.1" (après séparateur central)
-        const defX1 = 5.1;             // colonne gauche DEF
-        const defX2 = defX1 + RW + CGAP; // 8.169" — colonne droite DEF (overflow droite)
-        const secW  = 2 * RW + CGAP;   // 6.038" — largeur section (pour labels)
-        const slY   = CONTENT_Y + 0.05;
-        const y1t   = slY + slH + 0.02;
-        const y1r   = y1t + TH;
-        const y2t   = y1r + RH + RGAP;  // row 2 (overflow bas probable)
-        const y2r   = y2t + TH;
-        const legendY = y2r + RH + 0.05;
+        // ── Mode combiné — coordonnées calées sur PPT de référence (juillet 2026) ──
+        // RW=RH=2.969" (7.54 cm). Les zones de padding Chart.js (200/1200 = 16.7%)
+        // absorbent les chevauchements de boîtes : les rings sont séparés.
+        const RW = 2.969, RH = 2.969;
+        const xCols  = [-0.046, 2.234, 4.823, 7.243]; // x images : att1,att2,def1,def2
+        const yRows  = [0.48, 2.752];                  // y images : rang1, rang2
+        const txCols = [0.48, 3.00, 5.71, 7.85];       // x titres d'axe par colonne
+        const tyRows = [2.682, 4.90];                  // y titres d'axe par rang
+        const SEP    = '44546A';                        // couleur traits internes (dk1 thème)
         const attLabel = PROFIL_LABELS[_cAttId] || _cAttId;
         const defLabel = PROFIL_LABELS[_cDefId] || _cDefId;
         const SLIDES_N = Math.max(Math.ceil(attAxes.length / 4), Math.ceil(defAxes.length / 4));
@@ -863,41 +851,57 @@ async function exportCoachPPT() {
           sRad.background = { color: BG };
           addHeader(sRad, `⚡ ${attLabel}  /  🛡 ${defLabel} — RADARS PAR AXE${slideIdx}`, subHdr);
 
-          // Séparateur vertical central
+          // Séparateur vertical central (E2E8F0)
           sRad.addShape(prs.ShapeType.rect, {
-            x: 4.98, y: slY, w: 0.04, h: 4.8,
-            fill: { color: 'E2E8F0' }, line: { color: 'E2E8F0' }
+            x:4.98, y:0.55, w:0.04, h:4.8,
+            fill:{ color:'E2E8F0' }, line:{ color:'E2E8F0' }
           });
 
-          // Labels de section
+          // Séparateurs internes ATT : vertical entre col1|col2, horizontal entre rang1|rang2
+          sRad.addShape(prs.ShapeType.rect, { x:2.47, y:1.13, w:0.01, h:4.02, fill:{ color:SEP }, line:{ color:SEP, width:0 } });
+          sRad.addShape(prs.ShapeType.rect, { x:0.15, y:3.10, w:4.61, h:0.01, fill:{ color:SEP }, line:{ color:SEP, width:0 } });
+
+          // Séparateurs internes DEF : vertical entre col1|col2, horizontal entre rang1|rang2
+          sRad.addShape(prs.ShapeType.rect, { x:7.51, y:1.13, w:0.01, h:4.02, fill:{ color:SEP }, line:{ color:SEP, width:0 } });
+          sRad.addShape(prs.ShapeType.rect, { x:5.18, y:3.10, w:4.61, h:0.01, fill:{ color:SEP }, line:{ color:SEP, width:0 } });
+
+          // Labels de section (dans le padding haut rang1)
           sRad.addText(`⚡ ${attLabel}`, {
-            x: attX1, y: slY, w: secW, h: slH,
+            x:1.902, y:0.658, w:1.081, h:0.305,
             fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
           });
           sRad.addText(`🛡 ${defLabel}`, {
-            x: defX1, y: slY, w: secW, h: slH,
+            x:7.133, y:0.658, w:1.083, h:0.307,
             fontSize:9, bold:true, color:GOLD, fontFace:'Calibri', align:'center', valign:'middle'
           });
 
-          // Radars ATT
+          // Radars + titres ATT (colonnes 0 et 1)
           for (let i = 0; i < attGroup.length; i++) {
             const [, axe] = attGroup[i];
             const col = i % 2, row = Math.floor(i / 2);
-            await drawRadar(sRad, axe, col === 0 ? attX1 : attX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+            await renderRadar(sRad, axe, xCols[col], yRows[row], RW, RH);
+            sRad.addText(axe.label, {
+              x:txCols[col], y:tyRows[row], w:1.378, h:0.291,
+              fontSize:10, bold:true, color:NAVY, fontFace:'Calibri', align:'center', valign:'middle'
+            });
           }
 
-          // Radars DEF
+          // Radars + titres DEF (colonnes 2 et 3)
           for (let i = 0; i < defGroup.length; i++) {
             const [, axe] = defGroup[i];
             const col = i % 2, row = Math.floor(i / 2);
-            await drawRadar(sRad, axe, col === 0 ? defX1 : defX2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+            await renderRadar(sRad, axe, xCols[col + 2], yRows[row], RW, RH);
+            sRad.addText(axe.label, {
+              x:txCols[col + 2], y:tyRows[row], w:1.378, h:0.291,
+              fontSize:10, bold:true, color:NAVY, fontFace:'Calibri', align:'center', valign:'middle'
+            });
           }
 
           // Légende
           sRad.addText([
             { text:'● ', options:{ color:'3B82F6' } }, { text:'Joueur   ', options:{ color:'475569' } },
             { text:'● ', options:{ color:'EA580C' } }, { text:'Staff',    options:{ color:'475569' } }
-          ], { x:0.1, y:5.40, w:9.8, h:0.18, align:'center', fontSize:9, fontFace:'Calibri' });
+          ], { x:0.1, y:5.4, w:9.8, h:0.18, align:'center', fontSize:9, fontFace:'Calibri' });
         }
       } else {
         // ── Mode simple : ATT seul, 2×2 centré, radars 2.3"×2.3" ────────
@@ -919,7 +923,12 @@ async function exportCoachPPT() {
           for (let i = 0; i < group.length; i++) {
             const [, axe] = group[i];
             const col = i % 2, row = Math.floor(i / 2);
-            await drawRadar(sRad, axe, col === 0 ? x1 : x2, row === 0 ? y1t : y2t, row === 0 ? y1r : y2r, RW, RH, TH);
+            const xPos = col === 0 ? x1 : x2;
+            sRad.addText(axe.label, {
+              x:xPos, y:row === 0 ? y1t : y2t, w:RW, h:TH,
+              fontSize:10, bold:true, color:NAVY, fontFace:'Calibri', align:'center', valign:'bottom'
+            });
+            await renderRadar(sRad, axe, xPos, row === 0 ? y1r : y2r, RW, RH);
           }
 
           sRad.addText([
