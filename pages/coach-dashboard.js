@@ -657,39 +657,10 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 1 : Radars fond blanc ───────────────────────────────────────
+    // ── Capture radars globaux ATT + DEF ────────────────────────────────
     const defCanvas = gid('radarDef');
-    const attTitle  = `${_cPdfIsGb ? '🧤' : '⚡'} ${PROFIL_LABELS[_cAttId] || _cAttId}`;
-    const defTitle  = defCanvas ? `🛡 ${PROFIL_LABELS[_cDefId] || _cDefId}` : '';
     const attImg    = attCanvas.toDataURL('image/png');
     const defImg    = (defCanvas && !_cPdfIsGb) ? defCanvas.toDataURL('image/png') : null;
-
-    const radarDiv = createOffscreen(900);
-    radarDiv.innerHTML = `
-      <div style="display:flex;gap:16px;justify-content:center;padding:16px">
-        <div style="flex:1;text-align:center">
-          <p style="font-size:13px;font-weight:700;color:#1E293B;margin:0 0 8px">${attTitle}</p>
-          <img src="${attImg}" style="width:100%;max-width:380px">
-        </div>
-        ${defImg ? `<div style="flex:1;text-align:center">
-          <p style="font-size:13px;font-weight:700;color:#1E293B;margin:0 0 8px">${defTitle}</p>
-          <img src="${defImg}" style="width:100%;max-width:380px">
-        </div>` : ''}
-      </div>
-      <div style="display:flex;gap:16px;padding:0 16px 16px;font-size:11px;color:#475569">
-        <div style="display:flex;align-items:center;gap:4px">
-          <div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Joueur
-        </div>
-        <div style="display:flex;align-items:center;gap:4px">
-          <div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff
-        </div>
-      </div>`;
-    const radarB64 = await captureDiv(radarDiv, 900);
-
-    const s1 = prs.addSlide();
-    s1.background = { color: BG };
-    addHeader(s1, 'FENIX Eval CF', subHdr);
-    addCapture(s1, radarB64, 0.3, CONTENT_Y, 9.4, 4.72, 'Radars non disponibles.');
 
     // ── Helper : tableau + radar (split) ou tableau full-page ────────────
     async function addAxisSlides(profilId, slidePrefix, radarImg = null) {
@@ -738,7 +709,7 @@ async function exportCoachPPT() {
         : (HDR_H + 14) + axeEntries.length * (AXE_H + 6);
       const showDesc = !hasSplit && (STATIC_H + totalCriteres * 37 + 20) <= CONTAINER;
       const rowH    = hasSplit ? 24 : (showDesc ? 36 : 22);
-      const fzLabel = hasSplit ? 15 : (showDesc ? 13 : 12);
+      const fzLabel = hasSplit ? 17 : (showDesc ? 13 : 12);
 
       let tbody = '';
       for (const [axeId] of axeEntries) {
@@ -792,7 +763,7 @@ async function exportCoachPPT() {
         addHeader(slide, subHdr, '');
         slide.addText(slidePrefix, {
           x:0.1, y:CONTENT_Y, w:TABLE_W_IN, h:TITLE_H_IN,
-          fontSize:11, bold:true, color:GOLD, fontFace:'Calibri', align:'left', valign:'middle'
+          fontSize:13, bold:true, color:GOLD, fontFace:'Calibri', align:'left', valign:'middle'
         });
         if (b64) slide.addImage({ data:b64, x:0.1, y:CONTENT_Y+TITLE_H_IN, w:TABLE_W_IN, h:TABLE_H_IN });
         slide.addImage({ data:radarImg, x:RADAR_X, y:CONTENT_Y, w:RADAR_W, h:BOX_H,
@@ -808,7 +779,13 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 2 : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
+    // ── SLIDE 1 : Détail Attaque (tableau + radar) ───────────────────────
+    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE', attImg);
+
+    // ── SLIDE 2 : Détail Défense (tableau + radar) ───────────────────────
+    if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE', defImg);
+
+    // ── SLIDE 3 : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
     if (_cAttId && CRITERIA[_cAttId]) {
       const attAxes = Object.entries(CRITERIA[_cAttId].axes);
       const hasDefRadars = !_cPdfIsGb && _cDefId && CRITERIA[_cDefId];
@@ -960,13 +937,7 @@ async function exportCoachPPT() {
       }
     }
 
-    // ── SLIDE 3 : Détail Attaque (tableau + radar) ───────────────────────
-    if (_cAttId) await addAxisSlides(_cAttId, _cPdfIsGb ? '🧤 GARDIEN' : '⚡ ATTAQUE', attImg);
-
-    // ── SLIDE 4 : Détail Défense (tableau + radar) ───────────────────────
-    if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE', defImg);
-
-    // ── SLIDE CR : Compte rendu d'entretien ──────────────────────────────
+    // ── SLIDE 4 : Compte rendu d'entretien ──────────────────────────────
     if (_cPdfCr) {
       const cr = _cPdfCr;
       const esc = s => escHtml(s || '').replace(/\n/g, '<br>');
