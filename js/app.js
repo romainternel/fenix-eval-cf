@@ -24,7 +24,9 @@ async function requireAuth(expectedRole) {
   const role = await getRole(session.user.id);
 
   if (expectedRole && role !== expectedRole) {
-    window.location.href = role === 'coach' ? 'coach.html' : 'player.html';
+    if      (role === 'coach')   window.location.href = 'coach.html';
+    else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
+    else                         window.location.href = 'player.html';
     return null;
   }
 

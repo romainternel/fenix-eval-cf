@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0A2463">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="FENIX Socio-Pro">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/logo-fenix.png">
+  <title>FENIX — Suivi Socio-Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/fenix.css?v=50">
+  <style>
+    /* ── Socio-Pro local styles ─────────────────────────────── */
+    .sp-card   { background:white; border:.5px solid #E0DDD6; border-radius:12px; overflow:hidden; margin-bottom:12px; }
+    .sp-hdr    { background:#0A2463; padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; }
+    .sp-avatar { width:40px; height:40px; border-radius:50%; background:#C8A84B; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:#0A2463; flex-shrink:0; }
+    .sp-dot    { display:inline-block; }
+    .sp-sec    { padding:1rem 1.25rem; border-bottom:.5px solid #E0DDD6; }
+    .sp-sec:last-child { border-bottom:none; }
+    .sp-sec-alt { background:#F7F5F0; }
+    .sp-sec-lbl { font-size:11px; font-weight:600; color:#9E9A90; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+    .sp-grid2   { display:grid; grid-template-columns:120px 1fr; gap:5px 12px; align-items:center; margin-bottom:8px; font-size:12px; }
+    .sp-grid2 span { color:#9E9A90; }
+    .sp-grid2 strong { color:#3D3B36; font-weight:400; }
+    .sp-badge-sm { font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; }
+    .sp-orient-box { background:#FAEEDA; border-left:3px solid #C8A84B; padding:7px 10px; font-size:12px; color:#633806; line-height:1.6; margin-top:8px; border-radius:0 4px 4px 0; }
+    .sp-drive-btn { display:inline-flex; align-items:center; gap:6px; background:#EAF3DE; color:#27500A; border:.5px solid #3B6D11; border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; }
+    .sp-btn       { font-size:12px; padding:5px 12px; border-radius:8px; border:.5px solid #E0DDD6; background:white; cursor:pointer; color:#3D3B36; }
+    .sp-btn-primary { background:#0A2463; color:white; border-color:#0A2463; }
+    .sp-btn-actions { display:flex; gap:6px; }
+    .sp-field   { margin-bottom:12px; }
+    .sp-field:last-child { margin-bottom:0; }
+    .sp-field label { font-size:12px; color:#9E9A90; display:block; margin-bottom:5px; }
+    .sp-field input, .sp-field textarea, .sp-field select { width:100%; font-size:13px; border:1px solid #E0DDD6; border-radius:6px; padding:8px 10px; background:white; color:#3D3B36; font-family:inherit; }
+    .sp-field textarea { resize:vertical; min-height:60px; }
+    .sp-row2   { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+    .sp-row2 .sp-field { margin-bottom:0; }
+    .sp-mot-box { background:#FDF8EE; border-left:3px solid #C8A84B; border-radius:0 8px 8px 0; padding:10px 12px; margin-bottom:12px; }
+    .sp-mot-box label { font-size:12px; color:#7A5E00; font-weight:500; display:block; margin-bottom:5px; }
+    .sp-mot-box textarea { width:100%; font-size:13px; min-height:44px; resize:vertical; border:1px solid rgba(200,168,75,.4); border-radius:6px; padding:6px 8px; background:transparent; font-family:inherit; }
+    .sp-action-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .sp-action-row input { flex:1; font-size:13px; border:1px solid #E0DDD6; border-radius:6px; padding:7px 10px; }
+    .sp-action-row button { background:none; border:none; cursor:pointer; color:#9E9A90; padding:4px; }
+    .sp-add-btn { background:none; border:none; cursor:pointer; font-size:12px; color:#9E9A90; display:flex; align-items:center; gap:4px; padding:2px 0; margin-top:4px; }
+    .sp-reprise-item { display:flex; align-items:flex-start; gap:8px; margin-bottom:7px; }
+    .sp-status-sel { font-size:12px; border-radius:8px; padding:5px 6px; border:.5px solid #9E9A90; background:white; cursor:pointer; flex-shrink:0; width:110px; }
+    .sp-actions-lbl { font-size:11px; font-weight:600; color:#9E9A90; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+    .sp-couleur-recap { border-radius:8px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px; }
+    .sp-color-row   { display:flex; gap:8px; margin-bottom:8px; }
+    .sp-color-btn   { flex:1; padding:10px 4px; border-radius:8px; font-size:12px; cursor:pointer; border:.5px solid #E0DDD6; background:white; color:#9E9A90; text-align:center; }
+    .sp-color-def   { font-size:11px; color:#9E9A90; padding:5px 8px; background:#F7F5F0; border-radius:6px; margin-bottom:8px; }
+    .sp-color-qlbl  { font-size:12px; color:#9E9A90; display:block; margin-bottom:4px; }
+    .sp-color-comment { width:100%; font-size:13px; resize:vertical; min-height:52px; border:1px solid #E0DDD6; border-radius:6px; padding:8px 10px; font-family:inherit; }
+    .sp-sec-toggle  { display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding:.9rem 1.25rem; border-bottom:.5px solid #E0DDD6; }
+    .sp-sec-toggle:hover { background:#F7F5F0; }
+    .sp-sec-icon    { width:28px; height:28px; border-radius:6px; background:#E6F1FB; font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .sp-chev        { font-size:14px; color:#9E9A90; transition:transform .18s; display:inline-block; }
+    .sp-chev.open   { transform:rotate(180deg); }
+    .sp-foot        { padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .sp-save-btn    { font-size:13px; padding:8px 20px; background:#0A2463; color:white; border:none; border-radius:8px; cursor:pointer; }
+    .sp-joueur-row  { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:.5px solid #E0DDD6; cursor:pointer; }
+    .sp-joueur-row:hover { background:#F7F5F0; }
+    .sp-joueur-row:last-child { border-bottom:none; }
+    .sp-joueur-info { flex:1; }
+    .sp-joueur-name { font-size:14px; font-weight:500; color:#3D3B36; }
+    .sp-joueur-sub  { font-size:12px; color:#9E9A90; margin-top:2px; }
+    .sp-joueur-badges { display:flex; gap:5px; flex-wrap:wrap; margin-top:4px; }
+    .sp-badge       { font-size:10px; font-weight:500; padding:2px 7px; border-radius:20px; }
+    .sp-badge-amber { background:#FAEEDA; color:#633806; }
+    .sp-badge-red   { background:#FCEBEB; color:#791F1F; }
+    .sp-badge-gray  { background:#F0EFE9; color:#9E9A90; }
+    .sp-topbar      { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .sp-select      { font-size:13px; padding:6px 10px; border:1px solid #E0DDD6; border-radius:8px; background:white; }
+    .sp-back        { background:none; border:none; cursor:pointer; color:#0A2463; font-size:13px; padding:0 0 10px 0; font-weight:500; }
+    .sp-accordion   { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:8px 0; font-size:12px; font-weight:600; color:#0A2463; }
+    .sp-loading     { display:flex; justify-content:center; padding:40px; }
+  </style>
+</head>
+<body>
+
+  <header class="fenix-header">
+    <div class="header-stripe"></div>
+    <div class="header-inner">
+      <div class="header-logo">
+        <img src="assets/logo-fenix.png" alt="Fenix">
+      </div>
+      <div class="header-text">
+        <h1>FENIX Socio-Pro</h1>
+        <p>Cellule Suivi CF</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-logout" onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <nav style="background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;overflow-x:auto;">
+    <button class="tab-btn sp-tab active" data-tab="liste"   onclick="spShowTab('liste')">Liste joueurs</button>
+    <button class="tab-btn sp-tab"        data-tab="reunion" onclick="spShowTab('reunion')">Mode réunion</button>
+  </nav>
+
+  <main class="page-content" style="max-width:680px;margin:0 auto">
+    <div id="spMain">
+      <div class="sp-loading"><div class="spinner"></div></div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/supabase-client.js?v=32"></script>
+  <script src="js/app.js?v=43"></script>
+  <script src="js/sociopro.js?v=1"></script>
+  <script src="pages/sociopro-dashboard.js?v=1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const auth = await requireAuth('cellule');
+      if (!auth) return;
+      await initSocioPro(auth.user);
+    });
+  </script>
+
+</body>
+</html>

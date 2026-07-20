@@ -1125,3 +1125,17 @@ function escHtml(str) {
   return String(str || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+function showPlayerTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab)?.classList.add('active');
+  const mc = document.getElementById('mainContent');
+  const sp = document.getElementById('spSuiviContent');
+  if (tab === 'sessions') {
+    if (mc) mc.style.display = '';
+    if (sp) sp.style.display = 'none';
+  } else if (tab === 'suivi') {
+    if (mc) mc.style.display = 'none';
+    if (sp) { sp.style.display = ''; renderSuiviSocioPro(window._spPlayerAuthId); }
+  }
+}

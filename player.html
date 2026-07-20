@@ -33,20 +33,30 @@
     </div>
   </header>
 
+  <nav style="background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;overflow-x:auto;">
+    <button class="tab-btn active" onclick="showPlayerTab('sessions')" id="tab-sessions">Mes sessions</button>
+    <button class="tab-btn" onclick="showPlayerTab('suivi')" id="tab-suivi">Mon suivi</button>
+  </nav>
+
   <main class="page-content" id="mainContent">
     <div class="loading-state"><div class="spinner"></div></div>
   </main>
+
+  <div class="page-content" id="spSuiviContent" style="display:none"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="js/supabase-client.js?v=32"></script>
   <script src="js/app.js?v=43"></script>
   <script src="js/criteria-data.js?v=32"></script>
-  <script src="pages/player-home.js?v=44"></script>
+  <script src="js/sociopro.js?v=1"></script>
+  <script src="pages/player-home.js?v=45"></script>
+  <script src="pages/sociopro-player.js?v=1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const auth = await requireAuth('joueur');
       if (!auth) return;
+      window._spPlayerAuthId = auth.user.id;
       await initPlayerHome(auth.user);
     });
   </script>

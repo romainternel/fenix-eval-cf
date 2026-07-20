@@ -216,11 +216,9 @@
           if (error) throw error;
 
           const role = await getRole(data.user.id);
-          if (role === 'coach') {
-            window.location.href = 'coach.html';
-          } else {
-            window.location.href = 'player.html';
-          }
+          if      (role === 'coach')   window.location.href = 'coach.html';
+          else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
+          else                         window.location.href = 'player.html';
         } catch (e) {
           err.classList.add('visible');
           btn.disabled = false;

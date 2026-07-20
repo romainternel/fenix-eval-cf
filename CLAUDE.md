@@ -1,7 +1,7 @@
 # CLAUDE.md — FENIX Eval CF
 
 > Fichier de référence lu automatiquement par tous les agents BMAD avant de travailler sur ce projet.
-> Dernière mise à jour : 2026-06-30 (STORY-12 — export PPT, gestion coachs, show/hide pwd, radar font)
+> Dernière mise à jour : 2026-07-20 (v82/v44 — STORY-15/16/17, keep-alive CI, légende notations, bar chart, slides natifs PPT, radar fixes)
 
 ---
 
@@ -18,7 +18,6 @@
 | Frontend | Vanilla HTML5, CSS3, JavaScript ES2020 (pas de framework, pas de bundler) |
 | Backend / BDD | Supabase (PostgreSQL + Auth + RLS + Edge Functions) |
 | Graphiques | Chart.js v4 (CDN) |
-| PDF | jsPDF v2.5.1 (CDN) |
 | Fonts | Google Fonts — Bebas Neue (display), Inter 400/500/600/700 (body) |
 | Hébergement | GitHub Pages (statique) |
 | Edge Functions | Deno (TypeScript) via Supabase Functions |
@@ -27,8 +26,8 @@
 **CDN scripts chargés dans les HTML** :
 - `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`
 - `https://cdn.jsdelivr.net/npm/chart.js@4`
-- `https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js`
 - `https://cdn.jsdelivr.net/npm/pptxgenjs@3/dist/pptxgen.bundle.js` (coach.html uniquement)
+- `https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js` (coach.html uniquement — capture canvas pour export PPT)
 
 ---
 
@@ -58,8 +57,8 @@ fenix-eval-cf/
 │   └── criteria-data.js     # Données statiques des critères d'évaluation par profil
 │
 ├── pages/
-│   ├── coach-dashboard.js   # Logique complète du dashboard coach (~2100 lignes)
-│   └── player-home.js       # Logique complète du dashboard joueur (~1146 lignes)
+│   ├── coach-dashboard.js   # Logique complète du dashboard coach (~2400 lignes)
+│   └── player-home.js       # Logique complète du dashboard joueur (~1127 lignes)
 │
 ├── supabase/
 │   └── functions/
@@ -67,6 +66,10 @@ fenix-eval-cf/
 │       │   └── index.ts     # Edge Function : créer/supprimer compte joueur
 │       └── manage-coach-account/
 │           └── index.ts     # Edge Function : créer/supprimer compte coach
+│
+├── .github/
+│   └── workflows/
+│       └── keep-alive.yml   # GitHub Actions : ping Supabase toutes les 5 jours (évite la pause Free tier)
 │
 └── docs/                    # Documentation BMAD (stories, QA, régression, design, arch…)
 ```
@@ -108,14 +111,14 @@ fenix-eval-cf/
 
 | Fichier | Version actuelle |
 |---------|-----------------|
-| `css/fenix.css` | v=49 |
+| `css/fenix.css` | v=50 |
 | `js/supabase-client.js` | v=32 |
 | `js/app.js` | v=43 |
 | `js/criteria-data.js` | v=32 |
-| `pages/coach-dashboard.js` | v=44 |
-| `pages/player-home.js` | v=40 |
+| `pages/coach-dashboard.js` | v=82 |
+| `pages/player-home.js` | v=44 |
 
-> **Règle** : quand un fichier est modifié, incrémenter son `?v=N` dans **tous** les HTML qui le chargent (index.html, player.html, coach.html selon le cas). Le numéro global de version de l'itération est **49** (le plus grand `?v=N` en cours).
+> **Règle** : quand un fichier est modifié, incrémenter son `?v=N` dans **tous** les HTML qui le chargent (index.html, player.html, coach.html selon le cas). Le numéro global de version de l'itération est **82** (le plus grand `?v=N` en cours).
 
 ---
 
@@ -177,7 +180,7 @@ date_staff   TIMESTAMPTZ nullable
 ```
 > Unique sur (session_id, player_id, critere_id)
 
-**`entretiens`** — notes d'entretien coach/joueur par session
+**`entretiens`** — table initiale (inerte — conservée en DB uniquement pour la suppression en cascade joueur)
 ```
 id                UUID PK
 session_id        TEXT FK
@@ -189,7 +192,22 @@ objectif_mt       TEXT
 cr_entretien      TEXT
 created_at, updated_at TIMESTAMPTZ
 ```
-> Unique sur (session_id, player_id)
+> ⚠️ Plus utilisée activement — remplacée par `comptes_rendus` (voir ci-dessous).
+
+**`comptes_rendus`** — compte-rendu d'entretien coach → joueur (table active)
+```
+id             UUID PK
+session_id     TEXT FK
+player_id      UUID FK
+axes_att       TEXT nullable
+axes_def       TEXT nullable
+objectifs_ct   TEXT nullable
+objectifs_mt   TEXT nullable
+notes          TEXT nullable
+visible_joueur BOOLEAN  (false = invisible joueur, true = affiché dans "Bilan entretien")
+created_at, updated_at TIMESTAMPTZ
+```
+> Unique sur (session_id, player_id). Saisie par le coach via modal dans `showCoachRadar`. Lue par le joueur si `visible_joueur=true` (STORY-15).
 
 **`session_player_statut`** — état de verrouillage par joueur×session
 ```
@@ -251,12 +269,12 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 ### Performance
 - Pas de bundler → aucune minification en prod (fichiers bruts)
 - Chargement des scripts en séquence (pas `defer`/`async` partout)
-- Chart.js et jsPDF chargés même sur pages qui ne les utilisent pas (index.html ne les charge pas)
+- Chart.js chargé dans coach.html et player.html ; PptxGenJS et html2canvas chargés dans coach.html uniquement
 
 ### Taille des fichiers
 - `fenix.css` : ~1500 lignes — garder dans un seul fichier, ne pas splitter
-- `coach-dashboard.js` : ~2100 lignes — garder dans un seul fichier
-- `player-home.js` : ~1146 lignes — garder dans un seul fichier
+- `coach-dashboard.js` : ~2400 lignes — garder dans un seul fichier
+- `player-home.js` : ~1127 lignes — garder dans un seul fichier
 
 ### Offline
 - Pas de support offline, pas de Service Worker
@@ -308,7 +326,11 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Table de progression par thème (`trendTableHTML`) avec sous-lignes dépliables
 - [x] Table récapitulatif par profil (`cRecapTableHTML`) avec sous-lignes dépliables
 - [x] Badge delta joueur/staff (deltaHTML)
-- [x] Export PPT (PptxGenJS v3, 4 slides : radars, critères att, critères def, CR entretien)
+- [x] Export PPT (PptxGenJS v3, 5 slides : détail ATT, détail DEF, radars par axe, axes & objectifs natif, compte rendu natif)
+- [x] Saisie compte-rendu d'entretien coach (modal dans showCoachRadar, table comptes_rendus, flag visible_joueur)
+- [x] Légende couleur notation 1-5 (Fragile→Référence) dans résumé résultats
+- [x] Graphique progression par thème toujours visible (bouton toggle supprimé)
+- [x] Suppression exports obsolètes : exportCoachPDF, exportProgressionPPT, CDN jsPDF — STORY-17
 
 #### Dashboard Coach — Coachs
 - [x] Onglet Coachs dans la navigation de coach.html
@@ -328,6 +350,12 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Table progression par thème (mode paysage recommandé)
 - [x] Export PDF joueur
 - [x] Hint "👆 Sélectionne les sessions à comparer" sur les bilan chips
+- [x] Bilan entretien in-app si visible_joueur=true (STORY-15) : carte avec pills niveau par axe + objectifs CT/MT
+- [x] Légende couleur notation 1-5 dans résumé résultats
+- [x] Graphique progression toujours visible + message "mode paysage conseillé"
+
+#### Infrastructure / CI
+- [x] GitHub Actions keep-alive : ping Supabase REST toutes les 5 jours (évite la pause automatique du Free tier)
 
 #### Visual Polish (stories VISUAL-01 à 06, v=49)
 - [x] VISUAL-01 : Tokens CSS complets (40+ variables)
@@ -341,7 +369,7 @@ Toutes les tables ont RLS activé. Les policies Supabase garantissent :
 - [x] Logo transparent `assets/logo-transparent.jpeg` (utilisé dans l'export PPT)
 
 ### Features prévues / roadmap connue
-- [ ] Entretiens individuels (table `entretiens` existe en DB, pas d'UI — UI à créer)
+- [ ] Entretiens : saisie coach fonctionnelle via showCoachRadar (comptes_rendus). Pas d'UI d'édition prévue depuis player.html.
 - [ ] Mode "invité coach" (lecture seule, sans authentification complète) — décision non prise
 - [ ] Bilan multi-sessions joueur : test avec 2ème session disponible (juillet 2026 — STORY 09b)
 - [ ] Notifications ou rappels d'évaluation
@@ -360,11 +388,11 @@ Edge Function `manage-coach-account` déployée (STORY-10) + UI onglet Coachs da
 
 **Décision** : non prise — à valider avec l'utilisateur.
 
-### 2. Entretiens individuels
-La table `entretiens` est créée en DB. Aucune UI n'existe. À prioriser avec le PM.
+### ~~2. Entretiens individuels~~ — IMPLÉMENTÉE
+Saisie coach via modal dans `showCoachRadar` (table `comptes_rendus`). Bilan visible joueur si `visible_joueur=true` (STORY-15). La table `entretiens` reste en DB mais est inerte.
 
 ### 3. Incrémentation des versions
-**Règle actuelle** : incrémentation manuelle du `?v=N` dans les balises `<script>` et `<link>`. Le numéro de version global est **49**. Aucun outil de build ne gère ça automatiquement — risque d'oubli.
+**Règle actuelle** : incrémentation manuelle du `?v=N` dans les balises `<script>` et `<link>`. Le numéro de version global est **82**. Aucun outil de build ne gère ça automatiquement — risque d'oubli.
 
 ### 4. index.html partiellement synchronisé
 `index.html` charge `css/fenix.css?v=49` et `js/app.js?v=43` (à jour). `js/supabase-client.js` reste à `v=1` dans index.html (v=32 canonique) — contenu non modifié depuis la création, fonctionnellement OK mais à synchroniser si le fichier est un jour modifié.
