@@ -282,7 +282,7 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
 let _cBilanAtt = null, _cBilanDef = null, _cBarAtt = null, _cBarDef = null;
 let _cAllSessions = [], _cViewMode = 'staff', _cAttId = null, _cDefId = null;
-let _cSelectedSessions = new Set(), _cShowBar = false;
+let _cSelectedSessions = new Set(), _cShowBar = true;
 let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false, _cPdfCr = null;
 const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _C_SESSION_COLORS = [
@@ -1250,7 +1250,7 @@ async function showCoachRadar(sessionId, playerId) {
   const sessions = (sessionsRes.data || []).slice(-4);
   _cAllSessions = sessions.map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }));
   _cSelectedSessions = new Set(_cAllSessions.slice(-2).map(s => s.id));
-  _cShowBar = false;
+  _cShowBar = true;
 
   const isGb  = !!profile?.profil_gb;
   _cAttId = isGb ? profile.profil_gb : profile?.profil_att;
@@ -1341,8 +1341,7 @@ async function showCoachRadar(sessionId, playerId) {
           </div>
         </div>
         ${bilanRadarHTML}
-        <button id="cBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="cToggleBarChart()">📊 Progression par thème</button>
-        <div id="cBarSection" style="display:none;margin-top:12px">
+        <div id="cBarSection" style="margin-top:12px">
           ${_cAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="cBarAtt"></canvas>` : ''}
           ${_cDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="cBarDef"></canvas>` : ''}
         </div>
@@ -1366,9 +1365,16 @@ async function showCoachRadar(sessionId, playerId) {
           </button>
         </div>
         <p style="font-size:12px;color:var(--gray-400);margin-top:4px;margin-bottom:10px">${escHtml(_cPdfSession)}</p>
-        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
+        <div style="display:flex;gap:12px;margin-bottom:6px;font-size:11px">
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Joueur</div>
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#FEE2E2;color:#991B1B">1 · Fragile</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E">2 · En travail</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#D1FAE5;color:#065F46">3 · Acquis</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#DBEAFE;color:#1E40AF">4 · Maîtrisé</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#EDE9FE;color:#5B21B6">5 · Référence</span>
         </div>
         ${sessionRadarHTML}
         ${_cAttId ? `<div id="pptCaptureAtt">${cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque')}</div>` : ''}

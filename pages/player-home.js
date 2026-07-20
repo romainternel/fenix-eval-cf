@@ -473,7 +473,7 @@ function _doTerminerProfil() {
 let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
 let _pBilanAtt = null, _pBilanDef = null, _pBarAtt = null, _pBarDef = null;
 let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
-let _pSelectedSessions = new Set(), _pShowBar = false;
+let _pSelectedSessions = new Set(), _pShowBar = true;
 let _pPdfSession = '', _pCrData = null;
 const _P_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _P_SESSION_COLORS = [
@@ -888,7 +888,7 @@ async function showPlayerRadar(sessionId) {
   const sessions = (sessionsRes.data || []).slice(-4);
   _pAllSessions = sessions.map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }));
   _pSelectedSessions = new Set(_pAllSessions.slice(-2).map(s => s.id));
-  _pShowBar = false;
+  _pShowBar = true;
 
   const label = sessionRes.data?.label || sessionId;
   _pPdfSession = label;
@@ -975,8 +975,8 @@ async function showPlayerRadar(sessionId) {
           </div>
         </div>
         ${bilanRadarHTML}
-        <button id="pBarBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="pToggleBarChart()">📊 Progression par thème <span style="font-size:10px;opacity:0.6;font-weight:400">(mode paysage conseillé)</span></button>
-        <div id="pBarSection" style="display:none;margin-top:12px">
+        <p style="font-size:11px;color:var(--gray-400);margin:8px 0 4px;text-align:center">📱 Passe en mode paysage pour une meilleure lisibilité des graphiques</p>
+        <div id="pBarSection" style="margin-top:12px">
           ${_pAttId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(59,130,246,0.9);margin-bottom:4px">Progression Attaque</p><canvas id="pBarAtt"></canvas>` : ''}
           ${_pDefId ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(234,88,12,0.9);margin-top:20px;margin-bottom:4px">Progression Défense</p><canvas id="pBarDef"></canvas>` : ''}
         </div>
@@ -1003,6 +1003,13 @@ async function showPlayerRadar(sessionId) {
         <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.8)"></div>Moi</div>
           <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:rgba(234,88,12,0.8)"></div>Staff</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#FEE2E2;color:#991B1B">1 · Fragile</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E">2 · En travail</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#D1FAE5;color:#065F46">3 · Acquis</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#DBEAFE;color:#1E40AF">4 · Maîtrisé</span>
+          <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#EDE9FE;color:#5B21B6">5 · Référence</span>
         </div>
         ${sessionRadarHTML}
         ${pRecapTableHTML(_pAttId, _pEvalMap, _pIsGb ? '🧤 Gardien' : '⚡ Attaque')}
