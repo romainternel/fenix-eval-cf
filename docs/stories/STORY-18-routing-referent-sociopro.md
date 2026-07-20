@@ -1,43 +1,49 @@
-# STORY-18 — Routing et auth : support du rôle referent_sociopro
+# STORY-18 — Routing et auth : rôle referent_sociopro
 
 **En tant que** référente socio-pro (Marion, Mathilde ou Alain),
 **Je veux** me connecter et arriver directement sur le module socio-pro,
-**Afin de** ne pas être bloquée si mon rôle est renommé de `cellule` à `referent_sociopro` en base.
+**Afin d'** accéder à mon espace de travail sans passer par le dashboard CF ni voir de page d'erreur.
 
 ---
 
 ## Contexte technique
 
-- Zone concernée : `js/app.js`, `index.html`, `fenix-sociopro.html`, `pages/sociopro-dashboard.js`
-- Cette story doit être **déployée en production AVANT** l'exécution du SQL de la STORY-19
-- La compatibilité `cellule` doit rester active dans ce livrable (retirée dans une story de nettoyage ultérieure)
-- Versions à incrémenter : app.js → v45, fenix-sociopro.html → v3, sociopro-dashboard.js → v3
+Le code actuel route `'cellule'` → fenix-sociopro.html, mais le rôle décidé est `'referent_sociopro'`. Il n'existe aucun compte `'cellule'` en base (Supabase vierge côté socio-pro), donc pas de migration — on remplace directement.
+
+Fichiers à modifier :
+- `js/app.js` (v44 → v45)
+- `index.html` (script de login inline)
+- `fenix-sociopro.html` (v2 → v3)
+- `pages/sociopro-dashboard.js` (v2 → v3)
 
 ---
 
 ## Critères d'acceptation
 
-- [ ] Dans `app.js` (routing post-login et `requireAuth`) : `role === 'referent_sociopro'` redirige vers `fenix-sociopro.html` — au même titre que `cellule`
-- [ ] Dans `index.html` (script de login) : branche `referent_sociopro` redirige vers `fenix-sociopro.html`
-- [ ] Dans `fenix-sociopro.html` : `requireAuth(['referent_sociopro', 'cellule', 'coach'])` (compatibilité transitoire)
-- [ ] Dans `sociopro-dashboard.js` : `initSocioPro` vérifie `_spRole === 'coach'` pour afficher le lien retour — un `referent_sociopro` ne voit PAS ce lien
-- [ ] Les versions `?v=N` des fichiers modifiés sont incrémentées dans tous les HTML qui les chargent
-- [ ] Un coach (`role = 'coach'`) arrive toujours sur `coach.html` au login
-- [ ] Un joueur qui accède manuellement à `fenix-sociopro.html` est redirigé vers `player.html`
+- [ ] Dans `js/app.js`, `requireAuth()` : la branche `'cellule'` est remplacée par `'referent_sociopro'`
+- [ ] Dans `js/app.js`, routing post-requireAuth : `role === 'referent_sociopro'` → `fenix-sociopro.html`
+- [ ] Dans `index.html`, script de login : `role === 'referent_sociopro'` → `fenix-sociopro.html` (retirer `'cellule'`)
+- [ ] Dans `fenix-sociopro.html` : `requireAuth(['referent_sociopro', 'coach'])` — sans `'cellule'`
+- [ ] Dans `pages/sociopro-dashboard.js` : `let _spRole = 'referent_sociopro'` (plus `'cellule'`) et `_spRole = window._spRole || 'referent_sociopro'`
+- [ ] Un utilisateur `referent_sociopro` qui accède à `coach.html` est redirigé vers `fenix-sociopro.html`
+- [ ] Un utilisateur `joueur` qui accède à `fenix-sociopro.html` est redirigé vers `player.html`
+- [ ] Un utilisateur `coach` qui accède à `fenix-sociopro.html` arrive bien sur la page (pas redirigé)
+- [ ] Les versions `?v=N` sont incrémentées dans **tous** les HTML qui chargent les fichiers modifiés (coach.html, player.html, fenix-sociopro.html, index.html)
+- [ ] La recherche `grep -r "cellule"` dans le code ne retourne plus que des occurrences cosmétiques (labels UI comme "Notes cellule", "Démarches cellule") — aucun check de rôle
 
 ---
 
 ## Hors scope
 
-- Pas de modification SQL (aucun `role = 'referent_sociopro'` n'existe encore en base à ce stade)
-- Pas de retrait de la compatibilité `cellule` (ce sera une story de nettoyage après STORY-19)
-- Pas de modification des vues socio-pro (liste, fiche, entretien, réunion)
+- Pas de création de comptes ni de modification SQL
+- Pas de modification des 4 vues socio-pro (liste, fiche, entretien, réunion)
+- Le label UI "🔒 Notes cellule" reste inchangé (c'est du texte, pas un rôle)
 
 ---
 
 ## Dépend de
 
-Aucune — point de départ du cycle.
+Aucune (peut être développée et déployée avant le SQL).
 
 ## Taille
 

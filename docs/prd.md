@@ -1,98 +1,135 @@
-# PRD — Refonte architecture des rôles (module socio-pro)
+# PRD — Module Socio-Pro : activation complète + architecture rôles
 
 > Agent : Product Manager · 2026-07-20
-> Brief source : docs/brief.md
+> Source : docs/brief.md
 
 ---
 
 ## 1. Objectif
 
-Clarifier le modèle de rôles de l'application pour distinguer proprement les coachs CF (accès complet : évaluation + socio-pro) des référents socio-pro purs (accès restreint au module socio-pro uniquement). Éliminer le rôle ambigu `cellule` et le remplacer par `referent_sociopro`.
+Rendre le module socio-pro opérationnel en production : créer la base SQL, corriger le routing, attribuer les rôles. Le code existe déjà — ce cycle livre l'infrastructure et les corrections qui permettent de l'utiliser réellement.
 
 ---
 
 ## 2. Features — Must Have
 
-### F1 — Renommage du rôle en base
-Remplacer `role = 'cellule'` par `role = 'referent_sociopro'` dans la table `user_profiles` pour les 3 référents purs (Marion, Mathilde, Alain).
+### F1 — SQL Supabase complet
+Créer toutes les tables ssp_* avec les policies RLS correctes.
 
-**Critères d'acceptation :**
-- [ ] Un utilisateur avec `role = 'referent_sociopro'` est redirigé vers `fenix-sociopro.html` au login
-- [ ] Un utilisateur avec `role = 'cellule'` résiduel (si migration partielle) est redirigé vers `fenix-sociopro.html` sans casse (compatibilité transitoire)
-- [ ] Un coach (`role = 'coach'`) accède toujours à `coach.html`
+**Tables à créer :**
+- `ssp_profils` — profil socio-pro par joueur (formation, projet pro, référent, tuteur, contrat, Drive)
+- `ssp_orientations` — historique immuable des changements d'orientation
+- `ssp_entretiens` — entretiens complets (couleur, sections A/B/C, examens, notes cellule)
+- `ssp_reprises` — suivi des actions du mois précédent
+- `ssp_actions_reunion` — actions collectives horodatées par date de réunion
 
-### F2 — Renommage de la fonction RLS
-Remplacer `is_cellule()` par `is_sociopro_membre()` dans Supabase. La fonction retourne `TRUE` pour `role IN ('referent_sociopro', 'coach')`.
+**Fonction RLS :**
+- `is_sociopro_membre()` → TRUE pour `role IN ('referent_sociopro', 'coach')`
 
-**Critères d'acceptation :**
-- [ ] Toutes les policies des tables `ssp_*` et `ssp_actions_reunion` utilisent `is_sociopro_membre()`
-- [ ] `is_cellule()` n'existe plus (supprimée après migration)
-- [ ] Les joueurs ne peuvent toujours pas accéder aux tables `ssp_*`
+**Policies :**
+- ssp_profils / ssp_orientations / ssp_entretiens / ssp_reprises / ssp_actions_reunion : `is_sociopro_membre()` = accès complet (CRUD)
+- ssp_profils / ssp_orientations / ssp_entretiens / ssp_reprises : joueur = SELECT sur ses propres lignes seulement
+- ssp_actions_reunion : joueur = aucun accès
 
-### F3 — Mise à jour du routing dans le code
-`app.js` gère le routing pour `referent_sociopro` (en plus de la compatibilité `cellule` transitoire). `fenix-sociopro.html` accepte `['referent_sociopro', 'coach']`.
+**Critères d'acceptation F1 :**
+- [ ] Les 5 tables existent dans Supabase
+- [ ] `is_sociopro_membre()` retourne TRUE pour un coach et pour un referent_sociopro
+- [ ] Un joueur peut SELECT ses propres entretiens mais pas ceux d'un autre
+- [ ] Un joueur ne peut pas INSERT dans aucune table ssp_*
+- [ ] Un coach peut CRUD toutes les tables ssp_*
 
-**Critères d'acceptation :**
-- [ ] `requireAuth(['referent_sociopro', 'coach'])` dans fenix-sociopro.html
-- [ ] `requireAuth('joueur')` redirige un joueur qui tente d'accéder à fenix-sociopro.html
-- [ ] Le routing post-login dans index.html couvre `referent_sociopro`
+---
 
-### F4 — Navigation coach ↔ socio-pro
-Un coach peut naviguer entre son dashboard CF et le module socio-pro sans logout.
+### F2 — Mise à jour routing et auth côté code
 
-**Critères d'acceptation :**
-- [ ] Tab "Socio-Pro ↗" visible dans la nav de coach.html
-- [ ] Lien "← Dashboard coach" visible dans fenix-sociopro.html uniquement pour les coachs (`_spRole === 'coach'`)
-- [ ] Un référent (`_spRole === 'referent_sociopro'`) ne voit PAS le lien "← Dashboard coach"
+Corriger le code JS pour utiliser `'referent_sociopro'` à la place de `'cellule'`.
+
+**Fichiers impactés :**
+- `js/app.js` : routing `'referent_sociopro'` → `fenix-sociopro.html` (retirer `'cellule'`)
+- `index.html` : idem dans le script de login
+- `fenix-sociopro.html` : `requireAuth(['referent_sociopro', 'coach'])` (retirer `'cellule'`)
+- `pages/sociopro-dashboard.js` : valeur par défaut `_spRole = 'referent_sociopro'` (pas `'cellule'`)
+
+**Critères d'acceptation F2 :**
+- [ ] Un utilisateur `referent_sociopro` est redirigé vers `fenix-sociopro.html` au login
+- [ ] Un utilisateur `coach` est redirigé vers `coach.html` au login
+- [ ] Un utilisateur `joueur` qui accède manuellement à `fenix-sociopro.html` est redirigé vers `player.html`
+- [ ] Le mot `'cellule'` n'apparaît plus dans aucun check de rôle (app.js, index.html, fenix-sociopro.html, sociopro-dashboard.js)
+- [ ] Les versions `?v=N` des fichiers modifiés sont incrémentées
+
+---
+
+### F3 — Navigation coach ↔ socio-pro
+
+Un coach navigue entre son dashboard CF et le module socio-pro sans logout.
+
+**Critères d'acceptation F3 :**
+- [ ] Tab "Socio-Pro ↗" visible dans la nav de `coach.html` (aligné à droite, style atténué)
+- [ ] Clic → arrive sur `fenix-sociopro.html` avec son rôle coach reconnu
+- [ ] Dans `fenix-sociopro.html`, un lien "← Dashboard coach" visible UNIQUEMENT pour les coachs
+- [ ] Un `referent_sociopro` ne voit PAS ce lien retour
+
+---
+
+### F4 — Vue joueur "Mon suivi"
+
+Un joueur voit ses entretiens socio-pro dans l'onglet "Mon suivi" de `player.html`.
+
+**Critères d'acceptation F4 :**
+- [ ] L'onglet "Mon suivi" s'affiche dans la nav de `player.html`
+- [ ] Si aucun entretien : message "Ton premier entretien apparaîtra ici"
+- [ ] Si entretien(s) : couleur du mois affichée (vert/orange/rouge) + ce qui va + points d'attention + actions à faire
+- [ ] Les champs `notes_cellule` et `couleur_justification` ne sont jamais chargés côté joueur
+- [ ] L'historique des entretiens précédents est accessible via accordéon
+
+---
+
+### F5 — Attribution des rôles (config)
+
+Les 5 utilisateurs concernés ont le bon rôle dans `user_profiles`.
+
+**Critères d'acceptation F5 :**
+- [ ] Marion Agostini → `role = 'referent_sociopro'`
+- [ ] Mathilde Soulié → `role = 'referent_sociopro'`
+- [ ] Alain Raynal → `role = 'referent_sociopro'`
+- [ ] Romain → `role = 'coach'` (déjà OK si compte coach existant, sinon créer)
+- [ ] Max → `role = 'coach'` (idem)
 
 ---
 
 ## 3. Features — Should Have
 
-### F5 — Documentation mise à jour
-`CLAUDE.md` reflète les 3 rôles exacts avec leur périmètre d'accès.
+### F6 — Export .md depuis la fiche joueur
+Déjà codé, s'active automatiquement une fois la F1 accomplie. Pas de dev supplémentaire.
 
-### F6 — Compatibilité transitoire `cellule`
-Pendant la fenêtre de déploiement, le code accepte encore `cellule` dans le routing pour éviter tout lockout. Supprimé dès que la migration SQL est confirmée.
-
----
-
-## 4. Features — Nice to Have (hors scope v actuelle)
-
-- Indicateur visuel dans le header socio-pro montrant le rôle de l'utilisateur connecté
-- Gestion des rôles depuis une interface admin (actuellement : Supabase uniquement)
-- Un référent socio-pro voit le radar CF d'un joueur en lecture seule (décision non prise)
+### F7 — Export PDF depuis la fiche joueur
+Idem — codé, s'active avec F1.
 
 ---
 
-## 5. Hors scope explicite
+## 4. Hors scope explicite
 
-- Les référents socio-pro n'ont AUCUN accès aux tables `evaluations`, `sessions`, `player_profiles`, `comptes_rendus`
-- Pas de modification des droits joueur
-- Pas de création de nouveau rôle admin
-- Pas d'interface de gestion des rôles dans l'app
-
----
-
-## 6. Dépendances
-
-- SQL Supabase : migration à exécuter APRÈS déploiement du code (voir Architect pour le séquençage)
-- Comptes existants avec `role = 'cellule'` : Marion Agostini, Mathilde Soulié, Alain Raynal
+- Les référents socio-pro n'ont aucun accès aux tables `evaluations`, `sessions`, `player_profiles`, `comptes_rendus`
+- Pas d'interface admin de gestion des rôles dans l'app
+- Pas de notifications ou rappels d'entretien
+- Pas de refonte UX du module (les 4 vues sont validées)
 
 ---
 
-## 7. Ordre de livraison recommandé
+## 5. Ordre de livraison
 
-1. **STORY-18** : Mise à jour code (routing + requireAuth + sociopro-dashboard) — déployer en premier
-2. **STORY-19** : Migration SQL (rename role + rename fonction + policies) — exécuter après déploiement
-3. **STORY-20** : Documentation CLAUDE.md mise à jour
+```
+STORY-18 : SQL Supabase (F1 + F5)  ← bloquant pour tout le reste
+STORY-19 : Routing code (F2 + F3)  ← peut se faire en parallèle de STORY-18
+STORY-20 : Validation end-to-end (F4 vérifiée + smoke test complet)
+```
 
 ---
 
-## 8. Risques PM
+## 6. Risques produit
 
-| Risque | Mitigation |
-|--------|------------|
-| Migration SQL avant déploiement code → lockout des référents | Séquençage strict : code d'abord |
-| Oubli de recréer une policy RLS → donnée ssp_* inaccessible | Script SQL idempotent avec vérification post-migration |
-| Rôle `cellule` laissé en base sur un compte → redirection cassée | Compatibilité transitoire dans app.js pendant 1 cycle |
+| Risque | Impact | Mitigation |
+|--------|--------|------------|
+| SQL mal ordonné → policies orphelines | Critique | Ordre strict dans le script : fonction avant policies |
+| Compte referent_sociopro créé avant le SQL | Bloquant | SQL d'abord, attribution des rôles ensuite |
+| Cache navigateur avec l'ancien app.js | Moyen | Incrémenter ?v=N sur tous les scripts modifiés |

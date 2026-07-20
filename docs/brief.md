@@ -1,77 +1,81 @@
-# Brief — Refonte architecture des rôles (module socio-pro)
+# Brief — Module Socio-Pro : activation complète + architecture rôles
 
-> Produit par l'Analyst · 2026-07-20
+> Agent : Analyst · 2026-07-20 (cycle repris de zéro)
 
 ---
 
 ## 1. Contexte
 
-L'application FENIX Eval CF dispose d'un module socio-pro opérationnel (fenix-sociopro.html) avec 4 vues : liste joueurs, fiche profil, entretien, mode réunion. Ce module est utilisé par 5 personnes : Marion, Mathilde, Alain (référents socio-pro purs), et Romain, Max (coachs CF qui font aussi du suivi socio-pro).
+FENIX Eval CF est une app mobile-first d'auto-évaluation pour joueurs de football en chaise. Elle dispose depuis quelques semaines d'un module socio-pro *codé mais non activé* : le code existe sur GitHub Pages (fenix-sociopro.html + 4 fichiers JS), mais aucune table SQL n'a jamais été créée dans Supabase, et les rôles nécessaires n'existent pas encore en base.
 
-Le rôle actuel `cellule` a été créé pour couvrir tous ces usages. Il s'avère insuffisant : il ne distingue pas les référents purs des coachs, et il crée deux problèmes distincts pour chaque population.
+Le club a deux types de personnes chargées du suivi socio-pro :
+- **Les référents purs** (Marion Agostini, Mathilde Soulié, Alain Raynal) : leur seule mission dans l'app est le socio-pro
+- **Les coachs CF** (Romain, Max) : ils font l'évaluation sportive ET participent au suivi socio-pro
 
 ---
 
 ## 2. Problème réel
 
-**Pour Romain et Max (coachs)** : ils ont deux casquettes réelles — coach CF (sessions d'évaluation, notes staff, export PPT) et membre de la cellule socio-pro. Aujourd'hui ces deux espaces sont des silos : impossible de passer de l'un à l'autre sans friction. Un coach doit pouvoir naviguer entre son dashboard CF et le module socio-pro depuis la même session, d'un seul clic.
+Le module socio-pro est inutilisable aujourd'hui pour deux raisons distinctes :
 
-**Pour Marion, Mathilde, Alain (référents purs)** : le rôle `cellule` ne correspond à rien dans le vocabulaire du club. Le nom est opaque. Ces trois personnes ne doivent accéder à rien du dashboard CF (pas de sessions, pas de notes techniques, pas de radar) — la frontière doit être nette et documentée.
+1. **Pas de SQL** : les tables `ssp_*` n'existent pas dans Supabase. Toute tentative d'accès à `fenix-sociopro.html` plante silencieusement — les requêtes retournent des erreurs.
 
-**Pour le code** : la fonction SQL `is_cellule()` inclut maintenant les coachs (patch précédent), ce qui est sémantiquement faux. Les policies RLS bâties dessus sont ambiguës. Ce n'est pas bloquant aujourd'hui mais deviendra un point de confusion à toute future évolution.
+2. **Routing cassé** : le code route encore l'ancien rôle `'cellule'` vers fenix-sociopro.html, mais ce rôle n'a jamais été attribué à personne et ne correspond plus au modèle décidé. Le rôle cible s'appelle `'referent_sociopro'`.
+
+Ces deux problèmes bloquent l'activation complète du module.
 
 ---
 
-## 3. Utilisateurs
+## 3. Utilisateurs et besoins
 
-| Persona | Rôle actuel | Besoin réel |
-|---------|-------------|-------------|
-| Romain, Max | `coach` | Dashboard CF + accès natif socio-pro depuis la même session |
-| Marion, Mathilde, Alain | `cellule` | Socio-pro uniquement — pas de dashboard CF |
-| Joueurs | `joueur` | Inchangé |
+| Persona | Rôle en base | Ce qu'ils font dans l'app |
+|---------|-------------|--------------------------|
+| Marion, Mathilde, Alain | `referent_sociopro` (à créer) | Socio-pro uniquement : entretiens, fiches, réunions |
+| Romain, Max | `coach` (existe déjà) | Dashboard CF + socio-pro depuis la nav coach |
+| Joueurs du CF | `joueur` (existe) | Auto-évaluation + "Mon suivi" si entretien existe |
 
-**Contexte d'usage** : mobile, debout ou en réunion, connexion variable. La navigation entre modules doit être instantanée — un seul compte, un seul login.
+**Contexte d'usage** : mobile (iPhone/Android), en réunion ou en couloir, connexion 4G. La navigation doit être instantanée et sans friction — un coach doit passer de ses sessions CF au module socio-pro sans logout.
 
 ---
 
 ## 4. Vision
 
-> Un système de rôles lisible à 3 niveaux : `joueur`, `referent_sociopro`, `coach`. Chaque rôle donne accès exactement à ce que la personne a besoin de voir, sans friction de navigation et sans ambiguïté dans le code.
+> Le module socio-pro est opérationnel pour tous les utilisateurs concernés : les référents atterrissent directement sur leur espace, les coachs y accèdent depuis la nav, les joueurs voient leur suivi dans "Mon suivi".
 
 ---
 
 ## 5. Scope
 
 **Dans ce cycle :**
-- Renommer le rôle `cellule` → `referent_sociopro` (DB + code + routing)
-- Donner aux coachs un accès natif au module socio-pro (même session, lien dans nav)
-- Renommer `is_cellule()` → `is_sociopro_membre()` et reconstruire les policies RLS
-- Migrer les comptes existants (UPDATE SQL)
-- Documenter les 3 rôles dans CLAUDE.md
+- Créer les tables SQL `ssp_*` dans Supabase avec les bonnes policies RLS
+- Créer la fonction helper `is_sociopro_membre()` (coach + referent_sociopro)
+- Mettre à jour le routing JS pour `'referent_sociopro'` (retirer `'cellule'`)
+- Attribuer les rôles aux 5 personnes concernées
 
 **Hors scope :**
-- Les référents socio-pro ne voient PAS les notes CF (radar, progression, critères)
-- Pas de tableau de bord mixte "coach + socio-pro en un seul écran"
-- Pas de nouveau rôle admin global
-- Pas de gestion des droits depuis l'UI (toujours via Supabase directement)
+- Refonte UX du module (4 vues existantes sont validées)
+- Export PPT socio-pro
+- Gestion des rôles depuis l'UI (toujours via Supabase)
+- Accès des référents aux données CF (radar, notes)
 
 ---
 
 ## 6. Critères de succès
 
-- Romain se connecte → voit son dashboard coach → clique "Socio-Pro" → arrive sur fenix-sociopro.html → revient au dashboard coach d'un clic, sans logout
-- Marion se connecte → arrive directement sur fenix-sociopro.html — aucun accès aux sessions CF ou aux notes
-- Un joueur avec un compte mal configuré ne peut pas accéder au module socio-pro
-- Les tables `ssp_*` restent inaccessibles aux joueurs, et aucune donnée `notes_cellule` / `couleur_justification` n'est exposée dans la vue joueur
+- Marion se connecte avec son email → arrive sur fenix-sociopro.html, voit la liste des joueurs
+- Romain se connecte → arrive sur coach.html → clique "Socio-Pro" → voit les mêmes données → revient au dashboard d'un clic
+- Un joueur qui a eu un entretien voit "Mon suivi" dans player.html avec sa couleur du mois
+- Un joueur ne peut pas accéder aux données d'un autre joueur dans les tables ssp_*
 
 ---
 
-## 7. Questions résolues dans ce Brief
+## 7. Décisions actées
 
-| Question | Décision |
-|----------|----------|
-| Un fichier HTML partagé ou deux ? | Partagé (fenix-sociopro.html) — le rôle conditionne uniquement le lien retour |
-| Le référent voit-il les notes CF ? | Non — aucun accès aux tables `evaluations`, `sessions`, `player_profiles` |
-| Les actions réunion sont-elles multi-rôles ? | Oui — coach et referent_sociopro peuvent toutes les voir et les modifier |
-| Nom du nouveau rôle ? | `referent_sociopro` (snake_case, cohérent avec la convention du projet) |
-| Quelle migration ? | UPDATE SQL + renommage fonction RLS — idempotent, en deux étapes séquencées |
+| Question | Réponse |
+|----------|---------|
+| Nom du rôle référent | `referent_sociopro` |
+| Nom de la fonction SQL | `is_sociopro_membre()` — retourne TRUE pour coach ET referent_sociopro |
+| Un ou deux fichiers HTML ? | Un seul : fenix-sociopro.html — le lien retour coach s'affiche conditionnellement |
+| Les référents voient-ils les notes CF ? | Non — aucun accès aux tables evaluations/sessions/comptes_rendus |
+| Accès aux actions de réunion | Coach ET referent_sociopro — même droits |
+| Notes cellule visible joueur ? | Non — intentionnellement absentes de la query dans sociopro-player.js |
