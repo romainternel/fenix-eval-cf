@@ -1,10 +1,11 @@
 -- ============================================================
 -- Module Socio-Pro — FENIX Toulouse HB · Centre de Formation
--- Étape 1 : Créer les tables + RLS dans Supabase
--- Coller ce script dans l'éditeur SQL Supabase
+-- Script COMPLET (à exécuter une seule fois dans Supabase SQL Editor)
+-- Rôles : 'referent_sociopro' (Marion, Mathilde, Alain)
+--         'coach' (Romain, Max — accès CF + socio-pro)
 -- ============================================================
 
--- ── 1. Tables ────────────────────────────────────────────────
+-- ── 1. Tables ─────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS ssp_profils (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,7 +59,18 @@ CREATE TABLE IF NOT EXISTS ssp_reprises (
   statut       TEXT CHECK (statut IN ('fait','en_cours','non_fait'))
 );
 
--- ── 2. Trigger updated_at ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ssp_actions_reunion (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date_reunion DATE NOT NULL DEFAULT CURRENT_DATE,
+  joueur_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  action       TEXT NOT NULL,
+  responsable  TEXT,
+  statut       TEXT NOT NULL DEFAULT 'a_faire'
+               CHECK (statut IN ('a_faire','en_cours','fait')),
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+-- ── 2. Trigger updated_at ─────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION ssp_set_updated_at()
 RETURNS TRIGGER AS $$
@@ -73,51 +85,76 @@ CREATE TRIGGER ssp_profils_updated_at
   BEFORE UPDATE ON ssp_profils
   FOR EACH ROW EXECUTE FUNCTION ssp_set_updated_at();
 
--- ── 3. Helper : est-ce un membre cellule ? ───────────────────
+-- ── 3. Fonction helper RLS ────────────────────────────────────
+-- Retourne TRUE pour referent_sociopro ET coach
+-- (les deux rôles ont accès complet au module socio-pro)
 
-CREATE OR REPLACE FUNCTION is_cellule()
+CREATE OR REPLACE FUNCTION is_sociopro_membre()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM user_profiles WHERE id = auth.uid() AND role = 'cellule'
+    SELECT 1 FROM user_profiles
+    WHERE id = auth.uid() AND role IN ('referent_sociopro', 'coach')
   );
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
--- ── 4. RLS ───────────────────────────────────────────────────
+-- ── 4. RLS ────────────────────────────────────────────────────
 
-ALTER TABLE ssp_profils      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ssp_orientations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ssp_entretiens   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ssp_reprises     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ssp_profils        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ssp_orientations   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ssp_entretiens     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ssp_reprises       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ssp_actions_reunion ENABLE ROW LEVEL SECURITY;
 
--- ssp_profils : cellule = tout, joueur = le sien
-DROP POLICY IF EXISTS "cellule_all_profils"  ON ssp_profils;
-DROP POLICY IF EXISTS "joueur_own_profil"    ON ssp_profils;
-CREATE POLICY "cellule_all_profils" ON ssp_profils FOR ALL TO authenticated USING (is_cellule()) WITH CHECK (is_cellule());
-CREATE POLICY "joueur_own_profil"   ON ssp_profils FOR SELECT TO authenticated USING (joueur_id = auth.uid());
+-- ssp_profils : referent/coach = tout, joueur = le sien
+DROP POLICY IF EXISTS "sp_membre_all_profils"  ON ssp_profils;
+DROP POLICY IF EXISTS "sp_joueur_own_profil"   ON ssp_profils;
+CREATE POLICY "sp_membre_all_profils" ON ssp_profils
+  FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
+CREATE POLICY "sp_joueur_own_profil"  ON ssp_profils
+  FOR SELECT TO authenticated USING (joueur_id = auth.uid());
 
--- ssp_orientations : cellule = tout, joueur = les siennes
-DROP POLICY IF EXISTS "cellule_all_orientations"  ON ssp_orientations;
-DROP POLICY IF EXISTS "joueur_own_orientations"   ON ssp_orientations;
-CREATE POLICY "cellule_all_orientations" ON ssp_orientations FOR ALL TO authenticated USING (is_cellule()) WITH CHECK (is_cellule());
-CREATE POLICY "joueur_own_orientations"  ON ssp_orientations FOR SELECT TO authenticated USING (joueur_id = auth.uid());
+-- ssp_orientations : referent/coach = tout, joueur = les siennes
+DROP POLICY IF EXISTS "sp_membre_all_orientations"  ON ssp_orientations;
+DROP POLICY IF EXISTS "sp_joueur_own_orientations"  ON ssp_orientations;
+CREATE POLICY "sp_membre_all_orientations" ON ssp_orientations
+  FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
+CREATE POLICY "sp_joueur_own_orientations" ON ssp_orientations
+  FOR SELECT TO authenticated USING (joueur_id = auth.uid());
 
--- ssp_entretiens : cellule = tout, joueur = les siens (notes_cellule filtrée côté JS)
-DROP POLICY IF EXISTS "cellule_all_entretiens"  ON ssp_entretiens;
-DROP POLICY IF EXISTS "joueur_own_entretiens"   ON ssp_entretiens;
-CREATE POLICY "cellule_all_entretiens" ON ssp_entretiens FOR ALL TO authenticated USING (is_cellule()) WITH CHECK (is_cellule());
-CREATE POLICY "joueur_own_entretiens"  ON ssp_entretiens FOR SELECT TO authenticated USING (joueur_id = auth.uid());
+-- ssp_entretiens : referent/coach = tout, joueur = les siens (notes_cellule filtrée côté JS)
+DROP POLICY IF EXISTS "sp_membre_all_entretiens"  ON ssp_entretiens;
+DROP POLICY IF EXISTS "sp_joueur_own_entretiens"  ON ssp_entretiens;
+CREATE POLICY "sp_membre_all_entretiens" ON ssp_entretiens
+  FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
+CREATE POLICY "sp_joueur_own_entretiens" ON ssp_entretiens
+  FOR SELECT TO authenticated USING (joueur_id = auth.uid());
 
 -- ssp_reprises : suit les droits de l'entretien parent
-DROP POLICY IF EXISTS "cellule_all_reprises"  ON ssp_reprises;
-DROP POLICY IF EXISTS "joueur_own_reprises"   ON ssp_reprises;
-CREATE POLICY "cellule_all_reprises" ON ssp_reprises FOR ALL TO authenticated USING (is_cellule()) WITH CHECK (is_cellule());
-CREATE POLICY "joueur_own_reprises"  ON ssp_reprises FOR SELECT TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM ssp_entretiens e
-    WHERE e.id = entretien_id AND e.joueur_id = auth.uid()
-  ));
+DROP POLICY IF EXISTS "sp_membre_all_reprises"  ON ssp_reprises;
+DROP POLICY IF EXISTS "sp_joueur_own_reprises"  ON ssp_reprises;
+CREATE POLICY "sp_membre_all_reprises" ON ssp_reprises
+  FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
+CREATE POLICY "sp_joueur_own_reprises" ON ssp_reprises
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM ssp_entretiens e
+      WHERE e.id = entretien_id AND e.joueur_id = auth.uid()
+    )
+  );
 
--- ── 5. Note post-déploiement ─────────────────────────────────
--- Ajouter le rôle 'cellule' dans user_profiles pour chaque membre :
--- UPDATE user_profiles SET role = 'cellule' WHERE id = '<auth_user_id>';
--- Membres : Marion Agostini, Mathilde Soulié, Alain Raynal, Romain, Max, Rémi
+-- ssp_actions_reunion : referent/coach = tout, joueur = aucun accès
+DROP POLICY IF EXISTS "sp_membre_all_actions_reunion" ON ssp_actions_reunion;
+CREATE POLICY "sp_membre_all_actions_reunion" ON ssp_actions_reunion
+  FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
+
+-- ── 5. Attribution des rôles (à adapter selon les UUID réels) ─
+-- Exécuter ces commandes APRÈS avoir récupéré les UUID depuis
+-- Supabase > Authentication > Users
+--
+-- Référents socio-pro (Marion, Mathilde, Alain) :
+-- UPDATE user_profiles SET role = 'referent_sociopro' WHERE id = '<uuid-marion>';
+-- UPDATE user_profiles SET role = 'referent_sociopro' WHERE id = '<uuid-mathilde>';
+-- UPDATE user_profiles SET role = 'referent_sociopro' WHERE id = '<uuid-alain>';
+--
+-- Les coachs (Romain, Max) gardent role = 'coach' — déjà OK s'ils ont un compte coach.
+-- S'ils n'ont pas encore de compte, créer via l'onglet Coachs dans coach.html.
