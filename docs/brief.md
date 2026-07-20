@@ -1,76 +1,77 @@
-# Brief — Bilan d'entretien joueur + simplification exports
+# Brief — Refonte architecture des rôles (module socio-pro)
 
-> Agent : Analyst | Date : 2026-07-01
+> Produit par l'Analyst · 2026-07-20
 
 ---
 
 ## 1. Contexte
 
-L'entretien individuel coach/joueur est le moment culminant du cycle d'évaluation FENIX : on passe en revue les résultats, on identifie les axes prioritaires et on fixe des objectifs. La table `comptes_rendus` existe en base (axes_att, axes_def, objectifs_ct, objectifs_mt, notes, visible_joueur) et le coach peut déjà saisir et partager ces informations. L'export PPT coach (v59, 5 slides) est opérationnel. L'export PPT progression a été livré en v60 mais n'est pas encore validé.
+L'application FENIX Eval CF dispose d'un module socio-pro opérationnel (fenix-sociopro.html) avec 4 vues : liste joueurs, fiche profil, entretien, mode réunion. Ce module est utilisé par 5 personnes : Marion, Mathilde, Alain (référents socio-pro purs), et Romain, Max (coachs CF qui font aussi du suivi socio-pro).
+
+Le rôle actuel `cellule` a été créé pour couvrir tous ces usages. Il s'avère insuffisant : il ne distingue pas les référents purs des coachs, et il crée deux problèmes distincts pour chaque population.
 
 ---
 
-## 2. Problème
+## 2. Problème réel
 
-**P1 — Le joueur n'a pas de bilan lisible.**
-Le joueur voit des moyennes numériques (3.4, 4.2…) dans le tableau récap. Ce n'est pas ce qu'il retient de l'entretien. Ce qu'il veut savoir : "suis-je Acquis ou Maîtrisé en Finition ? Qu'est-ce que mon coach attend de moi ?" → les niveaux nommés et les objectifs dans une vue unique.
+**Pour Romain et Max (coachs)** : ils ont deux casquettes réelles — coach CF (sessions d'évaluation, notes staff, export PPT) et membre de la cellule socio-pro. Aujourd'hui ces deux espaces sont des silos : impossible de passer de l'un à l'autre sans friction. Un coach doit pouvoir naviguer entre son dashboard CF et le module socio-pro depuis la même session, d'un seul clic.
 
-**P2 — Le PPT coach accumule des slides peu utiles.**
-La slide 2 (résumé par axe) montre des pills Joueur + Staff côte à côte — trop chargée pour guider une conversation. La slide 5 (capture du formulaire CR) est redondante avec ce que le coach voit déjà dans l'app. Le PPT progression (v60) n'a pas de cas d'usage validé.
+**Pour Marion, Mathilde, Alain (référents purs)** : le rôle `cellule` ne correspond à rien dans le vocabulaire du club. Le nom est opaque. Ces trois personnes ne doivent accéder à rien du dashboard CF (pas de sessions, pas de notes techniques, pas de radar) — la frontière doit être nette et documentée.
 
-**P3 — Les exports s'accumulent sans purpose clair.**
-PDF + PPT résumé + PPT progression + PPT critères = 4 exports. Le coach ne sait plus quoi utiliser et quand.
+**Pour le code** : la fonction SQL `is_cellule()` inclut maintenant les coachs (patch précédent), ce qui est sémantiquement faux. Les policies RLS bâties dessus sont ambiguës. Ce n'est pas bloquant aujourd'hui mais deviendra un point de confusion à toute future évolution.
 
 ---
 
 ## 3. Utilisateurs
 
-| Utilisateur | Moment | Appareil | Besoin réel |
-|-------------|--------|----------|-------------|
-| Joueur | Après l'entretien, vestiaire ou domicile | iPhone | Ses niveaux par axe en langage humain + ses objectifs |
-| Coach | Pendant l'entretien, face au joueur | Laptop / tablette | Une vue de synthèse claire, pilotable en conversation |
-| Coach | Après l'entretien, archivage | Desktop | Un fichier exporté propre pour le dossier joueur |
+| Persona | Rôle actuel | Besoin réel |
+|---------|-------------|-------------|
+| Romain, Max | `coach` | Dashboard CF + accès natif socio-pro depuis la même session |
+| Marion, Mathilde, Alain | `cellule` | Socio-pro uniquement — pas de dashboard CF |
+| Joueurs | `joueur` | Inchangé |
+
+**Contexte d'usage** : mobile, debout ou en réunion, connexion variable. La navigation entre modules doit être instantanée — un seul compte, un seul login.
 
 ---
 
 ## 4. Vision
 
-> **Donner au joueur une fiche de bilan lisible dans son app — niveaux par axe en langage humain et objectifs fixés — et réduire les exports coach à l'essentiel utile.**
+> Un système de rôles lisible à 3 niveaux : `joueur`, `referent_sociopro`, `coach`. Chaque rôle donne accès exactement à ce que la personne a besoin de voir, sans friction de navigation et sans ambiguïté dans le code.
 
 ---
 
 ## 5. Scope
 
-### Dedans
-- **Bilan joueur in-app** : nouvelle carte dans les résultats joueur (visible si `visible_joueur = true`), affichant les niveaux par axe (labels Fragile/En travail/Acquis/Maîtrisé/Référence pour Joueur et Staff) + axes prioritaires + objectifs CT + MT
-- **PPT coach simplifié** : 3 slides (radar + critères ATT + critères DEF) — suppression slides 2 (résumé) et 5 (CR)
-- **Suppression PPT progression** : bouton et fonction `exportProgressionPPT()` retirés
-- **Suppression PDF coach** : bouton et fonction `exportCoachPDF()` retirés
-- **Nettoyage CDN** : retrait de `jsPDF` du CDN coach.html
+**Dans ce cycle :**
+- Renommer le rôle `cellule` → `referent_sociopro` (DB + code + routing)
+- Donner aux coachs un accès natif au module socio-pro (même session, lien dans nav)
+- Renommer `is_cellule()` → `is_sociopro_membre()` et reconstruire les policies RLS
+- Migrer les comptes existants (UPDATE SQL)
+- Documenter les 3 rôles dans CLAUDE.md
 
-### Dehors
-- Envoi email / notification joueur
-- Bilan multi-sessions dans la fiche joueur (backlog)
-- Refonte du tableau récap numérique `pRecapTableHTML` (conservé tel quel)
-- Nouveau champ en base (pas de migration nécessaire)
-- Modification du CSS existant de la vue résultats
+**Hors scope :**
+- Les référents socio-pro ne voient PAS les notes CF (radar, progression, critères)
+- Pas de tableau de bord mixte "coach + socio-pro en un seul écran"
+- Pas de nouveau rôle admin global
+- Pas de gestion des droits depuis l'UI (toujours via Supabase directement)
 
 ---
 
 ## 6. Critères de succès
 
-- Un joueur ouvre ses résultats après un entretien et lit son niveau nommé sur chaque axe + ses deux objectifs — sans décoder un chiffre
-- Le PPT coach génère exactement 3 slides (pas plus) en < 15 secondes
-- La section export du coach ne propose qu'un seul bouton `📊 PPT`
-- Aucun appel API supplémentaire côté joueur (données déjà chargées)
+- Romain se connecte → voit son dashboard coach → clique "Socio-Pro" → arrive sur fenix-sociopro.html → revient au dashboard coach d'un clic, sans logout
+- Marion se connecte → arrive directement sur fenix-sociopro.html — aucun accès aux sessions CF ou aux notes
+- Un joueur avec un compte mal configuré ne peut pas accéder au module socio-pro
+- Les tables `ssp_*` restent inaccessibles aux joueurs, et aucune donnée `notes_cellule` / `couleur_justification` n'est exposée dans la vue joueur
 
 ---
 
-## 7. Questions en suspens
+## 7. Questions résolues dans ce Brief
 
-- Q1 : La fiche bilan joueur remplace-t-elle `pRecapTableHTML` ou s'y ajoute-t-elle ?
-  → Recommandation : **s'y ajoute**, uniquement quand `visible_joueur = true` — les deux vues coexistent sans conflit
-- Q2 : Faut-il conserver `jsPDF` dans le CDN si le PDF est supprimé ?
-  → Non, à retirer de coach.html (player.html ne le charge pas)
-- Q3 : Le PPT corridor (slides critères att/def) reste-t-il dense ?
-  → Oui mais utile au coach — à conserver en l'état (fix Skills v59 déjà appliqué)
+| Question | Décision |
+|----------|----------|
+| Un fichier HTML partagé ou deux ? | Partagé (fenix-sociopro.html) — le rôle conditionne uniquement le lien retour |
+| Le référent voit-il les notes CF ? | Non — aucun accès aux tables `evaluations`, `sessions`, `player_profiles` |
+| Les actions réunion sont-elles multi-rôles ? | Oui — coach et referent_sociopro peuvent toutes les voir et les modifier |
+| Nom du nouveau rôle ? | `referent_sociopro` (snake_case, cohérent avec la convention du projet) |
+| Quelle migration ? | UPDATE SQL + renommage fonction RLS — idempotent, en deux étapes séquencées |

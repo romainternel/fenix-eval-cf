@@ -1,119 +1,98 @@
-# PRD — Bilan d'entretien joueur + simplification exports
+# PRD — Refonte architecture des rôles (module socio-pro)
 
-> Agent : Product Manager | Date : 2026-07-01
-
----
-
-## Objectif
-
-Donner au joueur une fiche de bilan lisible dans son app (niveaux par axe + objectifs) et simplifier les exports coach à un seul PPT de 3 slides.
+> Agent : Product Manager · 2026-07-20
+> Brief source : docs/brief.md
 
 ---
 
-## Features — Must Have
+## 1. Objectif
 
-### F1 — Carte bilan joueur in-app
-
-Nouvelle section dans la vue résultats joueur (`pages/player-home.js`), affichée uniquement si le CR est partagé (`visible_joueur = true`).
-
-**Contenu** :
-- Titre "📋 BILAN D'ENTRETIEN" + date de mise à jour du CR
-- Pour chaque profil (ATT et DEF, ou GB) : tableau axes avec 3 colonnes :
-  - Axe (label)
-  - Mon niveau (level pill coloré — basé sur la moyenne des notes_joueur du critère arrondie)
-  - Niveau Coach (level pill coloré — basé sur notes_staff)
-- Axes prioritaires (texte libre depuis cr.axes_att / cr.axes_def)
-- Objectif court terme (cr.objectifs_ct)
-- Objectif moyen terme (cr.objectifs_mt)
-
-**Données** : tout est déjà chargé en mémoire (`_pEvalMap`, `_pCrData`, `CRITERIA`). Aucun appel réseau supplémentaire.
-
-**Critères d'acceptation** :
-- Carte absente si `visible_joueur = false` ou si le CR n'existe pas
-- Les 5 niveaux (Fragile/En travail/Acquis/Maîtrisé/Référence) s'affichent avec leurs couleurs (même palette que le PPT coach)
-- Les 3 sections (axes prioritaires, obj CT, obj MT) ne s'affichent que si le champ n'est pas vide
-- Profil GB : un seul tableau (pas de section DEF)
+Clarifier le modèle de rôles de l'application pour distinguer proprement les coachs CF (accès complet : évaluation + socio-pro) des référents socio-pro purs (accès restreint au module socio-pro uniquement). Éliminer le rôle ambigu `cellule` et le remplacer par `referent_sociopro`.
 
 ---
 
-### F2 — PPT coach simplifié : 3 slides
+## 2. Features — Must Have
 
-Refonte de `exportCoachPPT()` dans `pages/coach-dashboard.js`.
+### F1 — Renommage du rôle en base
+Remplacer `role = 'cellule'` par `role = 'referent_sociopro'` dans la table `user_profiles` pour les 3 référents purs (Marion, Mathilde, Alain).
 
-**Structure cible** :
-- Slide 1 : Radar (inchangé — existant)
-- Slide 2 : Critères détail Attaque (inchangé — existant, fix v59)
-- Slide 3 : Critères détail Défense (inchangé — existant, fix v59, absent si GB)
+**Critères d'acceptation :**
+- [ ] Un utilisateur avec `role = 'referent_sociopro'` est redirigé vers `fenix-sociopro.html` au login
+- [ ] Un utilisateur avec `role = 'cellule'` résiduel (si migration partielle) est redirigé vers `fenix-sociopro.html` sans casse (compatibilité transitoire)
+- [ ] Un coach (`role = 'coach'`) accède toujours à `coach.html`
 
-**Suppressions** :
-- Slide 2 actuelle (résumé par axe avec pills côte à côte) → retirée
-- Slide 5 actuelle (capture CR entretien) → retirée
-- La numérotation devient : radar=1, att=2, def=3
+### F2 — Renommage de la fonction RLS
+Remplacer `is_cellule()` par `is_sociopro_membre()` dans Supabase. La fonction retourne `TRUE` pour `role IN ('referent_sociopro', 'coach')`.
 
-**Critères d'acceptation** :
-- Le fichier PPTX généré contient exactement 3 slides (2 si GB)
-- Toujours < 15 secondes de génération
-- Les slides 1-3 sont visuellement identiques à v59
+**Critères d'acceptation :**
+- [ ] Toutes les policies des tables `ssp_*` et `ssp_actions_reunion` utilisent `is_sociopro_membre()`
+- [ ] `is_cellule()` n'existe plus (supprimée après migration)
+- [ ] Les joueurs ne peuvent toujours pas accéder aux tables `ssp_*`
 
----
+### F3 — Mise à jour du routing dans le code
+`app.js` gère le routing pour `referent_sociopro` (en plus de la compatibilité `cellule` transitoire). `fenix-sociopro.html` accepte `['referent_sociopro', 'coach']`.
 
-### F3 — Suppression exports inutiles
+**Critères d'acceptation :**
+- [ ] `requireAuth(['referent_sociopro', 'coach'])` dans fenix-sociopro.html
+- [ ] `requireAuth('joueur')` redirige un joueur qui tente d'accéder à fenix-sociopro.html
+- [ ] Le routing post-login dans index.html couvre `referent_sociopro`
 
-**`exportProgressionPPT()`** :
-- Retirer la fonction de `coach-dashboard.js`
-- Retirer le bouton `📈 PPT Prog.` de la toolbar résultats
+### F4 — Navigation coach ↔ socio-pro
+Un coach peut naviguer entre son dashboard CF et le module socio-pro sans logout.
 
-**`exportCoachPDF()`** :
-- Retirer la fonction de `coach-dashboard.js`
-- Retirer le bouton correspondant (s'il existe dans la toolbar)
-
-**`jsPDF` CDN** :
-- Retirer la ligne `<script jspdf>` de `coach.html`
-
-**Critères d'acceptation** :
-- La toolbar résultats coach ne montre qu'un seul bouton export : `📊 PPT`
-- Aucune erreur console liée aux fonctions supprimées
-- `coach.html` n'inclut plus `jspdf`
+**Critères d'acceptation :**
+- [ ] Tab "Socio-Pro ↗" visible dans la nav de coach.html
+- [ ] Lien "← Dashboard coach" visible dans fenix-sociopro.html uniquement pour les coachs (`_spRole === 'coach'`)
+- [ ] Un référent (`_spRole === 'referent_sociopro'`) ne voit PAS le lien "← Dashboard coach"
 
 ---
 
-## Should Have
+## 3. Features — Should Have
 
-*(Aucun dans cette itération — scope volontairement resserré)*
+### F5 — Documentation mise à jour
+`CLAUDE.md` reflète les 3 rôles exacts avec leur périmètre d'accès.
 
----
-
-## Hors scope
-
-- Envoi email de la fiche bilan au joueur
-- Bilan multi-sessions dans la fiche bilan joueur
-- Refonte graphique de `pRecapTableHTML` (conservé tel quel)
-- Nouveau champ DB
-- Modification de `fenix.css`, `index.html`, `player.html` CDN
+### F6 — Compatibilité transitoire `cellule`
+Pendant la fenêtre de déploiement, le code accepte encore `cellule` dans le routing pour éviter tout lockout. Supprimé dès que la migration SQL est confirmée.
 
 ---
 
-## Priorité de livraison
+## 4. Features — Nice to Have (hors scope v actuelle)
 
-| # | Story | Priorité | Taille |
-|---|-------|----------|--------|
-| STORY-15 | Bilan joueur in-app | P0 | M |
-| STORY-16 | PPT coach 3 slides | P1 | S |
-| STORY-17 | Cleanup exports | P1 | S |
-
-STORY-16 et STORY-17 peuvent être livrées dans n'importe quel ordre entre elles.
+- Indicateur visuel dans le header socio-pro montrant le rôle de l'utilisateur connecté
+- Gestion des rôles depuis une interface admin (actuellement : Supabase uniquement)
+- Un référent socio-pro voit le radar CF d'un joueur en lecture seule (décision non prise)
 
 ---
 
-## Dépendances
+## 5. Hors scope explicite
 
-- `comptes_rendus` table et données : disponibles (existant)
-- `_pEvalMap`, `_pCrData`, `CRITERIA` : globaux déjà chargés dans la vue résultats joueur
-- `exportCoachPPT()` v59 : base pour STORY-16 (retrait slides 2 et 5)
+- Les référents socio-pro n'ont AUCUN accès aux tables `evaluations`, `sessions`, `player_profiles`, `comptes_rendus`
+- Pas de modification des droits joueur
+- Pas de création de nouveau rôle admin
+- Pas d'interface de gestion des rôles dans l'app
 
 ---
 
-## Risques PM
+## 6. Dépendances
 
-- Si la fiche bilan joueur est trop similaire au `pRecapTableHTML` existant → confusion. Solution : design clairement différent (level labels vs chiffres) et positionnement après la carte CR
-- Si la suppression du PDF déclenche des erreurs parce qu'un bouton PDF est référencé ailleurs → vérifier toutes les occurrences avant suppression
+- SQL Supabase : migration à exécuter APRÈS déploiement du code (voir Architect pour le séquençage)
+- Comptes existants avec `role = 'cellule'` : Marion Agostini, Mathilde Soulié, Alain Raynal
+
+---
+
+## 7. Ordre de livraison recommandé
+
+1. **STORY-18** : Mise à jour code (routing + requireAuth + sociopro-dashboard) — déployer en premier
+2. **STORY-19** : Migration SQL (rename role + rename fonction + policies) — exécuter après déploiement
+3. **STORY-20** : Documentation CLAUDE.md mise à jour
+
+---
+
+## 8. Risques PM
+
+| Risque | Mitigation |
+|--------|------------|
+| Migration SQL avant déploiement code → lockout des référents | Séquençage strict : code d'abord |
+| Oubli de recréer une policy RLS → donnée ssp_* inaccessible | Script SQL idempotent avec vérification post-migration |
+| Rôle `cellule` laissé en base sur un compte → redirection cassée | Compatibilité transitoire dans app.js pendant 1 cycle |
