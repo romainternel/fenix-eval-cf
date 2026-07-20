@@ -1420,7 +1420,7 @@ async function showCoachRadar(sessionId, playerId) {
 
   if (_cAttId) _chartAtt = buildSessionRadar('radarAtt', _cAttId);
   if (_cDefId) _chartDef = buildSessionRadar('radarDef', _cDefId);
-  if (showBilan) { cRenderBilan(); cRenderTrendTable(); }
+  if (showBilan) { cRenderBilan(); cRenderTrendTable(); if (_cShowBar) cRenderBarChart(); }
 }
 
 async function coachShareResults(sessionId, playerId) {

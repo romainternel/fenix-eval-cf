@@ -1053,7 +1053,7 @@ async function showPlayerRadar(sessionId) {
 
   if (_pAttId) _pChartAtt = buildSessionRadar('pRadarAtt', _pAttId);
   if (_pDefId) _pChartDef = buildSessionRadar('pRadarDef', _pDefId);
-  if (showBilan) { pRenderBilan(); pRenderTrendTable(); }
+  if (showBilan) { pRenderBilan(); pRenderTrendTable(); if (_pShowBar) pRenderBarChart(); }
 }
 
 function showPlayerAxisDetail(profilId, axeId) {
