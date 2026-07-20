@@ -1,0 +1,22 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 8 */5 * *'   # Toutes les 5 jours à 8h UTC (avant la pause à 7j)
+  workflow_dispatch:          # Déclenchement manuel possible depuis GitHub Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase DB
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://wyiylqvreuippmcrzwat.supabase.co/rest/v1/sessions?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5aXlscXZyZXVpcHBtY3J6d2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzA5NjcsImV4cCI6MjA5ODA0Njk2N30.chUkE5yL22krXGIZnaLAxERFsCJn_H71VppOw2Tme2E" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5aXlscXZyZXVpcHBtY3J6d2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzA5NjcsImV4cCI6MjA5ODA0Njk2N30.chUkE5yL22krXGIZnaLAxERFsCJn_H71VppOw2Tme2E")
+          echo "Supabase ping → HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "ERREUR : le projet Supabase ne répond pas (HTTP $STATUS)"
+            exit 1
+          fi
