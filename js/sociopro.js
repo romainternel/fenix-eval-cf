@@ -18,6 +18,12 @@ const SP_CONTRATS = {
   non_signe: { label: 'Non signé', bg: '#FCEBEB', color: '#791F1F' }
 };
 
+const SP_STATUTS = {
+  a_faire:  { label: 'À faire',  dot: '#ef4444' },
+  en_cours: { label: 'En cours', dot: '#f97316' },
+  fait:     { label: 'Fait',     dot: '#22c55e' },
+};
+
 function spEsc(str) {
   if (str == null) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

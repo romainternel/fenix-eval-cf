@@ -23,11 +23,14 @@ async function requireAuth(expectedRole) {
 
   const role = await getRole(session.user.id);
 
-  if (expectedRole && role !== expectedRole) {
-    if      (role === 'coach')   window.location.href = 'coach.html';
-    else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
-    else                         window.location.href = 'player.html';
-    return null;
+  if (expectedRole) {
+    const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
+    if (!allowed.includes(role)) {
+      if      (role === 'coach')   window.location.href = 'coach.html';
+      else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
+      else                         window.location.href = 'player.html';
+      return null;
+    }
   }
 
   return { user: session.user, role };

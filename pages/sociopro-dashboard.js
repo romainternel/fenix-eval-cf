@@ -4,19 +4,36 @@ const sgid = id => document.getElementById(id);
 const spDB = () => window.supabaseClient;
 
 // ── State ─────────────────────────────────────────────────────────────────
-let _spUser       = null;
-let _spJoueurs    = [];           // liste enrichie
-let _spCurrent    = null;         // joueur sélectionné
-let _spProfil     = null;         // ssp_profils row
-let _spOrients    = [];           // ssp_orientations[] pour _spCurrent
-let _spEntretiens = [];           // ssp_entretiens[] pour _spCurrent (desc)
-let _spColor      = null;         // 'vert'|'orange'|'rouge' en cours
-let _spFilterRef  = 'tous';
-let _spReunionIdx = 0;
+let _spUser          = null;
+let _spRole          = 'cellule';
+let _spJoueurs       = [];
+let _spCurrent       = null;
+let _spProfil        = null;
+let _spOrients       = [];
+let _spEntretiens    = [];
+let _spColor         = null;
+let _spFilterRef     = 'tous';
+let _spReunionIdx    = 0;
+let _spReunionJoueurs = [];
+let _spActions       = [];
 
 // ── Entry point ───────────────────────────────────────────────────────────
 async function initSocioPro(user) {
   _spUser = user;
+  _spRole = window._spRole || 'cellule';
+
+  if (_spRole === 'coach') {
+    const nav = document.querySelector('nav');
+    if (nav) {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn';
+      btn.style.cssText = 'margin-left:auto;color:#9E9A90;font-size:12px';
+      btn.textContent = '← Dashboard coach';
+      btn.onclick = () => window.location.href = 'coach.html';
+      nav.appendChild(btn);
+    }
+  }
+
   spNavActive('liste');
   await spLoadJoueurs();
   spRenderListe();
@@ -51,7 +68,7 @@ async function spLoadJoueurs() {
 
   const [{ data: profils }, { data: entretiens }, { data: orients }] = await Promise.all([
     db.from('ssp_profils').select('*').in('joueur_id', authIds),
-    db.from('ssp_entretiens').select('joueur_id, id, date, couleur').in('joueur_id', authIds).order('date', { ascending: false }),
+    db.from('ssp_entretiens').select('joueur_id, id, date, couleur, couleur_justification, actions_suivant').in('joueur_id', authIds).order('date', { ascending: false }),
     db.from('ssp_orientations').select('joueur_id').in('joueur_id', authIds)
   ]);
 
@@ -593,38 +610,42 @@ async function spSaveEntretien() {
 // ── VUE 4 — Mode réunion ──────────────────────────────────────────────────
 async function spRenderReunion() {
   spNavActive('reunion');
-  spMain().innerHTML = `<div class="sp-loading"><div class="spinner"></div></div>`;
+  spMain().innerHTML = `
+    <div id="sp-reunion-cards"></div>
+    <div id="sp-reunion-actions" style="margin-top:16px"></div>`;
 
-  // Charger le dernier entretien de chaque joueur
-  const db = spDB();
   await spLoadJoueurs();
+  await spLoadActions();
 
-  const joueurAvecEntretien = _spJoueurs
+  _spReunionJoueurs = _spJoueurs
     .filter(j => j.lastEntretien)
     .sort((a, b) => {
       const order = { rouge: 0, orange: 1, vert: 2 };
       return (order[a.lastEntretien.couleur] ?? 3) - (order[b.lastEntretien.couleur] ?? 3);
     });
 
-  if (!joueurAvecEntretien.length) {
-    spMain().innerHTML = `<p style="padding:20px;text-align:center;color:#9E9A90;font-size:13px">Aucun entretien enregistré pour le moment.</p>`;
-    return;
+  if (_spReunionJoueurs.length) {
+    _spReunionIdx = 0;
+    spRenderReunionCard();
+  } else {
+    sgid('sp-reunion-cards').innerHTML = `<p style="padding:20px;text-align:center;color:#9E9A90;font-size:13px">Aucun entretien enregistré pour le moment.</p>`;
   }
 
-  _spReunionIdx = 0;
-  spRenderReunionCard(joueurAvecEntretien);
+  spRenderActionsSection();
 }
 
-function spRenderReunionCard(joueurs) {
-  const j        = joueurs[_spReunionIdx];
-  const last     = j.lastEntretien;
-  const couleur  = last.couleur;
-  const ci       = couleur ? SP_COULEURS[couleur] : null;
-  const total    = joueurs.length;
-  const p        = j.profil;
+function spRenderReunionCard() {
+  const container = sgid('sp-reunion-cards');
+  if (!container) return;
+  const joueurs = _spReunionJoueurs;
+  const j       = joueurs[_spReunionIdx];
+  const last    = j.lastEntretien;
+  const ci      = last.couleur ? SP_COULEURS[last.couleur] : null;
+  const p       = j.profil;
+  const total   = joueurs.length;
   const actionsData = Array.isArray(last.actions_suivant) ? last.actions_suivant : [];
 
-  spMain().innerHTML = `
+  container.innerHTML = `
     <div style="font-size:12px;color:#9E9A90;margin-bottom:12px">
       Ordre : 🔴 Rouge → 🟠 Orange → 🟢 Vert · Joueur ${_spReunionIdx+1} / ${total}
     </div>
@@ -637,12 +658,12 @@ function spRenderReunionCard(joueurs) {
             <div style="font-size:12px;color:rgba(255,255,255,.55)">${spEsc(p?.formation||'')} · ${spEsc(p?.referent||'')}</div>
           </div>
         </div>
-        ${ci ? `<span class="sp-dot" style="background:${ci.dot};width:14px;height:14px;border-radius:50%"></span>` : ''}
+        ${ci ? `<span style="background:${ci.dot};width:14px;height:14px;border-radius:50%;display:inline-block"></span>` : ''}
       </div>
       <div class="sp-sec">
         <div class="sp-sec-lbl">État ce mois — ${spDateFR(last.date)}</div>
         ${ci ? `<div class="sp-couleur-recap" style="background:${ci.bg};border:.5px solid ${ci.border}">
-          <span class="sp-dot" style="background:${ci.dot};width:10px;height:10px;border-radius:50%;margin-top:3px;flex-shrink:0"></span>
+          <span style="background:${ci.dot};width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;display:inline-block"></span>
           <div><div style="font-size:11px;font-weight:600;color:${ci.text};margin-bottom:3px">${ci.label}</div>
           <div style="font-size:12px;color:${ci.text}">${spEsc(last.couleur_justification||'')}</div></div>
         </div>` : ''}
@@ -651,18 +672,152 @@ function spRenderReunionCard(joueurs) {
         <div class="sp-sec-lbl">Ce qu'il doit faire</div>
         <div style="font-size:13px;color:#3D3B36;line-height:1.9">${actionsData.map(a => '• ' + spEsc(a)).join('<br>')}</div>
       </div>` : ''}
-      <div class="sp-foot">
-        <button class="sp-btn" onclick="spReunionNav(${_spReunionIdx-1}, ${JSON.stringify(joueurs).replace(/"/g,'&quot;')})">← Précédent</button>
-        <button class="sp-btn" onclick="spOpenFiche('${j.id}')">Ouvrir la fiche</button>
-        <button class="sp-btn sp-btn-primary" onclick="spReunionNav(${_spReunionIdx+1}, ${JSON.stringify(joueurs).replace(/"/g,'&quot;')})">Suivant →</button>
+      <div class="sp-foot" style="flex-wrap:wrap;gap:6px">
+        <button class="sp-btn" onclick="spReunionNav(${_spReunionIdx-1})" ${_spReunionIdx===0?'disabled':''}>← Précédent</button>
+        <button class="sp-btn" onclick="spOpenFiche('${j.id}')">Fiche</button>
+        <button class="sp-btn" onclick="spShowAddAction('${j.authId||''}')">+ Action</button>
+        <button class="sp-btn sp-btn-primary" onclick="spReunionNav(${_spReunionIdx+1})" ${_spReunionIdx===total-1?'disabled':''}>Suivant →</button>
       </div>
     </div>`;
 }
 
-function spReunionNav(idx, joueurs) {
-  if (idx < 0 || idx >= joueurs.length) return;
+function spReunionNav(idx) {
+  if (idx < 0 || idx >= _spReunionJoueurs.length) return;
   _spReunionIdx = idx;
-  spRenderReunionCard(joueurs);
+  spRenderReunionCard();
+}
+
+// ── Actions de réunion ────────────────────────────────────────────────────
+async function spLoadActions() {
+  const { data } = await spDB().from('ssp_actions_reunion')
+    .select('*')
+    .eq('date_reunion', spTodayISO())
+    .order('created_at');
+  _spActions = data || [];
+}
+
+function spJoueurNameById(authId) {
+  if (!authId) return 'Collectif';
+  const j = _spJoueurs.find(j => j.authId === authId);
+  return j ? `${j.prenom} ${j.nom}` : '—';
+}
+
+function spRenderActionsSection() {
+  const el = sgid('sp-reunion-actions');
+  if (!el) return;
+
+  const joueurOptions = _spJoueurs.map(j =>
+    `<option value="${j.authId}">${spEsc(j.prenom)} ${spEsc(j.nom)}</option>`
+  ).join('');
+
+  const membreOptions = SP_MEMBRES.map(m =>
+    `<option value="${spEsc(m)}">${spEsc(m)}</option>`
+  ).join('');
+
+  const actionsHTML = _spActions.map(a => {
+    const st   = SP_STATUTS[a.statut] || SP_STATUTS.a_faire;
+    const name = spJoueurNameById(a.joueur_id);
+    const opts = ['a_faire','en_cours','fait'].map(s =>
+      `<option value="${s}" ${a.statut===s?'selected':''}>${SP_STATUTS[s].label}</option>`
+    ).join('');
+    return `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:.5px solid #E0DDD6">
+        <span style="width:10px;height:10px;border-radius:50%;background:${st.dot};flex-shrink:0;margin-top:4px;display:inline-block"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:#3D3B36">${spEsc(a.action)}</div>
+          <div style="font-size:11px;color:#9E9A90;margin-top:2px">${spEsc(name)} · ${spEsc(a.responsable||'—')}</div>
+        </div>
+        <select onchange="spUpdateReunionStatut('${a.id}',this.value)" style="font-size:11px;padding:3px 5px;border:1px solid #E0DDD6;border-radius:6px;flex-shrink:0;background:white;color:#3D3B36">
+          ${opts}
+        </select>
+        <button onclick="spDeleteReunionAction('${a.id}')" style="background:none;border:none;cursor:pointer;color:#9E9A90;padding:2px 4px;flex-shrink:0;font-size:14px">🗑</button>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sp-card">
+      <div class="sp-sec" style="border-bottom:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div class="sp-sec-lbl" style="margin-bottom:0">📋 Actions de la réunion</div>
+            <div style="font-size:11px;color:#9E9A90;margin-top:3px">${spDateFR(spTodayISO())}</div>
+          </div>
+          <button class="sp-btn sp-btn-primary" onclick="spShowAddAction()">+ Action</button>
+        </div>
+        <div id="sp-actions-add" style="display:none;background:#F7F5F0;border-radius:8px;padding:12px;margin-bottom:12px">
+          <div class="sp-field">
+            <label>Joueur concerné <span style="font-size:10px;opacity:.6">(optionnel)</span></label>
+            <select id="sa-joueur">
+              <option value="">— Collectif / général —</option>
+              ${joueurOptions}
+            </select>
+          </div>
+          <div class="sp-field">
+            <label>Action à mettre en place</label>
+            <input id="sa-action" type="text" placeholder="Ex : Contacter le tuteur, relancer le lycée...">
+          </div>
+          <div class="sp-field" style="margin-bottom:0">
+            <label>Responsable</label>
+            <select id="sa-resp">
+              <option value="">— Choisir —</option>
+              ${membreOptions}
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="sp-btn sp-btn-primary" onclick="spSaveReunionAction()">Ajouter</button>
+            <button class="sp-btn" onclick="spHideAddAction()">Annuler</button>
+          </div>
+        </div>
+        <div id="sp-actions-list">
+          ${actionsHTML || '<p style="font-size:13px;color:#9E9A90;text-align:center;padding:8px 0">Aucune action pour cette réunion.</p>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function spShowAddAction(joueurAuthId) {
+  const wrap = sgid('sp-actions-add');
+  if (!wrap) return;
+  wrap.style.display = 'block';
+  if (joueurAuthId) {
+    const sel = sgid('sa-joueur');
+    if (sel) sel.value = joueurAuthId;
+  }
+  sgid('sp-reunion-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => sgid('sa-action')?.focus(), 100);
+}
+
+function spHideAddAction() {
+  const wrap = sgid('sp-actions-add');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function spSaveReunionAction() {
+  const action = sgid('sa-action')?.value?.trim();
+  if (!action) { sgid('sa-action')?.focus(); return; }
+  const { error } = await spDB().from('ssp_actions_reunion').insert({
+    date_reunion: spTodayISO(),
+    joueur_id:    sgid('sa-joueur')?.value || null,
+    action,
+    responsable:  sgid('sa-resp')?.value  || null,
+  });
+  if (!error) {
+    await spLoadActions();
+    spHideAddAction();
+    spRenderActionsSection();
+  }
+}
+
+async function spUpdateReunionStatut(id, statut) {
+  await spDB().from('ssp_actions_reunion').update({ statut }).eq('id', id);
+  await spLoadActions();
+  spRenderActionsSection();
+}
+
+async function spDeleteReunionAction(id) {
+  await spDB().from('ssp_actions_reunion').delete().eq('id', id);
+  await spLoadActions();
+  spRenderActionsSection();
 }
 
 // ── Retour liste ──────────────────────────────────────────────────────────
