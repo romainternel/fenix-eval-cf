@@ -2207,29 +2207,188 @@ let _coaches = [];
 async function renderCoachs() {
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  const { data, error } = await window.supabaseClient
-    .from('user_profiles')
-    .select('id, role, nom, prenom, email')
-    .eq('role', 'coach')
-    .order('prenom');
+  const [{ data: coachData, error }, { data: refData }] = await Promise.all([
+    window.supabaseClient.from('user_profiles').select('id, role, nom, prenom, email').eq('role', 'coach').order('prenom'),
+    window.supabaseClient.from('user_profiles').select('id, role, nom, prenom, email').eq('role', 'referent_sociopro').order('prenom'),
+  ]);
 
   if (error) {
     gid('mainContent').innerHTML = `<p class="form-error" style="margin:20px">Erreur : ${escHtml(error.message)}</p>`;
     return;
   }
 
-  _coaches = data || [];
-  const otherCoachs = _coaches.filter(c => c.id !== _coachUser.id);
+  _coaches = coachData || [];
+  const referents = refData || [];
 
   gid('mainContent').innerHTML = `
     <div class="section-header">
-      <h2 class="section-title">Gestion des coachs</h2>
+      <h2 class="section-title">Équipe d'encadrement</h2>
     </div>
+    <p style="font-size:11px;color:var(--gray-400);margin:0 0 20px;line-height:1.6">
+      <strong style="color:var(--gray-600)">Coach</strong> — Dashboard CF complet + module socio-pro
+      &nbsp;·&nbsp;
+      <strong style="color:var(--gray-600)">Référent socio-pro</strong> — Module socio-pro uniquement
+    </p>
+
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-bottom:8px">Coachs</p>
     ${_coaches.map((c, i) => coachCardHTML(c, i)).join('')}
-    ${otherCoachs.length === 0
-      ? `<p style="font-size:13px;color:var(--gray-400);text-align:center;margin:16px 0">Aucun co-coach pour l'instant</p>`
+    ${_coaches.filter(c => c.id !== _coachUser.id).length === 0
+      ? `<p style="font-size:13px;color:var(--gray-400);text-align:center;margin:8px 0">Aucun co-coach pour l'instant</p>`
       : ''}
-    <button class="btn btn-primary btn-full" style="margin-top:20px" onclick="showCreateCoachModal()">+ Ajouter un coach</button>`;
+    <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="showCreateCoachModal()">+ Ajouter un coach</button>
+
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin:28px 0 8px">Référents socio-pro</p>
+    ${referents.map((r, i) => referentCardHTML(r, i)).join('')}
+    ${referents.length === 0
+      ? `<p style="font-size:13px;color:var(--gray-400);text-align:center;margin:8px 0">Aucun référent pour l'instant</p>`
+      : ''}
+    <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="showCreateReferentModal()">+ Ajouter un référent</button>`;
+}
+
+function referentCardHTML(ref, idx) {
+  const displayName = [ref.prenom, ref.nom].filter(Boolean).join(' ') || 'Référent';
+  const delay = idx * 60;
+  return `
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:8px;animation:fenix-slide-up 200ms var(--ease-out-quart) both;animation-delay:${delay}ms">
+      <span style="font-size:15px;font-weight:600;color:var(--gray-800)">${escHtml(displayName)}</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteReferent('${escHtml(ref.id)}', '${escHtml(displayName)}')">Supprimer</button>
+    </div>`;
+}
+
+function showCreateReferentModal() {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'createReferentModal';
+  overlay.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">Ajouter un référent socio-pro</h3>
+        <button class="modal-close" onclick="closeModal('createReferentModal')">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--gray-400);margin:0 0 16px">Accès au module socio-pro uniquement — pas au dashboard CF.</p>
+      <form id="createReferentForm" onsubmit="submitCreateReferent(event)">
+        <div class="form-group">
+          <label class="form-label">Prénom <span class="required">*</span></label>
+          <input class="form-input" name="prenom" required autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom <span class="required">*</span></label>
+          <input class="form-input" name="nom" required autocomplete="family-name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" name="email" type="email" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mot de passe <span class="required">*</span></label>
+          <div class="input-pwd-wrap">
+            <input class="form-input" name="password" type="password" required autocomplete="new-password">
+            <button type="button" class="btn-pwd-toggle" onclick="togglePwd(this)">Voir</button>
+          </div>
+          <p class="form-hint">(min. 5 caractères)</p>
+          <p class="form-error" id="createReferentPwdError" style="display:none">Le mot de passe doit faire au moins 5 caractères.</p>
+        </div>
+        <p class="form-error" id="createReferentError" style="display:none"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createReferentModal')">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="createReferentBtn">Créer</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeModal('createReferentModal');
+  });
+  overlay.querySelector('[name="prenom"]').focus();
+}
+
+async function submitCreateReferent(e) {
+  e.preventDefault();
+  const btn      = gid('createReferentBtn');
+  const errEl    = gid('createReferentError');
+  const pwdErrEl = gid('createReferentPwdError');
+  const fd       = new FormData(e.target);
+  const prenom   = fd.get('prenom').trim();
+  const nom      = fd.get('nom').trim();
+  const email    = fd.get('email').trim();
+  const password = fd.get('password');
+
+  pwdErrEl.style.display = 'none';
+  errEl.style.display = 'none';
+
+  if (password.length < 5) {
+    pwdErrEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Création…';
+
+  try {
+    const session = (await window.supabaseClient.auth.getSession()).data.session;
+    const res = await fetch(
+      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/manage-coach-account',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ email, password, nom, prenom, role: 'referent_sociopro' })
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) {
+      const msg = (result.error || '').toLowerCase().includes('already')
+        ? 'Cet email est déjà utilisé par un autre compte.'
+        : (result.error || 'Erreur lors de la création');
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Créer';
+      return;
+    }
+
+    closeModal('createReferentModal');
+    showToast('Référent ajouté avec succès');
+    await renderCoachs();
+
+  } catch (err) {
+    errEl.textContent = err.message || 'Erreur réseau';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Créer';
+  }
+}
+
+async function deleteReferent(userId, displayName) {
+  if (!confirm('Supprimer ' + displayName + ' ?\nCette action est irréversible.')) return;
+
+  try {
+    const session = (await window.supabaseClient.auth.getSession()).data.session;
+    const res = await fetch(
+      'https://wyiylqvreuippmcrzwat.supabase.co/functions/v1/manage-coach-account',
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ user_id: userId })
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) {
+      showToast(result.error || 'Erreur lors de la suppression');
+      return;
+    }
+
+    showToast('Référent supprimé');
+    await renderCoachs();
+
+  } catch (err) {
+    showToast(err.message || 'Erreur réseau');
+  }
 }
 
 function coachCardHTML(coach, idx) {

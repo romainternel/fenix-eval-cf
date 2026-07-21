@@ -1,6 +1,6 @@
 # Checklist de régression — FENIX Eval CF
 
-> Agent : Regression Guardian | Dernière mise à jour : 2026-07-01 (STORY-15, STORY-16, STORY-17 — v62)
+> Agent : Regression Guardian | Dernière mise à jour : 2026-07-21 (STORY-21 — coach-dashboard.js v83)
 
 ---
 
@@ -8,8 +8,8 @@
 
 | # | Feature | Fichiers concernés | Critère de bon fonctionnement | Criticité | Dernière vérif. OK |
 |---|---------|-------------------|------------------------------|-----------|-------------------|
-| R01 | Login email/password | `index.html`, `js/app.js` | Un utilisateur existant peut se connecter avec ses identifiants → routage vers coach.html ou player.html selon son rôle | Critique | v=47 |
-| R02 | Routage par rôle | `js/app.js` (`requireAuth`) | Un joueur accédant à coach.html est redirigé vers index.html | Critique | v=47 |
+| R01 | Login email/password | `index.html`, `js/app.js` | Un utilisateur existant peut se connecter avec ses identifiants → routage vers coach.html, fenix-sociopro.html ou player.html selon son rôle | Critique | app.js v45 |
+| R02 | Routage par rôle | `js/app.js` (`requireAuth`) | Un joueur accédant à coach.html est redirigé vers player.html ; un referent_sociopro est redirigé vers fenix-sociopro.html | Critique | app.js v45 |
 | R03 | Création joueur (coach) | `pages/coach-dashboard.js`, Edge Function `create-player-account` | Coach peut créer un joueur → le joueur peut se connecter | Critique | v=47 |
 | R04 | Évaluation joueur | `pages/player-home.js` | Joueur peut noter un critère (double-tap) → note sauvegardée en base | Critique | v=47 |
 | R05 | Sessions coach | `pages/coach-dashboard.js` | Coach peut créer, fermer, rouvrir une session | Important | v=47 |
@@ -27,6 +27,8 @@
 | R17 | `showAxisDetail()` après refactoring | `pages/coach-dashboard.js` | Clic sur thème dans tableau récap → `#axisDetail` affiche le détail avec pastilles colorées, titres, labels | Important | Ajouté STORY-14 |
 | R18 | Bilan entretien joueur in-app (STORY-15) | `pages/player-home.js`, `css/fenix.css` | Vue résultats joueur (`showPlayerRadar`) : si `visible_joueur=true`, carte "Bilan d'entretien" affichée avec pills de niveau par axe (ATT/DEF ou GB) et objectifs CT/MT ; si `cr=null` ou `visible_joueur=false`, carte absente | Important | v62 — 2026-07-01 |
 | R19 | Suppression propre des exports obsolètes (STORY-17) | `pages/coach-dashboard.js`, `coach.html` | `exportCoachPDF` absente du code ; `exportProgressionPPT` absente du code ; bouton "📈 PPT Prog." absent du code ; CDN jsPDF absent de `coach.html` | Important | v62 — 2026-07-01 |
+| R20 | Routing rôle referent_sociopro (STORY-18) | `js/app.js`, `index.html`, `fenix-sociopro.html`, `pages/sociopro-dashboard.js` | Login referent_sociopro → redirigé vers fenix-sociopro.html ; coach → redirigé vers coach.html ; joueur accédant à fenix-sociopro.html → redirigé vers player.html | Critique | app.js v45 — 2026-07-21 |
+| R21 | Gestion des référents socio-pro (STORY-21) | `pages/coach-dashboard.js`, Edge Function `manage-coach-account` | Onglet Coachs : deux sections visibles ; création référent → compte créé avec role='referent_sociopro' ; suppression → compte supprimé ; `deleteCoach` (coach_user_id) toujours fonctionnel | Important | v83 — 2026-07-21 |
 
 ---
 
@@ -42,3 +44,6 @@
 - R16 mis à jour STORY-16 (passage de 5 à 3 slides : suppression slides 2 recap et 5 CR entretien).
 - R18 ajouté STORY-15 (bilan entretien joueur in-app : `pBilanEntretienHTML`, `pLevelFromAvg`, classes `.bilan-*`).
 - R19 ajouté STORY-17 (suppression `exportCoachPDF`, `exportProgressionPPT`, bouton PPT Prog., CDN jsPDF).
+- R20 ajouté STORY-18 (routing referent_sociopro : rôle reconnu au login + protection fenix-sociopro.html).
+- R01/R02 mis à jour STORY-18 (routing étendu au 3ème rôle referent_sociopro).
+- R21 ajouté STORY-21 (UI création/suppression référents + Edge Function étendue avec param role).
