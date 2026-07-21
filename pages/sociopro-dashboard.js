@@ -159,7 +159,6 @@ function spEntretienItemHTML(e, i) {
   const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
   const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
   const detailId = `ent-detail-${i}`;
-  const bg = i % 2 === 0 ? '#F7F5F0' : 'transparent';
 
   const summaryLines = [
     e.mot_du_joueur    ? `<div style="font-style:italic;color:#633806;margin-bottom:2px">"${spEsc(e.mot_du_joueur)}"</div>` : '',
@@ -167,25 +166,40 @@ function spEntretienItemHTML(e, i) {
     e.ce_qui_ne_va_pas ? `<div><span style="color:#791F1F">(!) </span>${spEsc(e.ce_qui_ne_va_pas)}</div>` : '',
   ].filter(Boolean).join('');
 
-  const detailLines = [
-    ci ? `<div class="sp-couleur-recap" style="background:${ci.bg};border:.5px solid ${ci.border};margin-bottom:8px">
+  // Chaque champ est une ligne avec alternance de fond
+  const fieldRow = (lbl, val, idx) => {
+    const rowBg = idx % 2 === 0 ? '#F7F5F0' : '#FFFFFF';
+    return `<div style="background:${rowBg};padding:6px 10px">
+      <div class="sp-detail-lbl">${lbl}</div>
+      <div class="sp-detail-val">${val}</div>
+    </div>`;
+  };
+
+  const rows = [
+    ci ? { lbl: null, val: `<div class="sp-couleur-recap" style="background:${ci.bg};border:.5px solid ${ci.border};margin:0;border-radius:0">
             <span style="background:${ci.dot};width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;margin-top:3px"></span>
             <div><div style="font-size:11px;font-weight:600;color:${ci.text}">${ci.label}</div>
             <div style="font-size:12px;color:${ci.text}">${spEsc(e.couleur_justification||'')}</div></div>
-          </div>` : '',
-    e.mot_du_joueur    ? `<div class="sp-detail-lbl">Mot du joueur</div><div class="sp-detail-val" style="font-style:italic">"${spEsc(e.mot_du_joueur)}"</div>` : '',
-    e.ce_qui_va        ? `<div class="sp-detail-lbl">(+) Ce qui va</div><div class="sp-detail-val">${spEsc(e.ce_qui_va)}</div>` : '',
-    e.ce_qui_ne_va_pas ? `<div class="sp-detail-lbl">(!) Ce qui ne va pas</div><div class="sp-detail-val">${spEsc(e.ce_qui_ne_va_pas)}</div>` : '',
-    e.echeances        ? `<div class="sp-detail-lbl">Echéances</div><div class="sp-detail-val">${spEsc(e.echeances)}</div>` : '',
-    e.comment_aider    ? `<div class="sp-detail-lbl">Comment l'aider</div><div class="sp-detail-val">${spEsc(e.comment_aider)}</div>` : '',
-    actions.length     ? `<div class="sp-detail-lbl">Actions suivantes</div><div class="sp-detail-val">${actions.map(a => '• ' + spEsc(a)).join('<br>')}</div>` : '',
-    examens.length     ? `<div class="sp-detail-lbl">Examens</div><div class="sp-detail-val">${examens.map(ex => spEsc(ex.matiere) + ' : ' + spEsc(ex.note) + (ex.tendance ? ' (' + spEsc(ex.tendance) + ')' : '')).join('<br>')}${e.commentaire_examens ? '<br><em>' + spEsc(e.commentaire_examens) + '</em>' : ''}</div>` : '',
-    e.notes_cellule    ? `<div class="sp-detail-lbl">[Conf.] Notes cellule</div><div class="sp-detail-val" style="background:#F7F5F0;padding:6px 8px;border-radius:6px;font-style:italic">${spEsc(e.notes_cellule)}</div>` : '',
-  ].filter(Boolean).join('');
+          </div>` } : null,
+    e.mot_du_joueur    ? { lbl: 'Mot du joueur',        val: `<span style="font-style:italic">"${spEsc(e.mot_du_joueur)}"</span>` } : null,
+    e.ce_qui_va        ? { lbl: '(+) Ce qui va',        val: spEsc(e.ce_qui_va) } : null,
+    e.ce_qui_ne_va_pas ? { lbl: '(!) Ce qui ne va pas', val: spEsc(e.ce_qui_ne_va_pas) } : null,
+    e.echeances        ? { lbl: 'Échéances',             val: spEsc(e.echeances) } : null,
+    e.comment_aider    ? { lbl: "Comment l'aider",       val: spEsc(e.comment_aider) } : null,
+    actions.length     ? { lbl: 'Actions suivantes',     val: actions.map(a => '• ' + spEsc(a)).join('<br>') } : null,
+    examens.length     ? { lbl: 'Examens',               val: examens.map(ex => spEsc(ex.matiere) + ' : ' + spEsc(ex.note) + (ex.tendance ? ' (' + spEsc(ex.tendance) + ')' : '')).join('<br>') + (e.commentaire_examens ? '<br><em>' + spEsc(e.commentaire_examens) + '</em>' : '') } : null,
+    e.notes_cellule    ? { lbl: '[Conf.] Notes cellule', val: `<span style="font-style:italic">${spEsc(e.notes_cellule)}</span>` } : null,
+  ].filter(Boolean);
+
+  const detailLines = rows.map((r, idx) =>
+    r.lbl === null
+      ? `<div style="border-bottom:.5px solid #E0DDD6">${r.val}</div>`
+      : fieldRow(r.lbl, r.val, idx)
+  ).join('');
 
   return `
-    <div style="border-bottom:.5px solid #E0DDD6;background:${bg}">
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 6px;cursor:pointer" onclick="spToggle('${detailId}');this.querySelector('.sp-chev').classList.toggle('open')">
+    <div style="border:.5px solid #E0DDD6;border-radius:8px;overflow:hidden;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#FAFAF8;cursor:pointer;border-bottom:.5px solid #E0DDD6" onclick="spToggle('${detailId}');this.querySelector('.sp-chev').classList.toggle('open')">
         <span style="background:${ci?.dot||'#9E9A90'};width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block"></span>
         <div style="flex:1;min-width:0">
           <div><strong style="font-size:12px">${spDateFR(e.date)}</strong><span style="font-size:12px;color:#9E9A90"> — ${spEsc(e.mene_par||'—')}</span></div>
@@ -193,9 +207,11 @@ function spEntretienItemHTML(e, i) {
         </div>
         <span class="sp-chev" style="font-size:11px;flex-shrink:0">▼</span>
       </div>
-      <div id="${detailId}" style="display:none;padding:0 6px 10px 24px">
-        ${detailLines || '<div style="font-size:12px;color:#9E9A90;padding:4px 0">Aucun détail renseigné.</div>'}
-        <button class="sp-delete-btn" onclick="spDeleteEntretien('${e.id}','${spDateFR(e.date)}')">Supprimer cet entretien ×</button>
+      <div id="${detailId}" style="display:none">
+        ${detailLines || '<div style="font-size:12px;color:#9E9A90;padding:8px 10px">Aucun détail renseigné.</div>'}
+        <div style="padding:6px 10px;border-top:.5px solid #E0DDD6;background:#FAFAF8">
+          <button class="sp-delete-btn" style="margin-top:0" onclick="spDeleteEntretien('${e.id}','${spDateFR(e.date)}')">Supprimer cet entretien ×</button>
+        </div>
       </div>
     </div>`;
 }
