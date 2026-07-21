@@ -1,81 +1,76 @@
-# Brief — Module Socio-Pro : activation complète + architecture rôles
+# Brief — Améliorations module socio-pro (v2)
 
-> Agent : Analyst · 2026-07-20 (cycle repris de zéro)
+> Agent : Analyst · 2026-07-21
 
 ---
 
 ## 1. Contexte
 
-FENIX Eval CF est une app mobile-first d'auto-évaluation pour joueurs de football en chaise. Elle dispose depuis quelques semaines d'un module socio-pro *codé mais non activé* : le code existe sur GitHub Pages (fenix-sociopro.html + 4 fichiers JS), mais aucune table SQL n'a jamais été créée dans Supabase, et les rôles nécessaires n'existent pas encore en base.
-
-Le club a deux types de personnes chargées du suivi socio-pro :
-- **Les référents purs** (Marion Agostini, Mathilde Soulié, Alain Raynal) : leur seule mission dans l'app est le socio-pro
-- **Les coachs CF** (Romain, Max) : ils font l'évaluation sportive ET participent au suivi socio-pro
+Le module socio-pro (fenix-sociopro.html + sociopro-dashboard.js) a été livré fonctionnellement (STORY-18 à 21). Marion (référente socio-pro) a pu se connecter, voir les joueurs et créer un premier entretien de test. Lors de ce test grandeur nature, trois lacunes bloquantes et un problème de compréhension UX ont été identifiés.
 
 ---
 
-## 2. Problème réel
+## 2. Problèmes identifiés
 
-Le module socio-pro est inutilisable aujourd'hui pour deux raisons distinctes :
+### P1 — Export PDF corrompu (bloquant)
+Les emojis utilisés dans la fonction `spExportEntretiensPdf()` (💬 ✅ ⚠️ 📅 🔒) s'affichent en caractères illisibles dans Adobe Acrobat (`Ø=ßà`, `Ø=Ü¬`...). Root cause : jsPDF utilise la police Helvetica (encodage WinAnsi/Latin-1) qui ne couvre pas les codepoints emoji Unicode. Le PDF est inutilisable tel quel.
 
-1. **Pas de SQL** : les tables `ssp_*` n'existent pas dans Supabase. Toute tentative d'accès à `fenix-sociopro.html` plante silencieusement — les requêtes retournent des erreurs.
+### P2 — Suppression d'entretien impossible (bloquant)
+Un référent qui saisit un entretien par erreur (double saisie, mauvais joueur) ne peut pas le supprimer. Il n'existe aucun bouton de suppression dans l'interface. La seule option est d'aller dans Supabase Studio — inaccessible pour les référents.
 
-2. **Routing cassé** : le code route encore l'ancien rôle `'cellule'` vers fenix-sociopro.html, mais ce rôle n'a jamais été attribué à personne et ne correspond plus au modèle décidé. Le rôle cible s'appelle `'referent_sociopro'`.
+### P3 — Vue détail entretien tronquée (important)
+Dans l'historique de la fiche joueur, chaque entretien n'affiche que 3 champs : date/mene_par, mot du joueur, ce qui va / ce qui ne va pas. Les champs manquants (échéances, comment aider, actions suivantes, examens, notes cellule, justification couleur) ne sont visibles nulle part dans l'interface — seulement dans l'export .md/PDF.
 
-Ces deux problèmes bloquent l'activation complète du module.
+### P4 — Mode Réunion incompris (UX)
+L'onglet "Mode Réunion" n'est pas suffisamment explicite sur son usage. Les référents ne comprennent pas spontanément que cet onglet est conçu pour être utilisé en réunion d'équipe. La navigation carte par carte (Précédent/Suivant) est contre-intuitive. La section "Actions de la réunion" est liée à la date du jour sans que ce soit signalé.
 
 ---
 
-## 3. Utilisateurs et besoins
+## 3. Utilisateurs
 
-| Persona | Rôle en base | Ce qu'ils font dans l'app |
-|---------|-------------|--------------------------|
-| Marion, Mathilde, Alain | `referent_sociopro` (à créer) | Socio-pro uniquement : entretiens, fiches, réunions |
-| Romain, Max | `coach` (existe déjà) | Dashboard CF + socio-pro depuis la nav coach |
-| Joueurs du CF | `joueur` (existe) | Auto-évaluation + "Mon suivi" si entretien existe |
+| Rôle | Contexte d'usage | Appareil |
+|------|-----------------|---------|
+| Référent socio-pro (Marion, Mathilde, Alain) | Bureau, en déplacement, réunion d'équipe | Mobile (iPhone) + parfois desktop |
+| Coach (Romain, Max) | Accès complet — peut aussi utiliser ce module | Desktop principalement |
 
-**Contexte d'usage** : mobile (iPhone/Android), en réunion ou en couloir, connexion 4G. La navigation doit être instantanée et sans friction — un coach doit passer de ses sessions CF au module socio-pro sans logout.
+Usage du module : environ 1x/mois par joueur pour les entretiens. Mode Réunion : 1x/mois lors des réunions de cellule socio-pro.
 
 ---
 
 ## 4. Vision
 
-> Le module socio-pro est opérationnel pour tous les utilisateurs concernés : les référents atterrissent directement sur leur espace, les coachs y accèdent depuis la nav, les joueurs voient leur suivi dans "Mon suivi".
+Rendre le module socio-pro pleinement opérationnel pour un usage quotidien sans intervention technique : le PDF sort propre, les erreurs de saisie sont corrigeables, toutes les données d'un entretien sont lisibles en un clic, et le Mode Réunion s'auto-explique.
 
 ---
 
 ## 5. Scope
 
-**Dans ce cycle :**
-- Créer les tables SQL `ssp_*` dans Supabase avec les bonnes policies RLS
-- Créer la fonction helper `is_sociopro_membre()` (coach + referent_sociopro)
-- Mettre à jour le routing JS pour `'referent_sociopro'` (retirer `'cellule'`)
-- Attribuer les rôles aux 5 personnes concernées
+### Dans le scope
+- Fix PDF : remplacer les emojis par des équivalents texte dans `spExportEntretiensPdf()`
+- Supprimer entretien : bouton dans l'historique avec `confirm()` + suppression Supabase
+- Vue détail entretien : expand inline dans l'accordéon avec tous les champs
+- Mode Réunion : bandeau explicatif + mini-barre de statut collectif + clarification section Actions
 
-**Hors scope :**
-- Refonte UX du module (4 vues existantes sont validées)
-- Export PPT socio-pro
-- Gestion des rôles depuis l'UI (toujours via Supabase)
-- Accès des référents aux données CF (radar, notes)
+### Hors scope
+- Édition d'un entretien existant (modification après saisie)
+- Export PDF avec police Unicode/emoji native
+- Historique des actions de réunion par date (filtre date_reunion)
+- Modification de la structure de la base de données ssp_*
 
 ---
 
 ## 6. Critères de succès
 
-- Marion se connecte avec son email → arrive sur fenix-sociopro.html, voit la liste des joueurs
-- Romain se connecte → arrive sur coach.html → clique "Socio-Pro" → voit les mêmes données → revient au dashboard d'un clic
-- Un joueur qui a eu un entretien voit "Mon suivi" dans player.html avec sa couleur du mois
-- Un joueur ne peut pas accéder aux données d'un autre joueur dans les tables ssp_*
+- PDF téléchargé lisible dans Adobe Acrobat sans caractère corrompu
+- Un référent peut supprimer un entretien saisi par erreur (avec confirmation)
+- En cliquant sur un entretien dans l'historique, tous les champs sont visibles
+- Un référent arrivant sur l'onglet Mode Réunion comprend son usage sans explication
+- Zéro régression sur les features existantes
 
 ---
 
-## 7. Décisions actées
+## 7. Questions en suspens résolues
 
-| Question | Réponse |
-|----------|---------|
-| Nom du rôle référent | `referent_sociopro` |
-| Nom de la fonction SQL | `is_sociopro_membre()` — retourne TRUE pour coach ET referent_sociopro |
-| Un ou deux fichiers HTML ? | Un seul : fenix-sociopro.html — le lien retour coach s'affiche conditionnellement |
-| Les référents voient-ils les notes CF ? | Non — aucun accès aux tables evaluations/sessions/comptes_rendus |
-| Accès aux actions de réunion | Coach ET referent_sociopro — même droits |
-| Notes cellule visible joueur ? | Non — intentionnellement absentes de la query dans sociopro-player.js |
+- **Suppression en cascade** : `ssp_reprises` référence `ssp_entretiens` ON DELETE CASCADE — automatique.
+- **Qui peut supprimer ?** Tout `is_sociopro_membre()` — acceptable pour une cellule de 3 personnes.
+- **Mode Réunion — date** : les actions restent filtrées sur `spTodayISO()`, la date est affichée clairement.

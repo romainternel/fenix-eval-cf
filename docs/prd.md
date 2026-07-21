@@ -1,135 +1,95 @@
-# PRD — Module Socio-Pro : activation complète + architecture rôles
+# PRD — Améliorations module socio-pro (v2)
 
-> Agent : Product Manager · 2026-07-20
+> Agent : Product Manager · 2026-07-21
 > Source : docs/brief.md
 
 ---
 
-## 1. Objectif
+## Priorités
 
-Rendre le module socio-pro opérationnel en production : créer la base SQL, corriger le routing, attribuer les rôles. Le code existe déjà — ce cycle livre l'infrastructure et les corrections qui permettent de l'utiliser réellement.
-
----
-
-## 2. Features — Must Have
-
-### F1 — SQL Supabase complet
-Créer toutes les tables ssp_* avec les policies RLS correctes.
-
-**Tables à créer :**
-- `ssp_profils` — profil socio-pro par joueur (formation, projet pro, référent, tuteur, contrat, Drive)
-- `ssp_orientations` — historique immuable des changements d'orientation
-- `ssp_entretiens` — entretiens complets (couleur, sections A/B/C, examens, notes cellule)
-- `ssp_reprises` — suivi des actions du mois précédent
-- `ssp_actions_reunion` — actions collectives horodatées par date de réunion
-
-**Fonction RLS :**
-- `is_sociopro_membre()` → TRUE pour `role IN ('referent_sociopro', 'coach')`
-
-**Policies :**
-- ssp_profils / ssp_orientations / ssp_entretiens / ssp_reprises / ssp_actions_reunion : `is_sociopro_membre()` = accès complet (CRUD)
-- ssp_profils / ssp_orientations / ssp_entretiens / ssp_reprises : joueur = SELECT sur ses propres lignes seulement
-- ssp_actions_reunion : joueur = aucun accès
-
-**Critères d'acceptation F1 :**
-- [ ] Les 5 tables existent dans Supabase
-- [ ] `is_sociopro_membre()` retourne TRUE pour un coach et pour un referent_sociopro
-- [ ] Un joueur peut SELECT ses propres entretiens mais pas ceux d'un autre
-- [ ] Un joueur ne peut pas INSERT dans aucune table ssp_*
-- [ ] Un coach peut CRUD toutes les tables ssp_*
+| # | Feature | Priorité | Effort estimé |
+|---|---------|---------|--------------|
+| 1 | Fix export PDF (emojis) | P0 — bloquant | XS — 10 min |
+| 2 | Supprimer un entretien | P0 — bloquant | S — 30 min |
+| 3 | Vue détail entretien complet | P1 — important | M — 1h |
+| 4 | Mode Réunion UX | P2 — confort | M — 1h |
 
 ---
 
-### F2 — Mise à jour routing et auth côté code
+## Feature 1 — Fix export PDF
 
-Corriger le code JS pour utiliser `'referent_sociopro'` à la place de `'cellule'`.
+**Problème** : Emojis → caractères corrompus dans Adobe Acrobat.
 
-**Fichiers impactés :**
-- `js/app.js` : routing `'referent_sociopro'` → `fenix-sociopro.html` (retirer `'cellule'`)
-- `index.html` : idem dans le script de login
-- `fenix-sociopro.html` : `requireAuth(['referent_sociopro', 'coach'])` (retirer `'cellule'`)
-- `pages/sociopro-dashboard.js` : valeur par défaut `_spRole = 'referent_sociopro'` (pas `'cellule'`)
+**Solution** : Dans `spExportEntretiensPdf()`, remplacer chaque emoji par un préfixe texte ASCII-safe :
+- `💬` → aucun préfixe (champ "Mot du joueur" est déjà le label)
+- `✅` → `(+)`
+- `⚠️` → `(!)`
+- `📅` → (aucun, le label suffit)
+- `🔒` → `[Conf.]`
 
-**Critères d'acceptation F2 :**
-- [ ] Un utilisateur `referent_sociopro` est redirigé vers `fenix-sociopro.html` au login
-- [ ] Un utilisateur `coach` est redirigé vers `coach.html` au login
-- [ ] Un utilisateur `joueur` qui accède manuellement à `fenix-sociopro.html` est redirigé vers `player.html`
-- [ ] Le mot `'cellule'` n'apparaît plus dans aucun check de rôle (app.js, index.html, fenix-sociopro.html, sociopro-dashboard.js)
-- [ ] Les versions `?v=N` des fichiers modifiés sont incrémentées
+Également ajouter les champs manquants au PDF (`comment_aider`, `examens`, `commentaire_examens`) pour parité avec l'export .md.
 
----
-
-### F3 — Navigation coach ↔ socio-pro
-
-Un coach navigue entre son dashboard CF et le module socio-pro sans logout.
-
-**Critères d'acceptation F3 :**
-- [ ] Tab "Socio-Pro ↗" visible dans la nav de `coach.html` (aligné à droite, style atténué)
-- [ ] Clic → arrive sur `fenix-sociopro.html` avec son rôle coach reconnu
-- [ ] Dans `fenix-sociopro.html`, un lien "← Dashboard coach" visible UNIQUEMENT pour les coachs
-- [ ] Un `referent_sociopro` ne voit PAS ce lien retour
+**Critères d'acceptation** :
+- [ ] PDF ouvert dans Adobe Acrobat : aucun `Ø`, `ß`, `à`, `Ü` ou `¬` affiché
+- [ ] Tous les champs d'un entretien apparaissent dans le PDF (parité avec .md)
 
 ---
 
-### F4 — Vue joueur "Mon suivi"
+## Feature 2 — Supprimer un entretien
 
-Un joueur voit ses entretiens socio-pro dans l'onglet "Mon suivi" de `player.html`.
+**Problème** : Pas de bouton suppression — impossible de corriger une double saisie.
 
-**Critères d'acceptation F4 :**
-- [ ] L'onglet "Mon suivi" s'affiche dans la nav de `player.html`
-- [ ] Si aucun entretien : message "Ton premier entretien apparaîtra ici"
-- [ ] Si entretien(s) : couleur du mois affichée (vert/orange/rouge) + ce qui va + points d'attention + actions à faire
-- [ ] Les champs `notes_cellule` et `couleur_justification` ne sont jamais chargés côté joueur
-- [ ] L'historique des entretiens précédents est accessible via accordéon
+**Solution** : Dans l'accordéon `histEntretiens` de `spRenderFiche()`, ajouter un bouton "Supprimer" sur chaque item. Clic → `confirm()` → `DELETE` dans `ssp_entretiens` → rechargement.
 
----
-
-### F5 — Attribution des rôles (config)
-
-Les 5 utilisateurs concernés ont le bon rôle dans `user_profiles`.
-
-**Critères d'acceptation F5 :**
-- [ ] Marion Agostini → `role = 'referent_sociopro'`
-- [ ] Mathilde Soulié → `role = 'referent_sociopro'`
-- [ ] Alain Raynal → `role = 'referent_sociopro'`
-- [ ] Romain → `role = 'coach'` (déjà OK si compte coach existant, sinon créer)
-- [ ] Max → `role = 'coach'` (idem)
+**Critères d'acceptation** :
+- [ ] Bouton "Supprimer" visible sur chaque entretien dans l'historique
+- [ ] `confirm()` affiché avant la suppression (message clair avec la date)
+- [ ] Après confirmation : entretien supprimé en DB, accordéon mis à jour
+- [ ] Si refus du confirm : aucune action
 
 ---
 
-## 3. Features — Should Have
+## Feature 3 — Vue détail entretien complet
 
-### F6 — Export .md depuis la fiche joueur
-Déjà codé, s'active automatiquement une fois la F1 accomplie. Pas de dev supplémentaire.
+**Problème** : L'accordéon historique ne montre que 3 champs sur ~10.
 
-### F7 — Export PDF depuis la fiche joueur
-Idem — codé, s'active avec F1.
+**Solution** : Rendre chaque item de l'accordéon expandable. Clic sur l'en-tête → toggle d'une section détail affichant tous les champs non vides :
+- État (couleur + justification)
+- Mot du joueur
+- Ce qui va / Ce qui ne va pas
+- Échéances
+- Comment on peut l'aider
+- Actions suivantes (liste)
+- Examens (si renseignés)
+- Notes cellule (si renseignées)
 
----
-
-## 4. Hors scope explicite
-
-- Les référents socio-pro n'ont aucun accès aux tables `evaluations`, `sessions`, `player_profiles`, `comptes_rendus`
-- Pas d'interface admin de gestion des rôles dans l'app
-- Pas de notifications ou rappels d'entretien
-- Pas de refonte UX du module (les 4 vues sont validées)
-
----
-
-## 5. Ordre de livraison
-
-```
-STORY-18 : SQL Supabase (F1 + F5)  ← bloquant pour tout le reste
-STORY-19 : Routing code (F2 + F3)  ← peut se faire en parallèle de STORY-18
-STORY-20 : Validation end-to-end (F4 vérifiée + smoke test complet)
-```
+**Critères d'acceptation** :
+- [ ] Chaque entretien dans l'accordéon a un comportement toggle (clic = expand/collapse)
+- [ ] Vue expandée affiche tous les champs non vides, bien formatés
+- [ ] Bouton Supprimer présent dans la vue expandée (pas en vue résumée)
 
 ---
 
-## 6. Risques produit
+## Feature 4 — Mode Réunion UX
 
-| Risque | Impact | Mitigation |
-|--------|--------|------------|
-| SQL mal ordonné → policies orphelines | Critique | Ordre strict dans le script : fonction avant policies |
-| Compte referent_sociopro créé avant le SQL | Bloquant | SQL d'abord, attribution des rôles ensuite |
-| Cache navigateur avec l'ancien app.js | Moyen | Incrémenter ?v=N sur tous les scripts modifiés |
+**Problème** : L'onglet s'intitule "Mode Réunion" mais son usage n'est pas clair.
+
+**Solution** :
+1. **Bandeau intro** : texte court expliquant l'usage (navigation joueur par joueur, triés par priorité rouge→vert)
+2. **Mini-barre statuts** : avant les cartes, afficher une ligne "N rouge · M orange · P vert" pour donner la vue d'ensemble en un coup d'œil
+3. **Date_réunion dans Actions** : afficher clairement "Réunion du JJ mois AAAA" dans la section Actions (date du jour)
+4. **Indicateur de progression** : "Joueur X / N" déjà présent — le rendre plus visible
+
+**Critères d'acceptation** :
+- [ ] Bandeau explicatif visible à l'ouverture du Mode Réunion
+- [ ] Compteurs couleur (N rouge, M orange, P vert) affichés avant les cartes
+- [ ] Section "Actions de la réunion" titre avec la date formatée en français
+- [ ] Navigation Précédent/Suivant toujours fonctionnelle
+
+---
+
+## Hors scope (rappel)
+
+- Édition d'un entretien
+- Filtrage des actions par date de réunion passée
+- Police Unicode dans jsPDF

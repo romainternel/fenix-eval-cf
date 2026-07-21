@@ -910,16 +910,23 @@ function spExportEntretiensPdf() {
   y += 4;
 
   _spEntretiens.slice().reverse().forEach(e => {
-    const ci = e.couleur ? SP_COULEURS[e.couleur] : null;
+    const ci      = e.couleur ? SP_COULEURS[e.couleur] : null;
     const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
+    const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
     line(`Entretien du ${spDateFR(e.date)} — ${e.mene_par||'—'}`, 0, 11, true);
-    if (ci) line(`État : ${ci.label} — ${e.couleur_justification||''}`, 2, 9);
-    if (e.mot_du_joueur)        line(`💬 Mot du joueur : ${e.mot_du_joueur}`, 2, 9);
-    if (e.ce_qui_va)            line(`✅ Ce qui va : ${e.ce_qui_va}`, 2, 9);
-    if (e.ce_qui_ne_va_pas)     line(`⚠️ Ce qui ne va pas : ${e.ce_qui_ne_va_pas}`, 2, 9);
-    if (e.echeances)            line(`📅 Échéances : ${e.echeances}`, 2, 9);
-    if (actions.length)         actions.forEach(a => line(`• ${a}`, 4, 9));
-    if (e.notes_cellule)        line(`🔒 Notes cellule : ${e.notes_cellule}`, 2, 9);
+    if (ci) line(`Etat : ${ci.label} — ${e.couleur_justification||''}`, 2, 9);
+    if (e.mot_du_joueur)    line(`Mot du joueur : ${e.mot_du_joueur}`, 2, 9);
+    if (e.ce_qui_va)        line(`(+) Ce qui va : ${e.ce_qui_va}`, 2, 9);
+    if (e.ce_qui_ne_va_pas) line(`(!) Ce qui ne va pas : ${e.ce_qui_ne_va_pas}`, 2, 9);
+    if (e.echeances)        line(`Echeances : ${e.echeances}`, 2, 9);
+    if (e.comment_aider)    line(`Comment l'aider : ${e.comment_aider}`, 2, 9);
+    if (actions.length)     actions.forEach(a => line(`• ${a}`, 4, 9));
+    if (examens.length) {
+      line(`Examens :`, 2, 9, true);
+      examens.forEach(ex => line(`${ex.matiere} : ${ex.note}${ex.tendance ? ' ('+ex.tendance+')' : ''}`, 4, 9));
+      if (e.commentaire_examens) line(`Commentaire : ${e.commentaire_examens}`, 4, 9);
+    }
+    if (e.notes_cellule)    line(`[Conf.] Notes cellule : ${e.notes_cellule}`, 2, 9);
     y += 4;
     doc.setDrawColor(220, 220, 220);
     doc.line(L, y, 196, y);
