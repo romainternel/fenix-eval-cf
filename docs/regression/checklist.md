@@ -31,6 +31,7 @@
 | R21 | Gestion des référents socio-pro (STORY-21) | `pages/coach-dashboard.js`, Edge Function `manage-coach-account` | Onglet Coachs : deux sections visibles ; création référent → compte créé avec role='referent_sociopro' ; suppression → compte supprimé ; `deleteCoach` (coach_user_id) toujours fonctionnel | Important | v83 — 2026-07-21 |
 | R22 | Export PDF socio-pro (STORY-22) | `pages/sociopro-dashboard.js` | PDF téléchargé : aucun caractère corrompu (Ø/ß/à/Ü/¬) ; tous champs non vides présents ; bullet `•` intact | Important | v4 — 2026-07-21 |
 | R23 | Vue détail + suppression entretien (STORY-23) | `pages/sociopro-dashboard.js`, `fenix-sociopro.html` | Historique : clic item → détail expand/collapse ; tous champs non vides affichés ; bouton Supprimer → confirm → suppression DB → rechargement | Important | v5 — 2026-07-21 |
+| R24 | Mode Réunion UX (STORY-24) | `pages/sociopro-dashboard.js`, `fenix-sociopro.html` | Ouverture Mode Réunion → bandeau affiché avec compteurs (seuls > 0 visibles) ; navigation → bandeau persistant ; section Actions → "Actions de la réunion" + "Réunion du JJ mois AAAA" | Important | v6 — 2026-07-21 |
 
 ---
 
@@ -51,3 +52,4 @@
 - R21 ajouté STORY-21 (UI création/suppression référents + Edge Function étendue avec param role).
 - R22 ajouté STORY-22 (fix export PDF : emojis supprimés, champs manquants ajoutés).
 - R23 ajouté STORY-23 (vue détail entretien expandable + suppression avec confirmation).
+- R24 ajouté STORY-24 (Mode Réunion UX : bandeau intro, compteurs colorés, titre Actions mis à jour).

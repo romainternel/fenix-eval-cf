@@ -16,6 +16,7 @@ let _spFilterRef     = 'tous';
 let _spReunionIdx    = 0;
 let _spReunionJoueurs = [];
 let _spActions       = [];
+let _spBandeauHTML   = '';
 
 // ── Entry point ───────────────────────────────────────────────────────────
 async function initSocioPro(user) {
@@ -654,6 +655,22 @@ async function spSaveEntretien() {
 }
 
 // ── VUE 4 — Mode réunion ──────────────────────────────────────────────────
+function spReunionBandeauHTML(counts) {
+  const total = _spJoueurs.length;
+  const chips = [
+    counts.rouge  ? `<span style="background:#FDEAEA;color:#791F1F;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600">${counts.rouge} Rouge</span>` : '',
+    counts.orange ? `<span style="background:#FEF3E6;color:#803A00;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600">${counts.orange} Orange</span>` : '',
+    counts.vert   ? `<span style="background:#EBF7ED;color:#27500A;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600">${counts.vert} Vert</span>` : '',
+  ].filter(Boolean).join('');
+
+  return `
+    <div style="background:#F7F5F0;border:.5px solid #E0DDD6;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:500;color:#3D3B36;margin-bottom:4px">Mode Réunion socio-pro</div>
+      <div style="font-size:12px;color:#9E9A90;margin-bottom:8px">Faites défiler les joueurs triés par priorité (rouge en premier).<br>Ajoutez les actions décidées en réunion dans la section ci-dessous.</div>
+      ${chips ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${chips}<span style="font-size:11px;color:#9E9A90;margin-left:4px">· ${total} joueur${total>1?'s':''} au total</span></div>` : ''}
+    </div>`;
+}
+
 async function spRenderReunion() {
   spNavActive('reunion');
   spMain().innerHTML = `
@@ -670,11 +687,19 @@ async function spRenderReunion() {
       return (order[a.lastEntretien.couleur] ?? 3) - (order[b.lastEntretien.couleur] ?? 3);
     });
 
+  const counts = { rouge: 0, orange: 0, vert: 0 };
+  _spReunionJoueurs.forEach(j => {
+    const c = j.lastEntretien?.couleur;
+    if (c && counts[c] !== undefined) counts[c]++;
+  });
+  _spBandeauHTML = spReunionBandeauHTML(counts);
+
   if (_spReunionJoueurs.length) {
     _spReunionIdx = 0;
     spRenderReunionCard();
   } else {
-    sgid('sp-reunion-cards').innerHTML = `<p style="padding:20px;text-align:center;color:#9E9A90;font-size:13px">Aucun entretien enregistré pour le moment.</p>`;
+    sgid('sp-reunion-cards').innerHTML = _spBandeauHTML +
+      `<p style="padding:20px;text-align:center;color:#9E9A90;font-size:13px">Aucun entretien enregistré pour le moment.</p>`;
   }
 
   spRenderActionsSection();
@@ -691,9 +716,9 @@ function spRenderReunionCard() {
   const total   = joueurs.length;
   const actionsData = Array.isArray(last.actions_suivant) ? last.actions_suivant : [];
 
-  container.innerHTML = `
+  container.innerHTML = _spBandeauHTML + `
     <div style="font-size:12px;color:#9E9A90;margin-bottom:12px">
-      Ordre : 🔴 Rouge → 🟠 Orange → 🟢 Vert · Joueur ${_spReunionIdx+1} / ${total}
+      Joueur ${_spReunionIdx+1} / ${total}
     </div>
     <div class="sp-card">
       <div class="sp-hdr">
@@ -785,8 +810,8 @@ function spRenderActionsSection() {
       <div class="sp-sec" style="border-bottom:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div>
-            <div class="sp-sec-lbl" style="margin-bottom:0">📋 Actions de la réunion</div>
-            <div style="font-size:11px;color:#9E9A90;margin-top:3px">${spDateFR(spTodayISO())}</div>
+            <div class="sp-sec-lbl" style="margin-bottom:0">Actions de la réunion</div>
+            <div style="font-size:11px;color:#9E9A90;margin-top:3px">Réunion du ${spDateFR(spTodayISO())}</div>
           </div>
           <button class="sp-btn sp-btn-primary" onclick="spShowAddAction()">+ Action</button>
         </div>
