@@ -159,6 +159,7 @@ function spEntretienItemHTML(e, i) {
   const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
   const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
   const detailId = `ent-detail-${i}`;
+  const bg = i % 2 === 1 ? '#F7F5F0' : 'transparent';
 
   const summaryLines = [
     e.mot_du_joueur    ? `<div style="font-style:italic;color:#633806;margin-bottom:2px">"${spEsc(e.mot_du_joueur)}"</div>` : '',
@@ -183,8 +184,8 @@ function spEntretienItemHTML(e, i) {
   ].filter(Boolean).join('');
 
   return `
-    <div style="border-bottom:.5px solid #E0DDD6">
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer" onclick="spToggle('${detailId}');this.querySelector('.sp-chev').classList.toggle('open')">
+    <div style="border-bottom:.5px solid #E0DDD6;background:${bg}">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 6px;cursor:pointer" onclick="spToggle('${detailId}');this.querySelector('.sp-chev').classList.toggle('open')">
         <span style="background:${ci?.dot||'#9E9A90'};width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block"></span>
         <div style="flex:1;min-width:0">
           <div><strong style="font-size:12px">${spDateFR(e.date)}</strong><span style="font-size:12px;color:#9E9A90"> — ${spEsc(e.mene_par||'—')}</span></div>
@@ -192,7 +193,7 @@ function spEntretienItemHTML(e, i) {
         </div>
         <span class="sp-chev" style="font-size:11px;flex-shrink:0">▼</span>
       </div>
-      <div id="${detailId}" style="display:none;padding:0 0 10px 18px">
+      <div id="${detailId}" style="display:none;padding:0 6px 10px 24px">
         ${detailLines || '<div style="font-size:12px;color:#9E9A90;padding:4px 0">Aucun détail renseigné.</div>'}
         <button class="sp-delete-btn" onclick="spDeleteEntretien('${e.id}','${spDateFR(e.date)}')">Supprimer cet entretien ×</button>
       </div>
