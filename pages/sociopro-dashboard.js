@@ -5,7 +5,7 @@ const spDB = () => window.supabaseClient;
 
 // ── State ─────────────────────────────────────────────────────────────────
 let _spUser          = null;
-let _spRole          = 'cellule';
+let _spRole          = 'referent_sociopro';
 let _spJoueurs       = [];
 let _spCurrent       = null;
 let _spProfil        = null;
@@ -20,7 +20,7 @@ let _spActions       = [];
 // ── Entry point ───────────────────────────────────────────────────────────
 async function initSocioPro(user) {
   _spUser = user;
-  _spRole = window._spRole || 'cellule';
+  _spRole = window._spRole || 'referent_sociopro';
 
   if (_spRole === 'coach') {
     const nav = document.querySelector('nav');

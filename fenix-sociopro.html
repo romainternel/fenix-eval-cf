@@ -113,12 +113,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="js/supabase-client.js?v=32"></script>
-  <script src="js/app.js?v=44"></script>
+  <script src="js/app.js?v=45"></script>
   <script src="js/sociopro.js?v=2"></script>
-  <script src="pages/sociopro-dashboard.js?v=2"></script>
+  <script src="pages/sociopro-dashboard.js?v=3"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      const auth = await requireAuth(['cellule', 'coach']);
+      const auth = await requireAuth(['referent_sociopro', 'coach']);
       if (!auth) return;
       window._spRole = auth.role;
       await initSocioPro(auth.user);

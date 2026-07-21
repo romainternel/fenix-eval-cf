@@ -27,7 +27,7 @@ async function requireAuth(expectedRole) {
     const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
     if (!allowed.includes(role)) {
       if      (role === 'coach')   window.location.href = 'coach.html';
-      else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
+      else if (role === 'referent_sociopro') window.location.href = 'fenix-sociopro.html';
       else                         window.location.href = 'player.html';
       return null;
     }

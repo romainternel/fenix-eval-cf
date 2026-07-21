@@ -195,7 +195,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/supabase-client.js?v=1" defer></script>
-  <script src="js/app.js?v=44" defer></script>
+  <script src="js/app.js?v=45" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('loginForm');
@@ -217,7 +217,7 @@
 
           const role = await getRole(data.user.id);
           if      (role === 'coach')   window.location.href = 'coach.html';
-          else if (role === 'cellule') window.location.href = 'fenix-sociopro.html';
+          else if (role === 'referent_sociopro') window.location.href = 'fenix-sociopro.html';
           else                         window.location.href = 'player.html';
         } catch (e) {
           err.classList.add('visible');
