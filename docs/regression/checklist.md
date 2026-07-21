@@ -30,6 +30,7 @@
 | R20 | Routing rôle referent_sociopro (STORY-18) | `js/app.js`, `index.html`, `fenix-sociopro.html`, `pages/sociopro-dashboard.js` | Login referent_sociopro → redirigé vers fenix-sociopro.html ; coach → redirigé vers coach.html ; joueur accédant à fenix-sociopro.html → redirigé vers player.html | Critique | app.js v45 — 2026-07-21 |
 | R21 | Gestion des référents socio-pro (STORY-21) | `pages/coach-dashboard.js`, Edge Function `manage-coach-account` | Onglet Coachs : deux sections visibles ; création référent → compte créé avec role='referent_sociopro' ; suppression → compte supprimé ; `deleteCoach` (coach_user_id) toujours fonctionnel | Important | v83 — 2026-07-21 |
 | R22 | Export PDF socio-pro (STORY-22) | `pages/sociopro-dashboard.js` | PDF téléchargé : aucun caractère corrompu (Ø/ß/à/Ü/¬) ; tous champs non vides présents ; bullet `•` intact | Important | v4 — 2026-07-21 |
+| R23 | Vue détail + suppression entretien (STORY-23) | `pages/sociopro-dashboard.js`, `fenix-sociopro.html` | Historique : clic item → détail expand/collapse ; tous champs non vides affichés ; bouton Supprimer → confirm → suppression DB → rechargement | Important | v5 — 2026-07-21 |
 
 ---
 
@@ -49,3 +50,4 @@
 - R01/R02 mis à jour STORY-18 (routing étendu au 3ème rôle referent_sociopro).
 - R21 ajouté STORY-21 (UI création/suppression référents + Edge Function étendue avec param role).
 - R22 ajouté STORY-22 (fix export PDF : emojis supprimés, champs manquants ajoutés).
+- R23 ajouté STORY-23 (vue détail entretien expandable + suppression avec confirmation).

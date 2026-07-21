@@ -79,6 +79,10 @@
     .sp-back        { background:none; border:none; cursor:pointer; color:#0A2463; font-size:13px; padding:0 0 10px 0; font-weight:500; }
     .sp-accordion   { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:8px 0; font-size:12px; font-weight:600; color:#0A2463; }
     .sp-loading     { display:flex; justify-content:center; padding:40px; }
+    .sp-delete-btn  { background:none; border:none; cursor:pointer; color:#791F1F; font-size:12px; padding:4px 0; display:block; text-align:right; width:100%; margin-top:8px; }
+    .sp-delete-btn:hover { opacity:.8; text-decoration:underline; }
+    .sp-detail-lbl  { font-size:11px; font-weight:600; color:#9E9A90; text-transform:uppercase; letter-spacing:.5px; margin:6px 0 2px; }
+    .sp-detail-val  { font-size:13px; color:#3D3B36; }
   </style>
 </head>
 <body>
@@ -115,7 +119,7 @@
   <script src="js/supabase-client.js?v=32"></script>
   <script src="js/app.js?v=45"></script>
   <script src="js/sociopro.js?v=2"></script>
-  <script src="pages/sociopro-dashboard.js?v=4"></script>
+  <script src="pages/sociopro-dashboard.js?v=5"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const auth = await requireAuth(['referent_sociopro', 'coach']);
