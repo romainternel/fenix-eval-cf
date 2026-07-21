@@ -127,7 +127,15 @@ async function showSessionDetail(sessionId) {
         </p>
         <button class="btn btn-ghost btn-full" onclick="confirmReopenSession('${s.id}')">Rouvrir cette session</button>
       </div>
-    </div>`}`;
+    </div>`}
+    <div class="card" style="border-left:4px solid #c0392b;margin-top:8px">
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px">
+          Supprimer définitivement cette session et toutes les évaluations associées.
+        </p>
+        <button class="btn btn-danger btn-full" onclick="confirmDeleteSession('${s.id}','${escHtml(s.label)}')">Supprimer la session</button>
+      </div>
+    </div>`;
 
   loadSessionPlayerList(sessionId);
 }
@@ -1679,6 +1687,27 @@ async function confirmReopenSession(sessionId) {
 
   if (error) { showToast('Erreur : ' + error.message); return; }
   showToast('Session réouverte');
+  await renderSessions();
+}
+
+async function confirmDeleteSession(sessionId, label) {
+  if (!confirm(`Supprimer la session "${label}" ?\n\nToutes les évaluations associées seront définitivement supprimées. Cette action est irréversible.`)) return;
+
+  const db = window.supabaseClient;
+  const steps = [
+    db.from('session_player_statut').delete().eq('session_id', sessionId),
+    db.from('evaluations').delete().eq('session_id', sessionId),
+    db.from('entretiens').delete().eq('session_id', sessionId),
+    db.from('comptes_rendus').delete().eq('session_id', sessionId),
+  ];
+  for (const step of steps) {
+    const { error } = await step;
+    if (error) { showToast('Erreur : ' + error.message); return; }
+  }
+  const { error } = await db.from('sessions').delete().eq('id', sessionId);
+  if (error) { showToast('Erreur : ' + error.message); return; }
+
+  showToast('Session supprimée');
   await renderSessions();
 }
 
