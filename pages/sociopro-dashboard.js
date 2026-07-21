@@ -159,7 +159,7 @@ function spEntretienItemHTML(e, i) {
   const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
   const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
   const detailId = `ent-detail-${i}`;
-  const bg = i % 2 === 1 ? '#F7F5F0' : 'transparent';
+  const bg = i % 2 === 0 ? '#F7F5F0' : 'transparent';
 
   const summaryLines = [
     e.mot_du_joueur    ? `<div style="font-style:italic;color:#633806;margin-bottom:2px">"${spEsc(e.mot_du_joueur)}"</div>` : '',
