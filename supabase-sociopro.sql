@@ -147,7 +147,25 @@ DROP POLICY IF EXISTS "sp_membre_all_actions_reunion" ON ssp_actions_reunion;
 CREATE POLICY "sp_membre_all_actions_reunion" ON ssp_actions_reunion
   FOR ALL TO authenticated USING (is_sociopro_membre()) WITH CHECK (is_sociopro_membre());
 
--- ── 5. Attribution des rôles (à adapter selon les UUID réels) ─
+-- ── 5. Policies sur tables CF existantes ─────────────────────
+-- Les référents socio-pro ont besoin de lire players et player_profiles
+-- (tables créées par supabase-setup.sql, RLS déjà activée)
+
+CREATE POLICY IF NOT EXISTS "players_sociopro_read" ON players
+  FOR SELECT TO authenticated USING (is_sociopro_membre());
+
+CREATE POLICY IF NOT EXISTS "pp_sociopro_read" ON player_profiles
+  FOR SELECT TO authenticated USING (is_sociopro_membre());
+
+CREATE POLICY IF NOT EXISTS "referent_read_user_profiles" ON user_profiles
+  FOR SELECT TO authenticated USING (is_sociopro_membre());
+
+-- Contrainte de rôle élargie (si la contrainte CHECK originale n'inclut pas referent_sociopro)
+-- ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_role_check;
+-- ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_role_check
+--   CHECK (role IN ('joueur', 'coach', 'referent_sociopro'));
+
+-- ── 6. Attribution des rôles (à adapter selon les UUID réels) ─
 -- Exécuter ces commandes APRÈS avoir récupéré les UUID depuis
 -- Supabase > Authentication > Users
 --
