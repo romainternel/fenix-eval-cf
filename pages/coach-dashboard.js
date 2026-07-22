@@ -1595,13 +1595,7 @@ function coachShowCriteres(profilId, axeId, btnEl) {
           <div class="critere-eval-texte">${escHtml(c.texte)}</div>
           <div class="coach-rating-block">
             <div class="coach-rating-row">
-              <span class="coach-rating-who">Joueur</span>
-              <div class="rating-group" style="pointer-events:none;opacity:${nj ? 1 : 0.3}">
-                ${[1,2,3,4,5].map(n => `<div class="rating-btn n${n} ${nj === n ? 'selected' : ''}" style="cursor:default"></div>`).join('')}
-              </div>
-            </div>
-            <div class="coach-rating-row">
-              <span class="coach-rating-who">Staff</span>
+              <span class="coach-rating-who">Coach</span>
               <div class="rating-group">
                 ${[1,2,3,4,5].map(n => `
                   <button class="rating-btn n${n} ${ns === n ? 'selected' : ''}" data-n="${n}"
