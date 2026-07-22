@@ -1888,6 +1888,9 @@ function renderPlayerCard(p) {
 }
 
 /* ─── Détail / édition d'un joueur ───────────────────────────────────────── */
+const _PROFIL_ATT_LABELS = { 'ailier-att': 'Ailier', 'arr-att': 'Arrière', 'dc-att': 'Demi-Centre', 'pvt-att': 'Pivot' };
+const _PROFIL_DEF_LABELS = { 'n1-def': 'Profil N°1', 'n2-def': 'Profil N°2', 'n3-def': 'Profil N°3' };
+
 async function showPlayerDetail(playerId) {
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
@@ -1905,6 +1908,53 @@ async function showPlayerDetail(playerId) {
 
   const p    = playerRes.data;
   const prof = profileRes.data;
+  const initials = (p.prenom[0] + p.nom[0]).toUpperCase();
+  const isGb = prof && prof.profil_gb;
+
+  const profilLine = isGb
+    ? `<div class="info-row"><span class="info-label">Profil</span><span class="info-value">Gardien de but</span></div>`
+    : `<div class="info-row"><span class="info-label">Attaque</span><span class="info-value">${_PROFIL_ATT_LABELS[prof?.profil_att] || '—'}</span></div>
+       <div class="info-row"><span class="info-label">Défense</span><span class="info-value">${_PROFIL_DEF_LABELS[prof?.profil_def] || '—'}</span></div>`;
+
+  gid('mainContent').innerHTML = `
+    <div class="section-header" style="margin-bottom:16px">
+      <button class="btn btn-secondary btn-sm" onclick="renderPlayers()">← Retour</button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+          <div class="player-card-avatar" style="width:48px;height:48px;font-size:16px;flex-shrink:0">${initials}</div>
+          <div>
+            <div style="font-size:18px;font-weight:800;color:var(--fenix-navy)">${escHtml(p.prenom)} ${escHtml(p.nom)}</div>
+            <div style="font-size:13px;color:var(--gray-400)">${escHtml(p.email || '—')}</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          <div class="info-row"><span class="info-label">Saison</span><span class="info-value">${saison}</span></div>
+          ${profilLine}
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" style="flex:1" onclick="showPlayerEditForm('${p.id}')">Modifier</button>
+          <button class="btn btn-danger"  style="flex:1" onclick="confirmDeletePlayer('${p.id}', '${escHtml(p.prenom)} ${escHtml(p.nom)}')">Supprimer</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function showPlayerEditForm(playerId) {
+  gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
+
+  const saison = currentSaison();
+  const [playerRes, profileRes] = await Promise.all([
+    window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
+    window.supabaseClient.from('player_profiles').select('*')
+      .eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle()
+  ]);
+
+  if (playerRes.error) { gid('mainContent').innerHTML = `<p class="form-error">Joueur introuvable.</p>`; return; }
+
+  const p    = playerRes.data;
+  const prof = profileRes.data;
   const typeProfile = prof && prof.profil_gb ? 'gb' : 'champ';
   const currentAtt  = prof ? (prof.profil_att || '') : '';
   const currentDef  = prof ? (prof.profil_def || '') : '';
@@ -1912,7 +1962,7 @@ async function showPlayerDetail(playerId) {
 
   gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
-      <button class="btn btn-secondary btn-sm" onclick="renderPlayers()">← Retour</button>
+      <button class="btn btn-secondary btn-sm" onclick="showPlayerDetail('${p.id}')">← Annuler</button>
       <h2 class="section-title" style="margin-bottom:0">${escHtml(p.prenom)} ${escHtml(p.nom)}</h2>
     </div>
     <div class="card">
@@ -1969,14 +2019,10 @@ async function showPlayerDetail(playerId) {
           </div>
           <p class="form-error" id="editPlayerError" style="display:none"></p>
           <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" onclick="renderPlayers()">Annuler</button>
+            <button type="button" class="btn btn-secondary" onclick="showPlayerDetail('${p.id}')">Annuler</button>
             <button type="submit" class="btn btn-primary" id="editPlayerBtn">Enregistrer</button>
           </div>
         </form>
-        <hr style="margin:20px 0;border:none;border-top:1px solid var(--gray-200)">
-        <button class="btn btn-danger" onclick="confirmDeletePlayer('${p.id}', '${escHtml(p.prenom)} ${escHtml(p.nom)}')">
-          Supprimer ce joueur
-        </button>
       </div>
     </div>`;
 }
@@ -2024,7 +2070,7 @@ async function submitEditPlayer(e, playerId, profileId) {
     }
 
     showToast('Joueur enregistré');
-    await renderPlayers();
+    await showPlayerDetail(playerId);
 
   } catch (err) {
     errEl.textContent = err.message || 'Erreur lors de la sauvegarde';
