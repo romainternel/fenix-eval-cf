@@ -794,15 +794,23 @@ async function exportCoachPPT() {
         });
       }
 
-      const theadHtml = hasSplit ? '' : `
-        <thead>
-          <tr style="background:#1E293B">
-            <th style="padding:7px 18px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
-            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
-            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Staff</th>
-            <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
-          </tr>
-        </thead>`;
+      const theadHtml = hasSplit
+        ? `<thead>
+            <tr style="background:#1E293B">
+              <th style="padding:4px 12px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;height:26px;border-bottom:2px solid #334155">Critère</th>
+              <th style="padding:4px 6px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;height:26px;border-bottom:2px solid #334155">Joueur</th>
+              <th style="padding:4px 6px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;height:26px;border-bottom:2px solid #334155">Coach</th>
+              <th style="padding:4px 6px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;height:26px;border-bottom:2px solid #334155">Écart</th>
+            </tr>
+          </thead>`
+        : `<thead>
+            <tr style="background:#1E293B">
+              <th style="padding:7px 18px;text-align:left;font-size:13px;font-weight:700;color:#F1F5F9;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Critère</th>
+              <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Joueur</th>
+              <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#FED7AA;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Coach</th>
+              <th style="padding:7px;text-align:center;font-size:13px;font-weight:700;color:#E2E8F0;text-transform:uppercase;letter-spacing:.06em;height:${HDR_H}px;border-bottom:2px solid #334155">Écart</th>
+            </tr>
+          </thead>`;
 
       const div = createOffscreen(CW);
       div.innerHTML = `
