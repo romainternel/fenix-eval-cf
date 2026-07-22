@@ -187,8 +187,8 @@ const CRITERIA = {
             texte: "Ma passe longue est précise — hauteur de poitrine, devant le coéquipier, exploitable en course. Je suis en capacité d'envoyer la balle où je veux (renversement, ailier, pivot, arrière)" },
           { id: "dc-att-creation-6", label: "Passe sous pression",
             texte: "Même sous pression, ma passe est précise — hauteur de poitrine, devant, exploitable pour mon coéquipier" },
-          { id: "dc-att-creation-7", label: "Passe vers l'arrière",
-            texte: "Je sais orienter et redistribuer vers les arrières pour relancer une action ou changer de côté" },
+          { id: "dc-att-creation-7", label: "Passe croisée",
+            texte: "Je sais effectuer une passe croisée propre pour mon partenaire tout en maintenant une pression sur le défenseur (contact, enfoncer)" },
           { id: "dc-att-creation-8", label: "Animation des temps forts",
             texte: "Je suis capable d'annoncer et de mener le jeu clairement par le geste ou la voix pour mes coéquipiers" }
         ]
