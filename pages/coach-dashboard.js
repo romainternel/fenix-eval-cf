@@ -1890,15 +1890,101 @@ function renderPlayerCard(p) {
 /* ─── Détail / édition d'un joueur ───────────────────────────────────────── */
 const _PROFIL_ATT_LABELS = { 'ailier-att': 'Ailier', 'arr-att': 'Arrière', 'dc-att': 'Demi-Centre', 'pvt-att': 'Pivot' };
 const _PROFIL_DEF_LABELS = { 'n1-def': 'Profil N°1', 'n2-def': 'Profil N°2', 'n3-def': 'Profil N°3' };
+const _NOTE_BG  = ['','#FDEAEA','#FEF3E6','#FFFAE5','#EBF7ED','#D4EDDA'];
+const _NOTE_CLR = ['','#791F1F','#803A00','#7A5E00','#27500A','#155724'];
+const _NOTE_LBL = ['','Fragile','En travail','Acquis','Maîtrisé','Référence'];
+
+function _noteBadge(n) {
+  if (!n) return `<span style="font-size:12px;color:#9E9A90">—</span>`;
+  return `<span style="background:${_NOTE_BG[n]};color:${_NOTE_CLR[n]};font-size:11px;font-weight:700;padding:2px 7px;border-radius:12px">${n} <span style="font-weight:400">${_NOTE_LBL[n]}</span></span>`;
+}
+
+function _buildCritereMap() {
+  const map = {};
+  Object.values(window.CRITERIA || {}).forEach(profil => {
+    Object.entries(profil.axes || {}).forEach(([, axe]) => {
+      axe.criteres.forEach(c => { map[c.id] = { label: c.label, axeLabel: axe.label }; });
+    });
+  });
+  return map;
+}
+
+function _histoNotationsHTML(evals, sessions) {
+  if (!evals.length) return `<p style="font-size:13px;color:var(--gray-400);padding:8px 0">Aucune notation enregistrée.</p>`;
+
+  const critMap = _buildCritereMap();
+  const sessionMap = {};
+  sessions.forEach(s => sessionMap[s.id] = s);
+
+  // Group by session_id, filter out rows with no note at all
+  const bySess = {};
+  evals.forEach(ev => {
+    if (!ev.note_joueur && !ev.note_staff) return;
+    if (!bySess[ev.session_id]) bySess[ev.session_id] = [];
+    bySess[ev.session_id].push(ev);
+  });
+
+  // Sort sessions by date desc
+  const sessIds = Object.keys(bySess).sort((a, b) => {
+    const da = sessionMap[a]?.date_session || a;
+    const db = sessionMap[b]?.date_session || b;
+    return da < db ? 1 : -1;
+  });
+
+  if (!sessIds.length) return `<p style="font-size:13px;color:var(--gray-400);padding:8px 0">Aucune notation enregistrée.</p>`;
+
+  return sessIds.map((sid, si) => {
+    const s    = sessionMap[sid];
+    const rows = bySess[sid];
+
+    // Group rows by axe
+    const byAxe = {};
+    rows.forEach(ev => {
+      const info = critMap[ev.critere_id];
+      const axe  = info?.axeLabel || ev.critere_id;
+      if (!byAxe[axe]) byAxe[axe] = [];
+      byAxe[axe].push({ label: info?.label || ev.critere_id, nj: ev.note_joueur, ns: ev.note_staff });
+    });
+
+    const axeRows = Object.entries(byAxe).map(([axe, crit]) => `
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:1px;text-transform:uppercase;padding:4px 0 6px">${escHtml(axe)}</div>
+        ${crit.map(c => `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--gray-100)">
+            <span style="flex:1;font-size:12px;color:var(--gray-700)">${escHtml(c.label)}</span>
+            <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+              <span style="font-size:10px;color:var(--gray-400)">Joueur</span>${_noteBadge(c.nj)}
+            </span>
+            <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+              <span style="font-size:10px;color:var(--gray-400)">Staff</span>${_noteBadge(c.ns)}
+            </span>
+          </div>`).join('')}
+      </div>`).join('');
+
+    const label = s ? escHtml(s.label) : sid;
+    const date  = s?.date_session ? formatDateShort(s.date_session) : '';
+
+    return `
+      <details ${si === 0 ? 'open' : ''} style="margin-bottom:8px;border:.5px solid var(--gray-200);border-radius:8px;overflow:hidden">
+        <summary style="list-style:none;padding:10px 14px;background:var(--gray-50);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--fenix-navy)">
+          <span>${label}</span>
+          <span style="font-size:12px;font-weight:400;color:var(--gray-400)">${date} · ${rows.length} notes</span>
+        </summary>
+        <div style="padding:10px 14px">${axeRows}</div>
+      </details>`;
+  }).join('');
+}
 
 async function showPlayerDetail(playerId) {
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
-  const [playerRes, profileRes] = await Promise.all([
+  const [playerRes, profileRes, evalsRes, sessionsRes] = await Promise.all([
     window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
     window.supabaseClient.from('player_profiles').select('*')
-      .eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle()
+      .eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
+    window.supabaseClient.from('evaluations').select('*').eq('player_id', playerId),
+    window.supabaseClient.from('sessions').select('id,label,date_session').order('date_session', { ascending: false })
   ]);
 
   if (playerRes.error) {
@@ -1915,6 +2001,8 @@ async function showPlayerDetail(playerId) {
     ? `<div class="info-row"><span class="info-label">Profil</span><span class="info-value">Gardien de but</span></div>`
     : `<div class="info-row"><span class="info-label">Attaque</span><span class="info-value">${_PROFIL_ATT_LABELS[prof?.profil_att] || '—'}</span></div>
        <div class="info-row"><span class="info-label">Défense</span><span class="info-value">${_PROFIL_DEF_LABELS[prof?.profil_def] || '—'}</span></div>`;
+
+  const histoHTML = _histoNotationsHTML(evalsRes.data || [], sessionsRes.data || []);
 
   gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
@@ -1937,6 +2025,12 @@ async function showPlayerDetail(playerId) {
           <button class="btn btn-primary" style="flex:1" onclick="showPlayerEditForm('${p.id}')">Modifier</button>
           <button class="btn btn-danger"  style="flex:1" onclick="confirmDeletePlayer('${p.id}', '${escHtml(p.prenom)} ${escHtml(p.nom)}')">Supprimer</button>
         </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <p class="section-title" style="margin-bottom:12px">Historique des notations</p>
+        ${histoHTML}
       </div>
     </div>`;
 }
