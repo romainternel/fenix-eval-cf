@@ -1237,9 +1237,9 @@ async function showCoachRadar(sessionId, playerId) {
     window.supabaseClient.from('player_profiles').select('*').eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
     window.supabaseClient.from('session_player_statut').select('resultats_visibles').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle(),
     window.supabaseClient.from('evaluations').select('session_id').eq('player_id', playerId),
-    window.supabaseClient.from('comptes_rendus').select('*').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle()
+    window.supabaseClient.from('comptes_rendus').select('*').eq('player_id', playerId)
   ]);
-  const cr = crRes.data;
+  const allCrs = crRes.data || [];
 
   const player  = playerRes.data;
   const profile = profileRes.data;
@@ -1267,6 +1267,11 @@ async function showCoachRadar(sessionId, playerId) {
   _cAllSessions = sessions.map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }));
   _cSelectedSessions = new Set(_cAllSessions.slice(-2).map(s => s.id));
   _cShowBar = true;
+
+  const cr       = allCrs.find(c => c.session_id === sessionId) || null;
+  const curIdx   = _cAllSessions.findIndex(s => s.id === sessionId);
+  const prevSess = curIdx > 0 ? _cAllSessions[curIdx - 1] : null;
+  const prevCr   = prevSess ? allCrs.find(c => c.session_id === prevSess.id) || null : null;
 
   const isGb  = !!profile?.profil_gb;
   _cAttId = isGb ? profile.profil_gb : profile?.profil_att;
@@ -1371,6 +1376,15 @@ async function showCoachRadar(sessionId, playerId) {
       <span style="font-weight:700">${nom}</span>
       <button class="btn btn-ghost btn-sm" id="btnExportPpt" onclick="exportCoachPPT()">📊 PPT</button>
     </div>
+    ${prevCr && (prevCr.axes_att || prevCr.axes_def) ? `
+    <div class="card" style="margin-bottom:12px;border-left:3px solid var(--fenix-gold);background:#FDFAF2">
+      <div class="card-body" style="padding-top:12px;padding-bottom:12px">
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--fenix-gold);margin-bottom:4px">Rappel — Axes prioritaires de travail</p>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:10px">Session précédente · ${escHtml(prevSess.label)}</p>
+        ${prevCr.axes_att ? `<div style="margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:var(--att)">⚡ Attaque</span><p style="font-size:13px;color:var(--gray-700);margin:2px 0 0">${escHtml(prevCr.axes_att)}</p></div>` : ''}
+        ${prevCr.axes_def ? `<div><span style="font-size:11px;font-weight:600;color:var(--def)">🛡 Défense</span><p style="font-size:13px;color:var(--gray-700);margin:2px 0 0">${escHtml(prevCr.axes_def)}</p></div>` : ''}
+      </div>
+    </div>` : ''}
     <div class="card">
       <div class="card-body">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
