@@ -17,6 +17,8 @@ let _spReunionIdx    = 0;
 let _spReunionJoueurs = [];
 let _spActions       = [];
 let _spBandeauHTML   = '';
+let _spEditingId     = null;
+let _spEditColor     = null;
 
 // ── Entry point ───────────────────────────────────────────────────────────
 async function initSocioPro(user) {
@@ -205,12 +207,14 @@ function spEntretienItemHTML(e, i) {
           <div><strong style="font-size:12px">${spDateFR(e.date)}</strong><span style="font-size:12px;color:#9E9A90"> — ${spEsc(e.mene_par||'—')}</span></div>
           <div style="font-size:11px;color:#9E9A90;margin-top:2px">${summaryLines}</div>
         </div>
+        <button title="Export PDF de cet entretien" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0;color:#9E9A90" onclick="event.stopPropagation();spExportEntretienPdf(${i})">🖨</button>
         <span class="sp-chev" style="font-size:11px;flex-shrink:0">▼</span>
       </div>
       <div id="${detailId}" style="display:none">
         ${detailLines || '<div style="font-size:12px;color:#9E9A90;padding:8px 10px">Aucun détail renseigné.</div>'}
-        <div style="padding:6px 10px;border-top:.5px solid #E0DDD6;background:#FAFAF8">
-          <button class="sp-delete-btn" style="margin-top:0" onclick="spDeleteEntretien('${e.id}','${spDateFR(e.date)}')">Supprimer cet entretien ×</button>
+        <div style="padding:6px 10px;border-top:.5px solid #E0DDD6;background:#FAFAF8;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <button class="sp-btn" style="font-size:12px;padding:4px 10px" onclick="spEditEntretien(${i})">✎ Modifier</button>
+          <button class="sp-delete-btn" style="margin-top:0;width:auto;display:inline" onclick="spDeleteEntretien('${e.id}','${spDateFR(e.date)}')">Supprimer cet entretien ×</button>
         </div>
       </div>
     </div>`;
@@ -240,7 +244,7 @@ function spRenderFiche() {
 
   const histOrients = _spOrients.length ? `
     <div class="sp-accordion" onclick="spToggle('acc-orients')">
-      <span>📂 Orientations précédentes (${_spOrients.length})</span><span class="sp-chev">▼</span>
+      <span>🔄 Changements d'orientation (${_spOrients.length})</span><span class="sp-chev">▼</span>
     </div>
     <div id="acc-orients" style="display:none;padding:10px 0 4px">
       ${_spOrients.map(o => `<div style="font-size:12px;padding:5px 0;border-bottom:.5px solid #E0DDD6">
@@ -277,26 +281,33 @@ function spRenderFiche() {
           <input id="fp-formation" type="text" value="${spEsc(p.formation||'')}" placeholder="Ex : BTS Management..."></div>
         <div class="sp-field"><label>Projet professionnel</label>
           <input id="fp-projet" type="text" value="${spEsc(p.projet_pro||'')}" placeholder="Ex : Management sportif..."></div>
-        <div class="sp-row2">
-          <div class="sp-field"><label>Référent SHN</label>
-            <select id="fp-referent">
-              <option value="">—</option>
-              ${SP_REFERENTS.map(r => `<option value="${spEsc(r)}" ${p.referent===r?'selected':''}>${spEsc(r)}</option>`).join('')}
-            </select></div>
-          <div class="sp-field"><label>Contrat scolarité</label>
-            <select id="fp-contrat">
-              <option value="a_jour"    ${c==='a_jour'   ?'selected':''}>À jour</option>
-              <option value="en_cours"  ${c==='en_cours' ?'selected':''}>En cours</option>
-              <option value="non_signe" ${c==='non_signe'?'selected':''}>Non signé</option>
-            </select></div>
+
+        <div class="sp-accordion" onclick="spToggle('sp-profil-details');this.querySelector('.sp-chev').classList.toggle('open')">
+          <span>Détails du profil</span><span class="sp-chev">▼</span>
         </div>
-        <div class="sp-field"><label>Tuteur (nom + structure)</label>
-          <input id="fp-tuteur" type="text" value="${spEsc(p.tuteur||'')}" placeholder="Ex : M. Bertrand — Lycée Ozenne"></div>
-        <div class="sp-field"><label>Lien dossier Google Drive</label>
-          <input id="fp-drive" type="url" value="${spEsc(p.lien_drive||'')}" placeholder="https://drive.google.com/..."></div>
-        <div class="sp-field"><label>Notes profil</label>
-          <textarea id="fp-notes" rows="3">${spEsc(p.notes_profil||'')}</textarea></div>
+        <div id="sp-profil-details" style="display:none;padding-top:4px">
+          <div class="sp-row2">
+            <div class="sp-field"><label>Référent SHN</label>
+              <select id="fp-referent">
+                <option value="">—</option>
+                ${SP_REFERENTS.map(r => `<option value="${spEsc(r)}" ${p.referent===r?'selected':''}>${spEsc(r)}</option>`).join('')}
+              </select></div>
+            <div class="sp-field"><label>Contrat scolarité</label>
+              <select id="fp-contrat">
+                <option value="a_jour"    ${c==='a_jour'   ?'selected':''}>À jour</option>
+                <option value="en_cours"  ${c==='en_cours' ?'selected':''}>En cours</option>
+                <option value="non_signe" ${c==='non_signe'?'selected':''}>Non signé</option>
+              </select></div>
+          </div>
+          <div class="sp-field"><label>Tuteur (nom + structure)</label>
+            <input id="fp-tuteur" type="text" value="${spEsc(p.tuteur||'')}" placeholder="Ex : M. Bertrand — Lycée Ozenne"></div>
+          <div class="sp-field"><label>Lien dossier Google Drive</label>
+            <input id="fp-drive" type="url" value="${spEsc(p.lien_drive||'')}" placeholder="https://drive.google.com/..."></div>
+          <div class="sp-field"><label>Notes profil</label>
+            <textarea id="fp-notes" rows="3">${spEsc(p.notes_profil||'')}</textarea></div>
+        </div>
         ${orientBox}
+        ${histOrients}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           ${p.lien_drive ? `<button class="sp-drive-btn" onclick="window.open('${spEsc(p.lien_drive)}','_blank')">🗂 Ouvrir le dossier Drive ↗</button>` : ''}
           <button class="sp-btn sp-btn-primary" onclick="spSaveProfil()">Enregistrer le profil</button>
@@ -306,7 +317,6 @@ function spRenderFiche() {
         <div id="fp-msg" style="font-size:12px;color:#27500A;margin-top:6px;display:none">✓ Profil enregistré</div>
       </div>
 
-      ${histOrients ? `<div class="sp-sec">${histOrients}</div>` : ''}
       ${histEntretiens ? `<div class="sp-sec">${histEntretiens}</div>` : ''}
     </div>`;
 }
@@ -361,6 +371,146 @@ async function spDeleteEntretien(entretienId, dateLabel) {
   if (error) { alert('Erreur : ' + error.message); return; }
   await spLoadJoueurDetail(_spCurrent);
   spRenderFiche();
+}
+
+// ── Modale édition entretien (depuis l'historique) ──────────────────────────
+function spEditEntretien(idx) {
+  const e = _spEntretiens[idx];
+  if (!e) return;
+  _spEditingId = e.id;
+  _spEditColor = e.couleur || null;
+  const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
+  const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
+  const membreOptions = SP_MEMBRES.map(m => `<option value="${spEsc(m)}" ${e.mene_par===m?'selected':''}>${spEsc(m)}</option>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'spEditEntretienModal';
+  overlay.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">Modifier l'entretien du ${spDateFR(e.date)}</h3>
+        <button class="modal-close" onclick="spCloseEditEntretien()">✕</button>
+      </div>
+      <div class="sp-row2">
+        <div class="sp-field"><label>Date</label><input id="eje-date" type="date" value="${spEsc(e.date)}"></div>
+        <div class="sp-field"><label>Mené par</label><select id="eje-menePar">${membreOptions}</select></div>
+      </div>
+      <div class="sp-mot-box">
+        <label>💬 Mot du joueur</label>
+        <textarea id="eje-mot" rows="2">${spEsc(e.mot_du_joueur||'')}</textarea>
+      </div>
+      <div class="sp-field"><label>✅ Ce qui va bien ce mois-ci</label>
+        <textarea id="eje-va" rows="2">${spEsc(e.ce_qui_va||'')}</textarea></div>
+      <div class="sp-field"><label>⚠️ Ce qui ne va pas / points d'attention</label>
+        <textarea id="eje-nva" rows="2">${spEsc(e.ce_qui_ne_va_pas||'')}</textarea></div>
+      <div class="sp-field"><label>📅 Échéances à venir</label>
+        <textarea id="eje-ech" rows="2">${spEsc(e.echeances||'')}</textarea></div>
+      <div class="sp-field"><label>🤝 Comment on peut l'aider</label>
+        <textarea id="eje-aide" rows="2">${spEsc(e.comment_aider||'')}</textarea></div>
+      <div class="sp-field"><label>☑️ Actions</label>
+        <div id="eje-actions"></div>
+        <button class="sp-add-btn" onclick="spAddAction('eje-actions')">+ Ajouter une action</button>
+      </div>
+      <div class="sp-field"><label>🎓 Examens</label>
+        <div id="eje-exam-list"></div>
+        <button class="sp-add-btn" onclick="spAddExam('eje-exam-list','eje-exam-badge')">+ Ajouter une matière</button>
+        <textarea id="eje-exam-comment" rows="2" style="margin-top:8px" placeholder="Commentaire global examens...">${spEsc(e.commentaire_examens||'')}</textarea>
+      </div>
+      <div class="sp-field"><label>🔒 Notes cellule <span style="font-size:10px;opacity:.6">(non visible du joueur)</span></label>
+        <textarea id="eje-notes" rows="2">${spEsc(e.notes_cellule||'')}</textarea></div>
+      <div class="sp-field"><label>🚦 État général</label>
+        <div class="sp-color-row">
+          <button class="sp-color-btn" id="eje-cbtn-vert"   onclick="spEditSetColor('vert')">🟢 Vert</button>
+          <button class="sp-color-btn" id="eje-cbtn-orange" onclick="spEditSetColor('orange')">🟠 Orange</button>
+          <button class="sp-color-btn" id="eje-cbtn-rouge"  onclick="spEditSetColor('rouge')">🔴 Rouge</button>
+        </div>
+        <textarea class="sp-color-comment" id="eje-color-comment" rows="2" placeholder="Justification...">${spEsc(e.couleur_justification||'')}</textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="sp-btn" onclick="spCloseEditEntretien()">Annuler</button>
+        <button class="sp-btn" onclick="spEditExportPdf()">🖨 PDF</button>
+        <button class="sp-btn sp-btn-primary" onclick="spSaveEditEntretien()">💾 Enregistrer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) spCloseEditEntretien(); });
+
+  actions.forEach(a => spAddAction('eje-actions', a));
+  examens.forEach(ex => spAddExam('eje-exam-list', 'eje-exam-badge', ex));
+  spEditSetColor(e.couleur || null);
+}
+
+function spEditSetColor(couleur) {
+  _spEditColor = couleur;
+  ['vert', 'orange', 'rouge'].forEach(c => {
+    const btn = sgid('eje-cbtn-' + c);
+    if (!btn) return;
+    if (c === couleur) {
+      const cfg = SP_COULEURS[c];
+      btn.style.border = `2px solid ${cfg.dot}`; btn.style.background = cfg.bg; btn.style.color = cfg.text; btn.style.fontWeight = '500';
+    } else {
+      btn.style.border = '0.5px solid #E0DDD6'; btn.style.background = 'white'; btn.style.color = '#9E9A90'; btn.style.fontWeight = '';
+    }
+  });
+}
+
+function spCloseEditEntretien() {
+  _spEditingId = null;
+  _spEditColor = null;
+  const m = sgid('spEditEntretienModal');
+  if (m) m.remove();
+}
+
+function spCollectEditFormData() {
+  const actions = Array.from(sgid('eje-actions')?.querySelectorAll('.sp-action-row input') || [])
+    .map(i => i.value.trim()).filter(Boolean);
+  const examRows = sgid('eje-exam-list')?.children || [];
+  const examens  = Array.from(examRows).map(row => {
+    const inputs = row.querySelectorAll('input');
+    const sel    = row.querySelector('select');
+    return { matiere: inputs[0]?.value || '', note: inputs[1]?.value || '', tendance: sel?.value || '' };
+  }).filter(r => r.matiere);
+
+  return {
+    date:                  sgid('eje-date')?.value        || spTodayISO(),
+    mene_par:              sgid('eje-menePar')?.value      || null,
+    mot_du_joueur:         sgid('eje-mot')?.value          || null,
+    ce_qui_va:             sgid('eje-va')?.value           || null,
+    ce_qui_ne_va_pas:      sgid('eje-nva')?.value          || null,
+    echeances:             sgid('eje-ech')?.value          || null,
+    comment_aider:         sgid('eje-aide')?.value         || null,
+    actions_suivant:       actions,
+    examens:               examens,
+    commentaire_examens:   sgid('eje-exam-comment')?.value || null,
+    notes_cellule:         sgid('eje-notes')?.value        || null,
+    couleur:               _spEditColor,
+    couleur_justification: sgid('eje-color-comment')?.value || null,
+  };
+}
+
+async function spSaveEditEntretien() {
+  if (!_spEditingId) return;
+  if (!_spEditColor) { alert('Sélectionne une couleur (Vert / Orange / Rouge) avant d\'enregistrer.'); return; }
+  const payload = spCollectEditFormData();
+  if (!payload.couleur_justification?.trim()) {
+    alert(SP_COULEURS[_spEditColor].q + '\nLa justification est obligatoire.');
+    sgid('eje-color-comment')?.focus();
+    return;
+  }
+
+  const { error } = await spDB().from('ssp_entretiens').update(payload).eq('id', _spEditingId);
+  if (error) { alert('Erreur : ' + error.message); return; }
+
+  spCloseEditEntretien();
+  await spLoadJoueurDetail(_spCurrent);
+  spRenderFiche();
+}
+
+function spEditExportPdf() {
+  const data = spCollectEditFormData();
+  const j = _spCurrent;
+  spBuildEntretienPdf(data, `Entretien du ${spDateFR(data.date)}`, `${j.nom}_${j.prenom}_entretien_${data.date}.pdf`);
 }
 
 // ── VUE 3 — Fiche entretien ───────────────────────────────────────────────
@@ -569,32 +719,36 @@ function spSetColor(couleur) {
   const comment = sgid('color-comment'); if (comment) { comment.placeholder = 'Ex : ' + cfg.q; comment.focus(); }
 }
 
-function spAddAction() {
-  const list = sgid('ej-actions');
+function spAddAction(containerId, value) {
+  containerId = containerId || 'ej-actions';
+  const list = sgid(containerId);
   if (!list) return;
   const row = document.createElement('div');
   row.className = 'sp-action-row';
-  row.innerHTML = '<input type="text" placeholder="Action à réaliser..."><button onclick="this.closest(\'.sp-action-row\').remove()">🗑</button>';
+  row.innerHTML = `<input type="text" placeholder="Action à réaliser..." value="${spEsc(value||'')}"><button onclick="this.closest('.sp-action-row').remove()">🗑</button>`;
   list.appendChild(row);
-  row.querySelector('input').focus();
+  if (!value) row.querySelector('input').focus();
 }
 
-function spAddExam() {
-  const list = sgid('exam-list');
+function spAddExam(containerId, badgeId, exam) {
+  containerId = containerId || 'exam-list';
+  badgeId     = badgeId     || 'exam-badge';
+  const list = sgid(containerId);
   if (!list) return;
+  const tendances = ['', 'En hausse', 'Stable', 'En baisse'];
   const row = document.createElement('div');
   row.style.cssText = 'display:grid;grid-template-columns:1fr 72px 110px 26px;gap:7px;align-items:center;margin-bottom:7px';
-  row.innerHTML = '<input type="text" style="font-size:13px;border:1px solid #E0DDD6;border-radius:6px;padding:6px 8px" placeholder="Matière...">' +
-    '<input type="text" style="font-size:13px;border:1px solid #E0DDD6;border-radius:6px;padding:6px 8px" placeholder="Note">' +
-    '<select style="font-size:12px;border:1px solid #E0DDD6;border-radius:6px;padding:5px 6px"><option value="">—</option><option>En hausse</option><option>Stable</option><option>En baisse</option></select>' +
-    '<button style="background:none;border:none;cursor:pointer;color:#9E9A90" onclick="this.closest(\'div\').remove()">🗑</button>';
+  row.innerHTML = `<input type="text" style="font-size:13px;border:1px solid #E0DDD6;border-radius:6px;padding:6px 8px" placeholder="Matière..." value="${spEsc(exam?.matiere||'')}">` +
+    `<input type="text" style="font-size:13px;border:1px solid #E0DDD6;border-radius:6px;padding:6px 8px" placeholder="Note" value="${spEsc(exam?.note||'')}">` +
+    `<select style="font-size:12px;border:1px solid #E0DDD6;border-radius:6px;padding:5px 6px">${tendances.map(t => `<option value="${t}" ${((exam?.tendance||'')===t)?'selected':''}>${t||'—'}</option>`).join('')}</select>` +
+    `<button style="background:none;border:none;cursor:pointer;color:#9E9A90" onclick="this.closest('div').remove();spUpdateExamBadge('${containerId}','${badgeId}')">🗑</button>`;
   list.appendChild(row);
-  spUpdateExamBadge();
+  spUpdateExamBadge(containerId, badgeId);
 }
 
-function spUpdateExamBadge() {
-  const count = sgid('exam-list')?.children.length || 0;
-  const badge = sgid('exam-badge');
+function spUpdateExamBadge(containerId, badgeId) {
+  const count = sgid(containerId || 'exam-list')?.children.length || 0;
+  const badge = sgid(badgeId || 'exam-badge');
   if (badge) { badge.style.display = count ? 'inline' : 'none'; badge.textContent = count + ' matière' + (count>1?'s':''); }
 }
 
@@ -998,23 +1152,7 @@ function spExportEntretiensPdf() {
   y += 4;
 
   _spEntretiens.slice().reverse().forEach(e => {
-    const ci      = e.couleur ? SP_COULEURS[e.couleur] : null;
-    const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
-    const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
-    line(`Entretien du ${spDateFR(e.date)} — ${e.mene_par||'—'}`, 0, 11, true);
-    if (ci) line(`Etat : ${ci.label} — ${e.couleur_justification||''}`, 2, 9);
-    if (e.mot_du_joueur)    line(`Mot du joueur : ${e.mot_du_joueur}`, 2, 9);
-    if (e.ce_qui_va)        line(`(+) Ce qui va : ${e.ce_qui_va}`, 2, 9);
-    if (e.ce_qui_ne_va_pas) line(`(!) Ce qui ne va pas : ${e.ce_qui_ne_va_pas}`, 2, 9);
-    if (e.echeances)        line(`Echeances : ${e.echeances}`, 2, 9);
-    if (e.comment_aider)    line(`Comment l'aider : ${e.comment_aider}`, 2, 9);
-    if (actions.length)     actions.forEach(a => line(`• ${a}`, 4, 9));
-    if (examens.length) {
-      line(`Examens :`, 2, 9, true);
-      examens.forEach(ex => line(`${ex.matiere} : ${ex.note}${ex.tendance ? ' ('+ex.tendance+')' : ''}`, 4, 9));
-      if (e.commentaire_examens) line(`Commentaire : ${e.commentaire_examens}`, 4, 9);
-    }
-    if (e.notes_cellule)    line(`[Conf.] Notes cellule : ${e.notes_cellule}`, 2, 9);
+    spEntretienPdfBody(line, e);
     y += 4;
     doc.setDrawColor(220, 220, 220);
     doc.line(L, y, 196, y);
@@ -1033,4 +1171,74 @@ function spExportEntretiensPdf() {
   }
 
   doc.save(`${j.nom}_${j.prenom}_bilan_sociopro_${spTodayISO()}.pdf`);
+}
+
+// ── PDF d'un seul entretien (bouton historique + modale d'édition) ─────────
+function spEntretienPdfBody(line, e) {
+  const ci      = e.couleur ? SP_COULEURS[e.couleur] : null;
+  const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
+  const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
+  line(`Entretien du ${spDateFR(e.date)} — ${e.mene_par||'—'}`, 0, 11, true);
+  if (ci) line(`Etat : ${ci.label} — ${e.couleur_justification||''}`, 2, 9);
+  if (e.mot_du_joueur)    line(`Mot du joueur : ${e.mot_du_joueur}`, 2, 9);
+  if (e.ce_qui_va)        line(`(+) Ce qui va : ${e.ce_qui_va}`, 2, 9);
+  if (e.ce_qui_ne_va_pas) line(`(!) Ce qui ne va pas : ${e.ce_qui_ne_va_pas}`, 2, 9);
+  if (e.echeances)        line(`Echeances : ${e.echeances}`, 2, 9);
+  if (e.comment_aider)    line(`Comment l'aider : ${e.comment_aider}`, 2, 9);
+  if (actions.length)     actions.forEach(a => line(`• ${a}`, 4, 9));
+  if (examens.length) {
+    line(`Examens :`, 2, 9, true);
+    examens.forEach(ex => line(`${ex.matiere} : ${ex.note}${ex.tendance ? ' ('+ex.tendance+')' : ''}`, 4, 9));
+    if (e.commentaire_examens) line(`Commentaire : ${e.commentaire_examens}`, 4, 9);
+  }
+  if (e.notes_cellule)    line(`[Conf.] Notes cellule : ${e.notes_cellule}`, 2, 9);
+}
+
+function spBuildEntretienPdf(e, headerSuffix, filename) {
+  if (!window.jspdf) { alert('PDF non disponible — chargement jsPDF en cours, réessaye dans quelques secondes.'); return; }
+  const { jsPDF } = window.jspdf;
+  const j   = _spCurrent;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const L   = 14;
+  let   y   = 20;
+
+  const line = (txt, indent = 0, size = 10, bold = false) => {
+    doc.setFontSize(size);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    const lines = doc.splitTextToSize(txt, 182 - indent);
+    lines.forEach(l => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.text(l, L + indent, y);
+      y += size * 0.45;
+    });
+    y += 1;
+  };
+
+  doc.setFillColor(10, 36, 99);
+  doc.rect(0, 0, 210, 14, 'F');
+  doc.setTextColor(255, 255, 255);
+  line(`FENIX TOULOUSE HB · ${j.prenom} ${j.nom} · ${headerSuffix}`, 0, 10, true);
+  doc.setTextColor(0, 0, 0);
+  y = 22;
+
+  spEntretienPdfBody(line, e);
+
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Cellule Socio-Pro · Confidentiel', L, 290);
+    doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  doc.save(filename);
+}
+
+function spExportEntretienPdf(idx) {
+  const e = _spEntretiens[idx];
+  if (!e) return;
+  const j = _spCurrent;
+  spBuildEntretienPdf(e, `Entretien du ${spDateFR(e.date)}`, `${j.nom}_${j.prenom}_entretien_${e.date}.pdf`);
 }
