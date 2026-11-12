@@ -141,7 +141,7 @@ function trendTableHTML(profilId, sessions, viewKey, title) {
     });
     const first = avgs.find(v => v !== null);
     const last  = [...avgs].reverse().find(v => v !== null);
-    const delta = (first !== null && last !== null) ? +(last - first).toFixed(1) : null;
+    const delta = (first != null && last != null) ? +(last - first).toFixed(1) : null;
     const dir   = delta === null ? 'flat' : delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
     const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
     const cells = avgs.map(v => `<td class="trend-td">${v !== null ? v : '—'}</td>`).join('');
@@ -229,4 +229,125 @@ function togglePwd(btn) {
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
   btn.textContent = show ? 'Masquer' : 'Voir';
+}
+
+
+/* ═══ DIMENSION MENTALE — comparaison d'une évaluation mentale à l'autre ═══════
+   Partagé coach + joueur. Le mental n'a lieu qu'environ 1 fois par an : la comparaison porte
+   uniquement sur les sessions qui l'incluent (liste dédiée, indépendante des 4 dernières sessions).
+   Usage : mentalComparisonInit(sessions, vue) → mentalComparisonCardHTML(libelléJoueur)
+           → (après insertion dans le DOM) mentalComparisonRender().
+   sessions = [{ id, label, date, idx, evalMap }] (ordre chronologique). */
+const MENTAL_SESSION_COLORS = [
+  { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.75)' },
+  { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.75)' },
+  { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.75)' },
+  { bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.8)' }
+];
+let _mentalCmp = { sessions: [], viewMode: 'staff', radar: null, bar: null };
+
+function mentalComparisonDestroy() {
+  if (_mentalCmp.radar) { _mentalCmp.radar.destroy(); _mentalCmp.radar = null; }
+  if (_mentalCmp.bar)   { _mentalCmp.bar.destroy();   _mentalCmp.bar   = null; }
+}
+
+function mentalComparisonInit(sessions, viewMode) {
+  mentalComparisonDestroy();
+  _mentalCmp.sessions = sessions || [];
+  _mentalCmp.viewMode = viewMode === 'joueur' ? 'joueur' : 'staff';
+}
+
+function mentalAxisAverages(evalMap, viewKey) {
+  return Object.values(CRITERIA.mental.axes).map(function(axe) {
+    var ns = axe.criteres.map(function(c) { return (evalMap[c.id] && evalMap[c.id][viewKey]) || 0; }).filter(function(n) { return n > 0; });
+    return ns.length ? +(ns.reduce(function(a, b) { return a + b; }, 0) / ns.length).toFixed(1) : null;
+  });
+}
+
+function mentalComparisonCardHTML(whoLabel) {
+  var ss = _mentalCmp.sessions;
+  if (ss.length < 2) return '';
+  var v = _mentalCmp.viewMode;
+  var chips = ss.map(function(s, i) {
+    var c = MENTAL_SESSION_COLORS[i % MENTAL_SESSION_COLORS.length];
+    return '<span class="bilan-chip active" style="cursor:default"><span style="width:8px;height:8px;border-radius:50%;background:' + c.border + ';display:inline-block;flex-shrink:0"></span>' +
+      escHtml(sessionShortLabel(i, s.date)) + '</span>';
+  }).join('');
+  return '' +
+    '<div class="card" style="margin-top:12px" id="mentalCmpCard"><div class="card-body">' +
+      '<p class="section-title" style="margin-bottom:6px;color:var(--mental)">🧠 Mental — évolution</p>' +
+      '<p style="font-size:11px;color:var(--gray-400);margin-bottom:10px">Comparaison des évaluations mentales (une par an environ)</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">' + chips + '</div>' +
+      '<div class="radar-toggle-row" style="margin-bottom:8px"><div></div><div class="radar-view-toggle">' +
+        '<button class="radar-view-btn' + (v === 'joueur' ? ' active' : '') + '" id="mentalTogJoueur" onclick="mentalSetView(\'joueur\')">' + escHtml(whoLabel || 'Joueur') + '</button>' +
+        '<button class="radar-view-btn' + (v === 'staff' ? ' active' : '') + '" id="mentalTogStaff" onclick="mentalSetView(\'staff\')">Staff</button>' +
+      '</div></div>' +
+      '<div class="radar-col-full"><canvas id="mentalCmpRadar" style="width:100%;max-width:340px"></canvas></div>' +
+      '<div style="margin-top:14px"><canvas id="mentalCmpBar"></canvas></div>' +
+      '<div id="mentalCmpTrend"></div>' +
+    '</div></div>';
+}
+
+function mentalComparisonRender() {
+  var ss = _mentalCmp.sessions;
+  if (ss.length < 2) return;
+  var radarEl = document.getElementById('mentalCmpRadar');
+  var barEl   = document.getElementById('mentalCmpBar');
+  var trendEl = document.getElementById('mentalCmpTrend');
+  if (!radarEl || !barEl || typeof Chart === 'undefined') return;
+  mentalComparisonDestroy();
+
+  var viewKey = _mentalCmp.viewMode === 'joueur' ? 'note_joueur' : 'note_staff';
+  var axes    = Object.values(CRITERIA.mental.axes);
+  var labels  = axes.map(function(a) { return a.label; });
+  var series  = ss.map(function(s, i) {
+    var c = MENTAL_SESSION_COLORS[i % MENTAL_SESSION_COLORS.length];
+    return { s: s, c: c, label: sessionShortLabel(i, s.date), values: mentalAxisAverages(s.evalMap, viewKey) };
+  });
+
+  _mentalCmp.radar = new Chart(radarEl.getContext('2d'), {
+    type: 'radar',
+    data: { labels: labels, datasets: series.map(function(x) {
+      return { label: x.label, data: x.values.map(function(v) { return v === null ? 0 : v; }),
+        backgroundColor: x.c.bg, borderColor: x.c.border, pointBackgroundColor: x.c.border, borderWidth: 1.5, pointRadius: 3 };
+    }) },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1,
+      plugins: { legend: { display: false } },
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, display: false },
+        pointLabels: { font: { size: 12, weight: '600' } }, grid: { color: 'rgba(0,0,0,0.08)' } } }
+    }
+  });
+
+  _mentalCmp.bar = new Chart(barEl.getContext('2d'), {
+    type: 'bar',
+    data: { labels: labels, datasets: series.map(function(x) {
+      return { label: x.label, data: x.values, backgroundColor: x.c.border, borderRadius: 4 };
+    }) },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(item) { return item.raw === null ? '' : ' ' + item.dataset.label + ' : ' + Number(item.raw).toFixed(1) + ' / 5'; } } } },
+      scales: { y: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } } }
+    }
+  });
+
+  if (trendEl) {
+    var sessionsForTrend = ss.map(function(s, i) { return { id: s.id, label: s.label, date: s.date, idx: i, evalMap: s.evalMap }; });
+    trendEl.innerHTML = trendTableHTML('mental', sessionsForTrend, viewKey, '🧠 Tendances Mental');
+  }
+}
+
+function mentalSetView(mode) {
+  _mentalCmp.viewMode = mode === 'joueur' ? 'joueur' : 'staff';
+  var j = document.getElementById('mentalTogJoueur'), s = document.getElementById('mentalTogStaff');
+  if (j) j.classList.toggle('active', _mentalCmp.viewMode === 'joueur');
+  if (s) s.classList.toggle('active', _mentalCmp.viewMode === 'staff');
+  mentalComparisonRender();
+}
+
+/** Message affiché sous le radar mental quand une seule session mentale existe */
+function mentalNoComparisonHint() {
+  return '<p style="font-size:12px;color:var(--gray-400);margin-top:6px;text-align:center">Comparaison disponible à la prochaine évaluation mentale.</p>';
 }

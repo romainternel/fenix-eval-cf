@@ -575,6 +575,67 @@ const CRITERIA = {
         ]
       }
     }
+  },
+
+  /* ═══════════════════════════════════════════════════ DIMENSION MENTALE */
+  /* Optionnelle par session (sessions.inclut_mental). Ids d'axes SANS tiret. */
+  "mental": {
+    label: "Dimension mentale",
+    type:  "mental",
+    axes: {
+      "competition": {
+        label: "Compétition",
+        criteres: [
+          { id: "mental-competition-1", label: "Gestion du stress et de la pression en match",
+            texte: "Le contexte du match n'affecte pas mes performances. Je me sens meilleur quand il y a de l'enjeu." },
+          { id: "mental-competition-2", label: "Confiance en soi / prise de responsabilité dans les moments clés",
+            texte: "Je sais que je vais réussir quand ça devient important." },
+          { id: "mental-competition-3", label: "Capacité à rebondir après une erreur ou une défaite",
+            texte: "Je suis capable de me projeter très vite vers les prochaines échéances sans douter après mon dernier échec." },
+          { id: "mental-competition-4", label: "Combativité et engagement sur des matchs à enjeu",
+            texte: "Je suis capable de me transcender et de dépasser mes limites." }
+        ]
+      },
+      "travail": {
+        label: "Travail",
+        criteres: [
+          { id: "mental-travail-1", label: "Assiduité et ponctualité",
+            texte: "Je suis toujours en avance quand je le peux." },
+          { id: "mental-travail-2", label: "Capacité à travailler de façon acharnée et rigoureuse",
+            texte: "Je suis capable d'absorber une charge de travail intensive avec rigueur, constance et détermination, même face à la fatigue et à la difficulté." },
+          { id: "mental-travail-3", label: "Réceptivité aux consignes et capacité à se corriger",
+            texte: "Je suis toujours capable d'activer un état de vigilance maximum pour comprendre et faire." },
+          { id: "mental-travail-4", label: "Autonomie dans le travail individuel (physique, vidéo, récupération)",
+            texte: "Je sais ce dont j'ai besoin et je le mets en œuvre seul." }
+        ]
+      },
+      "groupe": {
+        label: "Groupe",
+        criteres: [
+          { id: "mental-groupe-1", label: "Communication avec les coéquipiers",
+            texte: "J'ai de la complicité avec tous mes coéquipiers." },
+          { id: "mental-groupe-2", label: "Respect des règles de vie collective du centre",
+            texte: "Je fais toujours attention à rester dans le cadre que le groupe a fixé." },
+          { id: "mental-groupe-3", label: "Leadership / entraide envers les jeunes joueurs",
+            texte: "Je me sens légitime à donner mon avis et je me sens écouté quand c'est le cas." },
+          { id: "mental-groupe-4", label: "Intégration et comportement en dehors du terrain",
+            texte: "Je partage des moments de convivialité avec mes coéquipiers en dehors du terrain." }
+        ]
+      },
+      "projet": {
+        label: "Projet de vie",
+        criteres: [
+          { id: "mental-projet-1", label: "Clarté et maturité du double projet (scolaire/pro + handball)",
+            texte: "J'ai des objectifs SMART : Spécifiques, Mesurables, Atteignables, Réalistes et Temporels." },
+          { id: "mental-projet-2", label: "Investissement scolaire ou professionnel",
+            texte: "Je fais tous les efforts pour réussir mes projets." },
+          { id: "mental-projet-3", label: "Capacité de projection à moyen terme (N+1, N+2)",
+            texte: "Je sais comment atteindre mes objectifs." },
+          { id: "mental-projet-4", label: "Maturité générale et prise de recul sur son parcours",
+            texte: "Je suis capable d'analyser avec discernement ma trajectoire de vie actuelle et passée." }
+        ]
+      }
+    }
   }
 
 };
@@ -617,4 +678,43 @@ function getProfilsForPlayer(playerProfile) {
   if (playerProfile.profil_att) list.push(playerProfile.profil_att);
   if (playerProfile.profil_def) list.push(playerProfile.profil_def);
   return list;
+}
+
+/** Profils à évaluer pour (joueur × session) : technique du joueur + 'mental' si la session l'inclut.
+ *  Source unique des totaux — ne jamais recalculer ça ailleurs. */
+function sessionProfilIds(playerProfile, session) {
+  var ids = [];
+  if (playerProfile) {
+    if (playerProfile.profil_gb) ids.push(playerProfile.profil_gb);
+    else {
+      if (playerProfile.profil_att) ids.push(playerProfile.profil_att);
+      if (playerProfile.profil_def) ids.push(playerProfile.profil_def);
+    }
+  }
+  if (session && session.inclut_mental === true) ids.push('mental');
+  return ids;
+}
+
+/** Nombre total de critères attendus pour (joueur × session) */
+function sessionTotalCriteres(playerProfile, session) {
+  return sessionProfilIds(playerProfile, session)
+    .reduce(function(sum, id) { return sum + getAllCriteres(id).length; }, 0);
+}
+
+/** Onglets de l'écran de notation (joueur et coach) pour (joueur × session).
+ *  Champ : ATT + DEF ; gardien : Gardien ; + Mental si la session l'inclut.
+ *  Champs : key (id DOM), profilId, label, cls (classe CSS), short/fem/to (messages de transition). */
+function evalTabsFor(playerProfile, session) {
+  var tabs = [];
+  var p = playerProfile || {};
+  if (p.profil_gb) {
+    tabs.push({ key: 'gb',  profilId: p.profil_gb,  label: '🧤 Gardien', cls: 'gb',  short: 'Gardien', fem: false, to: 'le Gardien' });
+  } else {
+    tabs.push({ key: 'att', profilId: p.profil_att, label: '⚡ Attaque', cls: 'att', short: 'Attaque', fem: true,  to: "l'Attaque" });
+    tabs.push({ key: 'def', profilId: p.profil_def, label: '🛡 Défense', cls: 'def', short: 'Défense', fem: true,  to: 'la Défense' });
+  }
+  if (session && session.inclut_mental === true) {
+    tabs.push({ key: 'mental', profilId: 'mental', label: '🧠 Mental', cls: 'mental', short: 'Mental', fem: false, to: 'le Mental' });
+  }
+  return tabs;
 }

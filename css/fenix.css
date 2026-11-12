@@ -49,6 +49,12 @@
   --gb-light:  #3B82F6;
   --gb-tag:    #DBEAFE;
 
+  /* ── DIMENSION MENTALE (or Fenix — distincte de ATT/DEF et de l'échelle n1-n5) ── */
+  --mental:       #7A5C0F;
+  --mental-light: #C8A84B;
+  --mental-tag:   #F7EDD4;
+  --mental-glow:  rgba(200,168,75,0.28);
+
   /* ── ECHELLE DE NOTATION (fonds plus saturés) ── */
   --n1-bg: #FECACA; --n1-border: #FBBFBF; --n1-text: #991B1B;
   --n2-bg: #FDE68A; --n2-border: #FCD34D; --n2-text: #92400E;
@@ -268,6 +274,7 @@ body {
 .card.att { border-left: 4px solid var(--att-light); }
 .card.def { border-left: 4px solid var(--def-light); }
 .card.gb  { border-left: 4px solid var(--gb-light); }
+.card.mental { border-left: 4px solid var(--mental-light); }
 
 /* ── BADGE TYPE ─────────────────────────────────────────────────────────── */
 .badge-type {
@@ -282,6 +289,7 @@ body {
 .badge-type.att { background: var(--att-tag); color: var(--att); }
 .badge-type.def { background: var(--def-tag); color: var(--def); }
 .badge-type.gb  { background: var(--gb-tag);  color: var(--gb); }
+.badge-type.mental { background: var(--mental-tag); color: var(--mental); }
 
 .rating-labels {
   display: flex;
@@ -670,6 +678,7 @@ body {
 .badge-profil.att        { background: var(--att-tag); color: var(--att); }
 .badge-profil.def        { background: var(--def-tag); color: var(--def); }
 .badge-profil.gb         { background: var(--gb-tag);  color: var(--gb); }
+.badge-profil.mental     { background: var(--mental-tag); color: var(--mental); }
 .badge-profil.no-profile { background: var(--gray-100); color: var(--gray-400); }
 
 /* ── MODAL ──────────────────────────────────────────────────────────────── */
@@ -796,9 +805,10 @@ body {
 
 /* ── PROFIL TABS (ATT / DEF) ─────────────────────────────────────────────── */
 .profil-tabs {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px;
   margin-bottom: 20px;
 }
+@media (max-width: 380px) { .profil-tabs { gap: 6px; } .profil-tab { padding: 10px 4px; font-size: 13px; } }
 .profil-tab {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 12px 8px; border-radius: 12px; border: 2px solid var(--gray-200);
@@ -808,6 +818,9 @@ body {
 }
 .profil-tab.active.att { border-color: var(--att-light); background: var(--att-tag); color: var(--att); }
 .profil-tab.active.def { border-color: var(--def-light); background: var(--def-tag); color: var(--def); }
+.profil-tab.active.mental { border-color: var(--mental-light); background: var(--mental-tag); color: var(--mental); }
+.profil-tab.gb.active { border-color: var(--gb-light); background: var(--gb-tag); color: var(--gb); }
+.profil-tab:focus-visible { outline: 2px solid var(--mental-light); outline-offset: 2px; }
 .profil-tab:not(.active):hover { border-color: var(--gray-400); }
 
 .tab-progress {
@@ -816,6 +829,8 @@ body {
 }
 .profil-tab.active.att .tab-progress { background: rgba(255,255,255,0.7); color: var(--att); }
 .profil-tab.active.def .tab-progress { background: rgba(255,255,255,0.7); color: var(--def); }
+.profil-tab.active.mental .tab-progress { background: rgba(255,255,255,0.7); color: var(--mental); }
+.profil-tab.active.gb .tab-progress { background: rgba(255,255,255,0.7); color: var(--gb); }
 
 /* ── AXES NAV ────────────────────────────────────────────────────────────── */
 .axes-nav-wrapper {
@@ -843,6 +858,7 @@ body {
 .btn-axe-eval.att.active { border-color: var(--att-light); background: var(--att-tag); color: var(--att); }
 .btn-axe-eval.def.active { border-color: var(--def-light); background: var(--def-tag); color: var(--def); }
 .btn-axe-eval.gb.active  { border-color: var(--gb-light);  background: var(--gb-tag);  color: var(--gb); }
+.btn-axe-eval.mental.active { border-color: var(--mental-light); background: var(--mental-light); color: var(--fenix-navy); }
 .btn-axe-eval:not(.active):hover { border-color: var(--gray-400); }
 
 /* ── CRITERE EVAL CARD ───────────────────────────────────────────────────── */
@@ -866,6 +882,7 @@ body {
 .critere-eval-label.att { color: var(--att); }
 .critere-eval-label.def { color: var(--def); }
 .critere-eval-label.gb  { color: var(--gb); }
+.critere-eval-label.mental { color: var(--mental); }
 
 .critere-eval-texte {
   font-size: 14px; color: var(--gray-600); line-height: 1.5;
@@ -1324,6 +1341,7 @@ body {
 .score-chip.att { background: rgba(22,101,52,0.1);  color: var(--att); }
 .score-chip.def { background: rgba(153,27,27,0.1);  color: var(--def); }
 .score-chip.gb  { background: rgba(30,64,175,0.1);  color: var(--gb);  }
+.score-chip.mental { background: rgba(200,168,75,0.18); color: var(--mental); }
 
 /* ── STORY 14 — Badge écart joueur/staff + tableau récap ──────────────────── */
 .delta-badge {
@@ -1648,3 +1666,35 @@ body {
   border-top: 1px solid #E2E8F0;
   padding: 12px 16px;
 }
+
+
+/* ── DIMENSION MENTALE — option de session, badge, interrupteur ───────────── */
+.badge-mental {
+  display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px;
+  font: 700 11px/1.4 'Inter', sans-serif; letter-spacing: .6px; text-transform: uppercase;
+  color: var(--mental); background: var(--mental-tag); border: 1px solid var(--mental-light);
+}
+.mental-option {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px; cursor: pointer;
+  border: 1.5px solid var(--surface-border, var(--gray-200)); border-radius: 12px; background: #fff;
+  margin-bottom: 14px;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+.mental-option:hover { border-color: var(--mental-light); }
+.mental-option:has(input:checked) { border-color: var(--mental-light); background: var(--mental-tag); box-shadow: 0 0 0 3px var(--mental-glow); }
+.mental-option input { width: 22px; height: 22px; accent-color: var(--fenix-navy); flex-shrink: 0; margin-top: 1px; }
+.mental-option .mo-title { font: 600 15px/1.3 'Inter', sans-serif; color: var(--fenix-navy); }
+.mental-option .mo-hint  { font: 400 13px/1.4 'Inter', sans-serif; color: var(--gray-600); margin-top: 2px; }
+.mental-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.switch { position: relative; width: 44px; height: 26px; flex-shrink: 0; display: inline-block; }
+.switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; inset: 0; cursor: pointer; z-index: 1; }
+.switch .switch-track { position: absolute; inset: 0; border-radius: 999px; background: #D1D5DB; transition: background-color .18s ease; }
+.switch .switch-track::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s ease;
+}
+.switch input:checked + .switch-track { background: var(--mental-light); }
+.switch input:checked + .switch-track::after { transform: translateX(18px); }
+.switch input:disabled { cursor: not-allowed; }
+.switch input:disabled + .switch-track { opacity: .5; }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--mental-light); outline-offset: 2px; }

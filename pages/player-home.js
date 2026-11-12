@@ -7,6 +7,8 @@ let _playerId      = null;
 let _playerName    = '';
 let _playerProfile = null;   // { profil_att, profil_def, profil_gb }
 let _currentSession = null;
+let _currentSessionObj = null;   // ligne sessions (porte inclut_mental)
+let _evalTabs      = [];         // onglets de l'évaluation en cours : { key, profilId, label, cls, short, fem, to }
 let _ratings       = {};     // { critere_id: note_joueur }
 let _saving        = {};     // { critere_id: true }
 let _pending       = {};     // { critere_id: note } — 1er tap en attente de confirmation
@@ -59,6 +61,7 @@ async function initPlayerHome(user) {
 /* ── Tableau de bord joueur ───────────────────────────────────────────────── */
 async function showSessionsList() {
   _currentSession = null;
+  _currentSessionObj = null;
   const mc = pgid('mainContent');
   mc.innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
@@ -86,18 +89,12 @@ async function showSessionsList() {
     if (e.note_joueur) notesBySession[e.session_id]++;
   });
 
-  // Total de critères pour ce joueur
-  const totalCriteres = _playerProfile
-    ? ((_playerProfile.profil_gb
-        ? getAllCriteres('gb')
-        : [...getAllCriteres(_playerProfile.profil_att || ''), ...getAllCriteres(_playerProfile.profil_def || '')]
-      ).length)
-    : 0;
-
   const ouvertes = sessions.filter(s => s.statut === 'ouvert');
   const fermees  = sessions.filter(s => s.statut === 'ferme');
 
   function sessionCard(s) {
+    // Total attendu pour CETTE session (technique du joueur + 16 si la session inclut le mental)
+    const totalCriteres = _playerProfile ? sessionTotalCriteres(_playerProfile, s) : 0;
     const filled       = notesBySession[s.id] || 0;
     const sessionOpen  = s.statut === 'ouvert';
     const playerLocked = playerStatutMap[s.id]?.statut === 'fermé';
@@ -109,9 +106,9 @@ async function showSessionsList() {
     return `
       <div class="session-card ${sessionOpen ? 'open' : 'closed'}" ${canEdit ? `onclick="showEvaluation('${s.id}')"` : ''} style="${canEdit ? 'cursor:pointer' : 'opacity:0.75'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span class="${sessionOpen ? 'session-badge-open' : 'session-badge-closed'}">
+          <span><span class="${sessionOpen ? 'session-badge-open' : 'session-badge-closed'}">
             ${playerLocked ? '🔒 ACCÈS FERMÉ' : (sessionOpen ? 'OUVERT' : 'FERMÉ')}
-          </span>
+          </span>${s.inclut_mental === true ? '<span class="badge-mental">🧠 Mental</span>' : ''}</span>
           <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
         </div>
         <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:8px">${escHtml(s.label)}</div>
@@ -151,11 +148,15 @@ async function showEvaluation(sessionId) {
   _pending = {};
   pgid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
-  const { data: evals } = await window.supabaseClient
-    .from('evaluations')
-    .select('critere_id, note_joueur')
-    .eq('session_id', sessionId)
-    .eq('player_id', _playerId);
+  const [evalsRes, sessionRes] = await Promise.all([
+    window.supabaseClient.from('evaluations')
+      .select('critere_id, note_joueur')
+      .eq('session_id', sessionId)
+      .eq('player_id', _playerId),
+    window.supabaseClient.from('sessions').select('*').eq('id', sessionId).maybeSingle()
+  ]);
+  const evals = evalsRes.data;
+  _currentSessionObj = sessionRes.data || null;
 
   _ratings = {};
   (evals || []).forEach(e => { if (e.note_joueur) _ratings[e.critere_id] = e.note_joueur; });
@@ -176,6 +177,7 @@ async function showEvaluation(sessionId) {
     <div class="intro-card">
       <div class="intro-card-title">Comment te noter ?</div>
       <div class="intro-card-subtitle">Appuie une fois pour voir la description, une deuxième fois pour valider.</div>
+      ${_currentSessionObj?.inclut_mental === true ? `<div class="intro-card-subtitle" style="font-weight:600">🧠 Cette session inclut aussi ton état d'esprit (mental).</div>` : ''}
       <div class="rating-legend">
         ${[1,2,3,4,5].map(n => `
           <div class="legend-row">
@@ -194,48 +196,40 @@ async function showEvaluation(sessionId) {
 }
 
 function startEvaluation(sessionId) {
-  if (_playerProfile.profil_gb) {
-    renderGbEval(sessionId);
-  } else {
-    renderChampEval(sessionId);
-  }
+  renderEval(sessionId);
 }
 
-/* ── Joueur de champ : tabs ATT / DEF ─────────────────────────────────────── */
-function renderChampEval(sessionId) {
-  const attId = _playerProfile.profil_att;
-  const defId = _playerProfile.profil_def;
+/* ── Onglets de l'évaluation : ATT / DEF (champ) ou Gardien, + Mental si la session l'inclut ── */
+function buildEvalTabs() {
+  return evalTabsFor(_playerProfile, _currentSessionObj);
+}
+
+function renderEval(sessionId) {
+  _evalTabs = buildEvalTabs();
+  // Gardien sans mental : pas de barre d'onglets (comportement historique)
+  const showBar = !_playerProfile.profil_gb || _evalTabs.length > 1;
 
   pgid('mainContent').innerHTML = `
     <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
+    ${showBar ? `
     <div class="profil-tabs">
-      <button class="profil-tab att active" id="tabAtt" onclick="switchProfilTab('att')">
-        <span>⚡ Attaque</span>
-        <span class="tab-progress att" id="progressAtt">${progressLabel(attId)}</span>
-      </button>
-      <button class="profil-tab def" id="tabDef" onclick="switchProfilTab('def')">
-        <span>🛡 Défense</span>
-        <span class="tab-progress def" id="progressDef">${progressLabel(defId)}</span>
-      </button>
-    </div>
+      ${_evalTabs.map((t, i) => `
+      <button class="profil-tab ${t.cls} ${i === 0 ? 'active' : ''}" id="tab-${t.key}" onclick="switchProfilTab('${t.key}')">
+        <span>${t.label}</span>
+        <span class="tab-progress ${t.cls}" id="progress-${t.key}">${progressLabel(t.profilId)}</span>
+      </button>`).join('')}
+    </div>` : ''}
     <div id="evalContent"></div>`;
 
-  renderAxesTabs(attId, sessionId);
+  renderAxesTabs(_evalTabs[0].profilId, sessionId);
 }
 
-function switchProfilTab(type) {
+function switchProfilTab(key) {
+  const tab = _evalTabs.find(t => t.key === key);
+  if (!tab) return;
   document.querySelectorAll('.profil-tab').forEach(b => b.classList.remove('active'));
-  pgid('tab' + (type === 'att' ? 'Att' : 'Def')).classList.add('active');
-  const profilId = type === 'att' ? _playerProfile.profil_att : _playerProfile.profil_def;
-  renderAxesTabs(profilId, _currentSession);
-}
-
-/* ── Gardien : pas de tabs profil ────────────────────────────────────────── */
-function renderGbEval(sessionId) {
-  pgid('mainContent').innerHTML = `
-    <div class="back-nav-inline" onclick="showSessionsList()">← Sessions</div>
-    <div id="evalContent"></div>`;
-  renderAxesTabs('gb', sessionId);
+  pgid('tab-' + key)?.classList.add('active');
+  renderAxesTabs(tab.profilId, _currentSession);
 }
 
 /* ── Axes tabs ────────────────────────────────────────────────────────────── */
@@ -412,10 +406,10 @@ function progressLabel(profilId) {
 }
 
 function updateProgressBadges() {
-  var pAtt = pgid('progressAtt');
-  var pDef = pgid('progressDef');
-  if (pAtt && _playerProfile?.profil_att) pAtt.textContent = progressLabel(_playerProfile.profil_att);
-  if (pDef && _playerProfile?.profil_def) pDef.textContent = progressLabel(_playerProfile.profil_def);
+  _evalTabs.forEach(t => {
+    const el = pgid('progress-' + t.key);
+    if (el && t.profilId) el.textContent = progressLabel(t.profilId);
+  });
 }
 
 function terminerProfil() {
@@ -459,10 +453,13 @@ function terminerProfil() {
 }
 
 function _doTerminerProfil() {
-  if (_playerProfile && _playerProfile.profil_att === _swipeProfilId && _playerProfile.profil_def) {
-    showToast('Attaque terminée ! Passe à la Défense.');
+  const idx  = _evalTabs.findIndex(t => t.profilId === _swipeProfilId);
+  const cur  = _evalTabs[idx];
+  const next = idx >= 0 ? _evalTabs[idx + 1] : null;
+  if (cur && next && next.profilId) {
+    showToast(cur.short + (cur.fem ? ' terminée' : ' terminé') + ' ! Passe à ' + next.to + '.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => switchProfilTab('def'), 600);
+    setTimeout(() => switchProfilTab(next.key), 600);
     return;
   }
   showToast('Évaluation envoyée !');
@@ -470,7 +467,7 @@ function _doTerminerProfil() {
 }
 
 /* ── STORY 09 — Radar joueur ──────────────────────────────────────────────── */
-let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null;
+let _pEvalMap = {}, _pChartAtt = null, _pChartDef = null, _pChartMental = null;
 let _pBilanAtt = null, _pBilanDef = null, _pBarAtt = null, _pBarDef = null;
 let _pAllSessions = [], _pViewMode = 'joueur', _pAttId = null, _pDefId = null, _pIsGb = false;
 let _pSelectedSessions = new Set(), _pShowBar = true;
@@ -850,6 +847,8 @@ function pSetViewMode(mode) {
 async function showPlayerRadar(sessionId) {
   if (_pChartAtt) { _pChartAtt.destroy(); _pChartAtt = null; }
   if (_pChartDef) { _pChartDef.destroy(); _pChartDef = null; }
+  if (_pChartMental) { _pChartMental.destroy(); _pChartMental = null; }
+  mentalComparisonDestroy();
   if (_pBilanAtt) { _pBilanAtt.destroy(); _pBilanAtt = null; }
   if (_pBilanDef) { _pBilanDef.destroy(); _pBilanDef = null; }
   if (_pBarAtt)   { _pBarAtt.destroy();   _pBarAtt   = null; }
@@ -865,8 +864,8 @@ async function showPlayerRadar(sessionId) {
   const resultatsVisible = (spsRes.data || []).some(s => s.session_id === sessionId);
 
   const [sessionRes, sessionsRes, allEvalsRes, crRes] = await Promise.all([
-    window.supabaseClient.from('sessions').select('label').eq('id', sessionId).single(),
-    window.supabaseClient.from('sessions').select('id, label, date_session').in('id', sharedIds).order('created_at', { ascending:true }),
+    window.supabaseClient.from('sessions').select('*').eq('id', sessionId).single(),
+    window.supabaseClient.from('sessions').select('*').in('id', sharedIds).order('created_at', { ascending:true }),
     window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
       .eq('player_id', _playerId).in('session_id', sharedIds),
     window.supabaseClient.from('comptes_rendus').select('*').eq('session_id', sessionId).eq('player_id', _playerId).eq('visible_joueur', true).maybeSingle()
@@ -891,6 +890,14 @@ async function showPlayerRadar(sessionId) {
   _pShowBar = true;
 
   const label = sessionRes.data?.label || sessionId;
+  const hasMental = sessionRes.data?.inclut_mental === true;
+  const mentalStaffDone = hasMental && getAllCriteres('mental').some(c => _pEvalMap[c.id]?.note_staff);
+  // Comparaison mentale : sessions mentales partagées uniquement (règle resultats_visibles conservée)
+  const mentalSessions = hasMental
+    ? (sessionsRes.data || []).filter(s => s.inclut_mental === true).slice(-4)
+        .map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }))
+    : [];
+  mentalComparisonInit(mentalSessions, 'joueur');
   _pPdfSession = label;
   _pCrData = cr;
 
@@ -941,6 +948,14 @@ async function showPlayerRadar(sessionId) {
            <canvas id="pRadarDef" style="width:100%"></canvas>
          </div>` : ''}
        </div>`;
+
+  const mentalRadarHTML = hasMental ? `
+    <div class="radar-col-full" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--gray-100)">
+      <p class="radar-profil-title" style="color:var(--mental)">🧠 Mental</p>
+      <canvas id="pRadarMental" style="width:100%;max-width:340px"></canvas>
+      ${mentalStaffDone ? '' : '<p style="font-size:12px;color:var(--gray-400);margin-top:6px;text-align:center">Staff : en attente de notation</p>'}
+      ${mentalSessions.length === 1 ? mentalNoComparisonHint() : ''}
+    </div>` : '';
 
   // ── Card 2 : bilan multi-sessions (affiché seulement si > 1 session) ─────
   const showBilan = _pAllSessions.length > 1;
@@ -1012,12 +1027,15 @@ async function showPlayerRadar(sessionId) {
           <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#EDE9FE;color:#5B21B6">5 · Référence</span>
         </div>
         ${sessionRadarHTML}
+        ${mentalRadarHTML}
         ${pRecapTableHTML(_pAttId, _pEvalMap, _pIsGb ? '🧤 Gardien' : '⚡ Attaque')}
         ${_pDefId ? pRecapTableHTML(_pDefId, _pEvalMap, '🛡 Défense') : ''}
+        ${hasMental ? pRecapTableHTML('mental', _pEvalMap, '🧠 Mental') : ''}
       </div>
     </div>
     <div id="pAxisDetail" style="display:none"></div>
     ${bilanCard}
+    ${mentalComparisonCardHTML('Moi')}
     ${pBilanEntretienHTML(_pAttId, _pDefId, _pEvalMap, cr)}
     ${cr ? `
     <div class="card" style="margin-top:12px">
@@ -1053,6 +1071,8 @@ async function showPlayerRadar(sessionId) {
 
   if (_pAttId) _pChartAtt = buildSessionRadar('pRadarAtt', _pAttId);
   if (_pDefId) _pChartDef = buildSessionRadar('pRadarDef', _pDefId);
+  if (hasMental) _pChartMental = buildSessionRadar('pRadarMental', 'mental');
+  mentalComparisonRender();
   if (showBilan) { pRenderBilan(); pRenderTrendTable(); if (_pShowBar) pRenderBarChart(); }
 }
 

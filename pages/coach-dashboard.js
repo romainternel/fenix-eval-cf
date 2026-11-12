@@ -11,7 +11,8 @@ const PROFIL_LABELS = {
   'n1-def':     'N°1',
   'n2-def':     'N°2',
   'n3-def':     'N°3',
-  'gb':         'GB'
+  'gb':         'GB',
+  'mental':     'Dimension mentale'
 };
 
 function gid(id) { return document.getElementById(id); }
@@ -65,7 +66,7 @@ function renderSessionCard(s) {
   return `
     <div class="session-card ${isOpen ? 'open' : 'closed'}" onclick="showSessionDetail('${s.id}')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+        <span><span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>${s.inclut_mental === true ? '<span class="badge-mental">🧠 Mental</span>' : ''}</span>
         <span style="font-size:12px;color:var(--gray-400)">${formatDateShort(s.date_session)}</span>
       </div>
       <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-bottom:4px">${escHtml(s.label)}</div>
@@ -89,7 +90,7 @@ async function showSessionDetail(sessionId) {
   gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
       <button class="btn btn-secondary btn-sm" onclick="renderSessions()">← Retour</button>
-      <span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>
+      <span><span class="${isOpen ? 'session-badge-open' : 'session-badge-closed'}">${isOpen ? 'OUVERT' : 'FERMÉ'}</span>${s.inclut_mental === true ? '<span class="badge-mental">🧠 Mental</span>' : ''}</span>
     </div>
     <div class="card">
       <div class="card-body">
@@ -102,6 +103,17 @@ async function showSessionDetail(sessionId) {
           <div class="info-row"><span class="info-label">Date</span><span class="info-value">${formatDate(s.date_session)}</span></div>
           <div class="info-row"><span class="info-label">Saison</span><span class="info-value">${s.saison}</span></div>
           ${!isOpen && s.closed_at ? `<div class="info-row"><span class="info-label">Fermée le</span><span class="info-value">${formatDate(s.closed_at)}</span></div>` : ''}
+          <div class="info-row mental-switch-row">
+            <span>
+              <span class="info-label" style="display:block">🧠 Dimension mentale</span>
+              <span style="font-size:12px;color:var(--gray-400)">16 critères en plus pour chaque joueur.</span>
+            </span>
+            <label class="switch" title="${isOpen ? '' : 'Session fermée : rouvrez-la pour modifier'}">
+              <input type="checkbox" id="mentalSwitch" ${s.inclut_mental === true ? 'checked' : ''} ${isOpen ? '' : 'disabled'}
+                     onchange="toggleSessionMental('${s.id}', this)" aria-label="Dimension mentale">
+              <span class="switch-track"></span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -142,13 +154,15 @@ async function showSessionDetail(sessionId) {
 
 async function loadSessionPlayerList(sessionId) {
   const saison = currentSaison();
-  const [playersRes, profilesRes, evalsRes, statutsRes] = await Promise.all([
+  const [playersRes, profilesRes, evalsRes, statutsRes, sessionRes] = await Promise.all([
     window.supabaseClient.from('players').select('*').order('nom'),
     window.supabaseClient.from('player_profiles').select('*').eq('saison', saison).eq('actif', true),
     window.supabaseClient.from('evaluations').select('player_id, critere_id, note_joueur, note_staff').eq('session_id', sessionId),
-    window.supabaseClient.from('session_player_statut').select('player_id, statut, resultats_visibles').eq('session_id', sessionId)
+    window.supabaseClient.from('session_player_statut').select('player_id, statut, resultats_visibles').eq('session_id', sessionId),
+    window.supabaseClient.from('sessions').select('*').eq('id', sessionId).maybeSingle()
   ]);
 
+  const session  = sessionRes.data || null;
   const players  = playersRes.data  || [];
   const profiles = profilesRes.data || [];
   const evals    = evalsRes.data    || [];
@@ -176,14 +190,20 @@ async function loadSessionPlayerList(sessionId) {
       const ns = getAllCriteres(profilId).map(c => pev[c.id]?.note_staff || 0).filter(n => n > 0);
       return ns.length ? +(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(1) : null;
     }
+    const mentalChip = (() => {
+      if (session?.inclut_mental !== true) return '';
+      const m = avg('mental');
+      return m !== null ? `<span class="score-chip mental" title="Moyenne staff — Mental (${m}/5)">🧠 ${m}</span>` : '';
+    })();
     if (prof.profil_gb) {
       const s = avg(prof.profil_gb);
-      return s !== null ? `<span class="score-chip gb" title="Moyenne staff — Gardien (${s}/5)">🧤 ${s}</span>` : '';
+      return (s !== null ? `<span class="score-chip gb" title="Moyenne staff — Gardien (${s}/5)">🧤 ${s}</span>` : '') + mentalChip;
     }
     const att = avg(prof.profil_att), def = avg(prof.profil_def);
     return [
       att !== null ? `<span class="score-chip att" title="Moyenne staff — Attaque (${att}/5)">⚡ ${att}</span>` : '',
       def !== null ? `<span class="score-chip def" title="Moyenne staff — Défense (${def}/5)">🛡 ${def}</span>` : '',
+      mentalChip
     ].join('');
   }
 
@@ -202,9 +222,8 @@ async function loadSessionPlayerList(sessionId) {
     const prof  = profileMap[playerId];
     const count = countMap[playerId] || { joueur: 0, staff: 0 };
     if (!prof) return { key: 'no-profile', label: 'Aucun profil', total: 0, count };
-    const total = prof.profil_gb
-      ? getAllCriteres('gb').length
-      : (getAllCriteres(prof.profil_att || '').length + getAllCriteres(prof.profil_def || '').length);
+    // Total attendu pour CETTE session : technique + 16 si la session inclut le mental
+    const total = sessionTotalCriteres(prof, session);
     if (count.joueur === 0)      return { key: 'non_commence', label: 'Non commencé', total, count };
     if (count.joueur < total)    return { key: 'en_cours',     label: 'En cours',      total, count };
     if (count.staff  < total)    return { key: 'joueur_ok',    label: 'Joueur terminé',total, count };
@@ -287,11 +306,11 @@ async function coachReopenPlayerSession(sessionId, playerId) {
 }
 
 /* ─── STORY 09 — Radar chart + détail par axe ────────────────────────────── */
-let _coachEvalMap = {}, _chartAtt = null, _chartDef = null;
+let _coachEvalMap = {}, _chartAtt = null, _chartDef = null, _chartMental = null;
 let _cBilanAtt = null, _cBilanDef = null, _cBarAtt = null, _cBarDef = null;
 let _cAllSessions = [], _cViewMode = 'staff', _cAttId = null, _cDefId = null;
 let _cSelectedSessions = new Set(), _cShowBar = true;
-let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false, _cPdfCr = null;
+let _cPdfNom = '', _cPdfSession = '', _cPdfIsGb = false, _cPdfCr = null, _cPdfHasMental = false, _cPdfMentalStaffDone = false;
 const _CC_LABELS = { 1:'Fragile', 2:'En travail', 3:'Acquis', 4:'Maîtrisé', 5:'Référence' };
 const _C_SESSION_COLORS = [
   { bg:'rgba(139,92,246,0.12)', border:'rgba(139,92,246,0.7)' },
@@ -721,9 +740,10 @@ async function exportCoachPPT() {
 
     const attImg = await renderProfilRadar(_cAttId);
     const defImg = (!_cPdfIsGb && _cDefId) ? await renderProfilRadar(_cDefId) : null;
+    const mentalImg = _cPdfHasMental ? await renderProfilRadar('mental') : null;
 
     // ── Helper : tableau + radar (split) ou tableau full-page ────────────
-    async function addAxisSlides(profilId, slidePrefix, radarImg = null) {
+    async function addAxisSlides(profilId, slidePrefix, radarImg = null, note = null) {
       const profil = CRITERIA[profilId];
       if (!profil) return;
       const axeEntries = Object.entries(profil.axes);
@@ -837,6 +857,8 @@ async function exportCoachPPT() {
         if (b64) slide.addImage({ data:b64, x:0.1, y:CONTENT_Y+TITLE_H_IN, w:TABLE_W_IN, h:TABLE_H_IN });
         slide.addImage({ data:radarImg, x:RADAR_X, y:CONTENT_Y, w:RADAR_W, h:BOX_H,
           sizing:{ type:'contain', w:RADAR_W, h:BOX_H } });
+        if (note) slide.addText(note, { x:RADAR_X, y:CONTENT_Y + BOX_H - 0.3, w:RADAR_W, h:0.25,
+          fontSize:10, italic:true, color:'94A3B8', fontFace:'Calibri', align:'center', valign:'middle' });
       } else {
         addHeader(slide, slidePrefix, subHdr);
         if (b64) {
@@ -853,6 +875,11 @@ async function exportCoachPPT() {
 
     // ── SLIDE 2 : Détail Défense (tableau + radar) ───────────────────────
     if (!_cPdfIsGb && _cDefId) await addAxisSlides(_cDefId, '🛡 DÉFENSE', defImg);
+
+    // ── SLIDE 2b : Dimension mentale (uniquement si la session l'inclut) ────
+    if (_cPdfHasMental && mentalImg) {
+      await addAxisSlides('mental', '🧠 MENTAL', mentalImg, _cPdfMentalStaffDone ? null : 'Staff : en attente de notation');
+    }
 
     // ── SLIDE 3 : Radars par axe — Attaque + Défense (ou Attaque seule si GB) ──
     if (_cAttId && CRITERIA[_cAttId]) {
@@ -1224,6 +1251,8 @@ function showAxisDetail(profilId, axeId) {
 async function showCoachRadar(sessionId, playerId) {
   if (_chartAtt)  { _chartAtt.destroy();  _chartAtt  = null; }
   if (_chartDef)  { _chartDef.destroy();  _chartDef  = null; }
+  if (_chartMental) { _chartMental.destroy(); _chartMental = null; }
+  mentalComparisonDestroy();
   if (_cBilanAtt) { _cBilanAtt.destroy(); _cBilanAtt = null; }
   if (_cBilanDef) { _cBilanDef.destroy(); _cBilanDef = null; }
   if (_cBarAtt)   { _cBarAtt.destroy();   _cBarAtt   = null; }
@@ -1249,7 +1278,7 @@ async function showCoachRadar(sessionId, playerId) {
   const allSessionIds = [...new Set([...(distinctEvalsRes.data || []).map(e => e.session_id), sessionId])];
 
   const [sessionsRes, allEvalsRes] = await Promise.all([
-    window.supabaseClient.from('sessions').select('id, label, date_session').in('id', allSessionIds).order('created_at', { ascending:true }),
+    window.supabaseClient.from('sessions').select('*').in('id', allSessionIds).order('created_at', { ascending:true }),
     window.supabaseClient.from('evaluations').select('session_id, critere_id, note_joueur, note_staff')
       .eq('player_id', playerId).in('session_id', allSessionIds)
   ]);
@@ -1279,7 +1308,16 @@ async function showCoachRadar(sessionId, playerId) {
   const attLbl = PROFIL_LABELS[_cAttId] || _cAttId || '—';
   const defLbl = PROFIL_LABELS[_cDefId] || _cDefId || '—';
   const curSes = (sessionsRes.data || []).find(s => s.id === sessionId);
+  const hasMental = curSes?.inclut_mental === true;
+  const mentalStaffDone = hasMental && getAllCriteres('mental').some(c => _coachEvalMap[c.id]?.note_staff);
+  // Comparaison mentale : liste dédiée aux sessions mentales (pas limitée aux 4 dernières sessions tous types)
+  const mentalSessions = hasMental
+    ? (sessionsRes.data || []).filter(s => s.inclut_mental === true).slice(-4)
+        .map((s, i) => ({ id:s.id, label:s.label, date:s.date_session, idx:i, evalMap:evalsBySession[s.id] || {} }))
+    : [];
+  mentalComparisonInit(mentalSessions, 'staff');
   _cPdfNom = nom; _cPdfSession = curSes?.label || ''; _cPdfIsGb = isGb; _cPdfCr = cr;
+  _cPdfHasMental = hasMental; _cPdfMentalStaffDone = mentalStaffDone;
 
   // ── Card 1 : session actuelle Joueur vs Staff ────────────────────────────
   function buildSessionRadar(canvasId, profilId) {
@@ -1328,6 +1366,14 @@ async function showCoachRadar(sessionId, playerId) {
            <canvas id="radarDef" style="width:100%"></canvas>
          </div>` : ''}
        </div>`;
+
+  const mentalRadarHTML = hasMental ? `
+    <div class="radar-col-full" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--gray-100)">
+      <p class="radar-profil-title" style="color:var(--mental)">🧠 Mental</p>
+      <canvas id="radarMental" style="width:100%;max-width:340px"></canvas>
+      ${mentalStaffDone ? '' : '<p style="font-size:12px;color:var(--gray-400);margin-top:6px;text-align:center">Staff : en attente de notation</p>'}
+      ${mentalSessions.length === 1 ? mentalNoComparisonHint() : ''}
+    </div>` : '';
 
   // ── Card 2 : bilan multi-sessions (si > 1 session évaluée) ──────────────
   const showBilan = _cAllSessions.length > 1;
@@ -1407,13 +1453,16 @@ async function showCoachRadar(sessionId, playerId) {
           <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#EDE9FE;color:#5B21B6">5 · Référence</span>
         </div>
         ${sessionRadarHTML}
+        ${mentalRadarHTML}
         ${_cAttId ? `<div id="pptCaptureAtt">${cRecapTableHTML(_cAttId, _coachEvalMap, isGb ? '🧤 Gardien' : '⚡ Attaque')}</div>` : ''}
         ${_cDefId ? `<div id="pptCaptureDef">${cRecapTableHTML(_cDefId, _coachEvalMap, '🛡 Défense')}</div>` : ''}
+        ${hasMental ? `<div id="pptCaptureMental">${cRecapTableHTML('mental', _coachEvalMap, '🧠 Mental')}</div>` : ''}
         ${shared ? '<p style="text-align:center;font-size:12px;color:var(--att);margin-top:8px">✓ Résultats partagés avec le joueur</p>' : ''}
       </div>
     </div>
     <div id="axisDetail" style="display:none"></div>
     ${bilanCard}
+    ${mentalComparisonCardHTML('Joueur')}
     <div class="card" style="margin-top:12px" id="pptCaptureCR">
       <div class="card-body">
         <p class="section-title" style="margin-bottom:12px">Compte-rendu d'entretien ${cr?.updated_at ? `<span style="font-weight:400;font-size:11px;color:var(--gray-400);text-transform:none;letter-spacing:0">(${new Date(cr.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})})</span>` : ''}</p>
@@ -1450,6 +1499,8 @@ async function showCoachRadar(sessionId, playerId) {
 
   if (_cAttId) _chartAtt = buildSessionRadar('radarAtt', _cAttId);
   if (_cDefId) _chartDef = buildSessionRadar('radarDef', _cDefId);
+  if (hasMental) _chartMental = buildSessionRadar('radarMental', 'mental');
+  mentalComparisonRender();
   if (showBilan) { cRenderBilan(); cRenderTrendTable(); if (_cShowBar) cRenderBarChart(); }
 }
 
@@ -1467,6 +1518,7 @@ async function coachUnshareResults(sessionId, playerId) {
 
 /* ─── STORY 07 — Interface notation coach ─────────────────────────────────── */
 let _cSession = null, _cPlayerId = null, _cProfile = null;
+let _cSessionObj = null, _cEvalTabs = [];
 let _cRatings = {}, _jRatings = {}, _cSaving = {};
 let _cAxeIds = [], _cAxeIdx = 0, _cProfilId = null;
 
@@ -1484,16 +1536,18 @@ async function showCoachEval(sessionId, playerId) {
   gid('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div></div>`;
 
   const saison = currentSaison();
-  const [playerRes, profileRes, evalsRes] = await Promise.all([
+  const [playerRes, profileRes, evalsRes, sessionRes] = await Promise.all([
     window.supabaseClient.from('players').select('*').eq('id', playerId).single(),
     window.supabaseClient.from('player_profiles').select('*')
       .eq('player_id', playerId).eq('saison', saison).eq('actif', true).maybeSingle(),
     window.supabaseClient.from('evaluations').select('critere_id, note_joueur, note_staff')
-      .eq('session_id', sessionId).eq('player_id', playerId)
+      .eq('session_id', sessionId).eq('player_id', playerId),
+    window.supabaseClient.from('sessions').select('*').eq('id', sessionId).maybeSingle()
   ]);
 
   const player  = playerRes.data;
   _cProfile = profileRes.data;
+  _cSessionObj = sessionRes.data || null;
   (evalsRes.data || []).forEach(e => {
     if (e.note_joueur) _jRatings[e.critere_id] = e.note_joueur;
     if (e.note_staff)  _cRatings[e.critere_id] = e.note_staff;
@@ -1511,29 +1565,33 @@ async function showCoachEval(sessionId, playerId) {
     return;
   }
 
+  _cEvalTabs = evalTabsFor(_cProfile, _cSessionObj);
+  // Gardien sans mental : pas de barre d'onglets (comportement historique)
+  const showBar = !_cProfile.profil_gb || _cEvalTabs.length > 1;
+
   gid('mainContent').innerHTML = `
     <div class="section-header" style="margin-bottom:16px">
       <button class="btn btn-secondary btn-sm" onclick="showSessionDetail('${sessionId}')">← Retour</button>
       <span style="font-weight:700">${nom}</span>
     </div>
-    ${_cProfile.profil_gb ? '' : `
+    ${showBar ? `
     <div class="profil-tabs" id="coachProfilTabs">
-      <button class="profil-tab att active" id="cTabAtt" onclick="coachSwitchProfil('att')">
-        <span>⚡ Attaque</span>
-      </button>
-      <button class="profil-tab def" id="cTabDef" onclick="coachSwitchProfil('def')">
-        <span>🛡 Défense</span>
-      </button>
-    </div>`}
+      ${_cEvalTabs.map((t, i) => `
+      <button class="profil-tab ${t.cls} ${i === 0 ? 'active' : ''}" id="cTab-${t.key}" onclick="coachSwitchProfil('${t.key}')">
+        <span>${t.label}</span>
+      </button>`).join('')}
+    </div>` : ''}
     <div id="coachEvalContent"></div>`;
 
-  coachRenderAxes(_cProfile.profil_gb ? 'gb' : _cProfile.profil_att, sessionId);
+  coachRenderAxes(_cEvalTabs[0].profilId, sessionId);
 }
 
-function coachSwitchProfil(type) {
+function coachSwitchProfil(key) {
+  const tab = _cEvalTabs.find(t => t.key === key);
+  if (!tab) return;
   document.querySelectorAll('.profil-tab').forEach(b => b.classList.remove('active'));
-  gid('cTab' + (type === 'att' ? 'Att' : 'Def')).classList.add('active');
-  coachRenderAxes(type === 'att' ? _cProfile.profil_att : _cProfile.profil_def, _cSession);
+  gid('cTab-' + key)?.classList.add('active');
+  coachRenderAxes(tab.profilId, _cSession);
 }
 
 function coachRenderAxes(profilId, sessionId) {
@@ -1670,14 +1728,42 @@ async function saveCoachRating(sessionId, profilId, critereId, note, btnEl) {
 }
 
 function coachTerminer() {
-  if (_cProfile && _cProfile.profil_att === _cProfilId && _cProfile.profil_def) {
-    showToast('Attaque notée ! Passe à la Défense.');
+  const idx  = _cEvalTabs.findIndex(t => t.profilId === _cProfilId);
+  const cur  = _cEvalTabs[idx];
+  const next = idx >= 0 ? _cEvalTabs[idx + 1] : null;
+  if (cur && next && next.profilId) {
+    showToast(cur.short + (cur.fem ? ' notée' : ' noté') + ' ! Passe à ' + next.to + '.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => coachSwitchProfil('def'), 600);
+    setTimeout(() => coachSwitchProfil(next.key), 600);
     return;
   }
   showToast('Notation enregistrée !');
   setTimeout(() => showSessionDetail(_cSession), 1200);
+}
+
+async function toggleSessionMental(sessionId, inputEl) {
+  const wanted = inputEl.checked;
+  inputEl.disabled = true;
+  const revert = () => { inputEl.checked = !wanted; inputEl.disabled = false; };
+  try {
+    if (wanted) {
+      if (!confirm('Activer la dimension mentale sur cette session ?\n\nChaque joueur aura 16 critères de plus à noter : ceux qui avaient terminé repasseront « En cours ».')) { revert(); return; }
+    } else {
+      const { count, error: cErr } = await window.supabaseClient.from('evaluations')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', sessionId).like('critere_id', 'mental-%');
+      if (cErr) throw cErr;
+      if (count > 0) { showToast('Des notes mentales existent déjà, impossible de désactiver.'); revert(); return; }
+    }
+    const { error } = await window.supabaseClient.from('sessions')
+      .update({ inclut_mental: wanted }).eq('id', sessionId);
+    if (error) throw error;
+    showToast(wanted ? 'Dimension mentale activée' : 'Dimension mentale désactivée');
+    await showSessionDetail(sessionId);
+  } catch (err) {
+    revert();
+    showToast('Erreur : ' + err.message);
+  }
 }
 
 async function confirmCloseSession(sessionId) {
@@ -1783,6 +1869,13 @@ function showCreateSessionModal() {
           <label class="form-label">Saison</label>
           <input class="form-input" value="${saison}" disabled style="color:var(--gray-400)">
         </div>
+        <label class="mental-option">
+          <input type="checkbox" name="inclut_mental" value="1">
+          <span>
+            <span class="mo-title" style="display:block">🧠 Inclure la dimension mentale</span>
+            <span class="mo-hint" style="display:block">16 critères en plus. À faire une fois par an.</span>
+          </span>
+        </label>
         <p class="form-hint">Un identifiant unique sera généré automatiquement (ex : EVAL-2026-JAN-01)</p>
         <p class="form-error" id="createSessionError" style="display:none"></p>
         <div class="modal-actions">
@@ -1818,14 +1911,17 @@ async function submitCreateSession(e) {
     const num = String((existing || []).length + 1).padStart(2, '0');
     const sessionId = `${baseId}-${num}`;
 
-    const { error } = await window.supabaseClient.from('sessions').insert({
+    const row = {
       id:           sessionId,
       label:        fd.get('label').trim(),
       saison,
       date_session: date,
       statut:       'ouvert',
       created_by:   _coachUser.id
-    });
+    };
+    // La colonne n'est envoyée que si cochée : créer une session classique ne dépend pas de la migration SQL
+    if (fd.get('inclut_mental')) row.inclut_mental = true;
+    const { error } = await window.supabaseClient.from('sessions').insert(row);
     if (error) throw error;
 
     closeModal('createSessionModal');
