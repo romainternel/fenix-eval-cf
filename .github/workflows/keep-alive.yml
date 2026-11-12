@@ -5,10 +5,20 @@ on:
     - cron: '0 8 */5 * *'   # Toutes les 5 jours à 8h UTC (avant la pause à 7j)
   workflow_dispatch:          # Déclenchement manuel possible depuis GitHub Actions
 
+permissions:
+  actions: write
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      # GitHub désactive les workflows planifiés après 60 jours sans commit (repo public).
+      # Se réactiver à chaque run remet le compteur à zéro.
+      - name: Garder ce workflow actif
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keep-alive.yml/enable"
+
       - name: Ping Supabase DB
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
