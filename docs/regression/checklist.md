@@ -1,6 +1,6 @@
 # Checklist de régression — FENIX Eval CF
 
-> Agent : Regression Guardian | Dernière mise à jour : 2026-07-21 (STORY-21 — coach-dashboard.js v83)
+> Agent : Regression Guardian | Dernière mise à jour : 2026-11-12 (audit complet — voir `audit-complet-2026-11-12.md`)
 
 ---
 
@@ -29,13 +29,25 @@
 | R19 | Suppression propre des exports obsolètes (STORY-17) | `pages/coach-dashboard.js`, `coach.html` | `exportCoachPDF` absente du code ; `exportProgressionPPT` absente du code ; bouton "📈 PPT Prog." absent du code ; CDN jsPDF absent de `coach.html` | Important | v62 — 2026-07-01 |
 | R20 | Routing rôle referent_sociopro (STORY-18) | `js/app.js`, `index.html`, `fenix-sociopro.html`, `pages/sociopro-dashboard.js` | Login referent_sociopro → redirigé vers fenix-sociopro.html ; coach → redirigé vers coach.html ; joueur accédant à fenix-sociopro.html → redirigé vers player.html | Critique | app.js v45 — 2026-07-21 |
 | R21 | Gestion des référents socio-pro (STORY-21) | `pages/coach-dashboard.js`, Edge Function `manage-coach-account` | Onglet Coachs : deux sections visibles ; création référent → compte créé avec role='referent_sociopro' ; suppression → compte supprimé ; `deleteCoach` (coach_user_id) toujours fonctionnel | Important | v83 — 2026-07-21 |
-| R22 | Export PDF socio-pro (STORY-22) | `pages/sociopro-dashboard.js` | PDF téléchargé : aucun caractère corrompu (Ø/ß/à/Ü/¬) ; tous champs non vides présents ; bullet `•` intact | Important | v4 — 2026-07-21 |
+| R22 | Export PDF socio-pro (STORY-22) | `pages/sociopro-dashboard.js` | PDF téléchargé : aucun caractère corrompu (Ø/ß/à/Ü/¬) ; tous champs non vides présents ; bullet `•` intact | Important | v12 — 2026-11-12 (emoji ligne Etat corrigé) |
 | R23 | Vue détail + suppression entretien (STORY-23) | `pages/sociopro-dashboard.js`, `fenix-sociopro.html` | Historique : clic item → détail expand/collapse ; tous champs non vides affichés ; bouton Supprimer → confirm → suppression DB → rechargement | Important | v5 — 2026-07-21 |
 | R24 | Mode Réunion UX (STORY-24) | `pages/sociopro-dashboard.js`, `fenix-sociopro.html` | Ouverture Mode Réunion → bandeau affiché avec compteurs (seuls > 0 visibles) ; navigation → bandeau persistant ; section Actions → "Actions de la réunion" + "Réunion du JJ mois AAAA" | Important | v6 — 2026-07-21 |
 
+| R25 | Dimension mentale optionnelle (STORY-25→31) | `js/criteria-data.js`, `pages/coach-dashboard.js`, `pages/player-home.js` | Case « mental » à la création de session ; session mentale : totaux 56 (champ) / 39 (GB), onglet Mental, radar + comparaison ; session sans mental : aucun élément mental, totaux 40 / 23 | Critique | 2026-11-12 — vérifié en dev (faux backend), à confirmer en prod après migration SQL |
+| R26 | Interrupteur mental dans le détail de session | `pages/coach-dashboard.js` | Activation avec confirmation ; désactivation refusée si des notes `mental-%` existent ; désactivé sur session fermée | Important | 2026-11-12 — vérifié en dev |
+| R27 | Export PPT avec mental | `pages/coach-dashboard.js` | Session avec mental → 4 slides (slide « 🧠 MENTAL ») ; sans → 3 slides | Important | 2026-11-12 — vérifié en dev (3 slides sans mental revérifié à l'audit) |
+
 ---
 
+## Dernier audit complet : 2026-11-12 (faux backend Supabase)
+
+- ✅ R02, R04, R05, R06, R11, R12, R13, R14, R16, R17, R18, R19, R20, R23, R24 (R21 côté UI)
+- ❌→✅ R22 : emoji dans la ligne « Etat » du PDF socio-pro — corrigé le jour même (sociopro-dashboard.js v12)
+- ⚠️ non vérifiables sans backend réel : R01 (auth), R03, R08, R10 (Edge Functions), R09 (RLS), R07 (jeton)
+
 ## Notes
+
+- R25–R27 ajoutés le 2026-11-12 (dimension mentale, commit 87d8e31).
 
 - R01-R09 validés à v=47.
 - R10 ajouté STORY-10 (Edge Function manage-coach-account) — vérification post-déploiement.

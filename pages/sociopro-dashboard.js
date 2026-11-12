@@ -1179,7 +1179,7 @@ function spEntretienPdfBody(line, e) {
   const actions = Array.isArray(e.actions_suivant) ? e.actions_suivant : JSON.parse(e.actions_suivant||'[]');
   const examens = Array.isArray(e.examens)          ? e.examens          : JSON.parse(e.examens||'[]');
   line(`Entretien du ${spDateFR(e.date)} — ${e.mene_par||'—'}`, 0, 11, true);
-  if (ci) line(`Etat : ${ci.label} — ${e.couleur_justification||''}`, 2, 9);
+  if (ci) line(`Etat : ${ci.label.replace(/^\S+\s/, '')} — ${e.couleur_justification||''}`, 2, 9);
   if (e.mot_du_joueur)    line(`Mot du joueur : ${e.mot_du_joueur}`, 2, 9);
   if (e.ce_qui_va)        line(`(+) Ce qui va : ${e.ce_qui_va}`, 2, 9);
   if (e.ce_qui_ne_va_pas) line(`(!) Ce qui ne va pas : ${e.ce_qui_ne_va_pas}`, 2, 9);
